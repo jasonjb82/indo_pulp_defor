@@ -35,6 +35,9 @@ library(sf)
 library(scales)
 library(aws.s3)
 library(showtext)
+library(khroma) # palettes for color blindness
+library(d3.format)
+
 
 ## credentials ----------------------------------------------
 
@@ -65,7 +68,7 @@ lu_2019_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\lu_classes_2019_by_
 lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE_DATES.csv"),
                                  col_types = cols(license_date = col_date("%m/%d/%Y")))
 
-# forest in 2000
+# forest in 2000 (hansen + margono masked)
 fc_2000_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\fc_hti.csv')) 
 
 # clean data ------------------------------------------
@@ -76,11 +79,13 @@ lic_dates_clean_hti <- lic_dates_hti %>%
   select(supplier_id=HTI_ID,license_year) %>%
   drop_na(supplier_id) 
 
-# appearing in rpbbi
+# first year appearing in rpbbi
 hti_in_rpbbi <- ws_hti %>%
   select(supplier_id=SUPPLIER_ID,year=YEAR) %>%
   distinct() %>%
-  mutate(appear_rpbbi = 1)
+  group_by(supplier_id) %>%
+  filter(year == min(year)) %>%
+  rename(first_year_rpbbi=year)
 
 # landuse in 2019
 lu_2019_clean_hti <- lu_2019_hti %>%
@@ -115,7 +120,7 @@ rem_fc_hti <- fc_2000_hti %>%
 
 # merge into long ---------------------------------
 
-hti_long <- results %>%
+hti_defor_long <- results %>%
   select(supplier_id,supplier_grp=`SUPPLIER GROUP`,supplier=SUPPLIER) %>%
   distinct() %>%
   left_join(lic_dates_clean_hti,by="supplier_id") %>%
@@ -123,9 +128,10 @@ hti_long <- results %>%
   left_join(lu_2019_clean_hti,by="supplier_id") %>%
   left_join(ann_defor_hti,by="supplier_id") %>%
   left_join(rem_fc_hti,by=c("supplier_id","year")) %>%
-  left_join(hti_in_rpbbi,by=c("supplier_id","year")) %>%
-  mutate(appear_rpbbi = ifelse(is.na(appear_rpbbi),0,1)) %>%
+  left_join(hti_in_rpbbi,by=c("supplier_id")) %>%
   relocate(year,.after="supplier")
 
-  
-  
+
+# export to csv -----------------------------------
+write_excel_csv(hti_long,paste0(wdir,"\\01_data\\02_out\\hti_defor_long.csv"))
+
