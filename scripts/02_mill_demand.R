@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------
 ##
-## Purpose of script: Calculate Area of planted pulp needed to satisfy a mill's demand
+## Purpose of script: Calculate area of planted pulp needed to satisfy a mill's demand
 ##
 ## Author: Jason Benedict
 ##
@@ -9,11 +9,10 @@
 ## ---------------------------------------------------------
 ##
 ## Notes: Input data
-##   - Eventual landuse of concession areas (exported from GEE)
-##   - First year started supplying pulpwood (wood supply data from RPBBI)  
-##   - Year first licensed (available from Brian - compiled from KLHK report)
-##   - Forest remaining at start of appearing in RPBBI (GEE)
-##   - Annual deforestation (exported from GEE)
+##   - Total pulpwood planted area in active concessions (David Gaveau's dataset)  
+##   - Mill pulp production (WWI)
+##   - Flow of pulpwood from concession to mill (RPBBI)
+##   
 ##
 ##
 ##
@@ -50,6 +49,12 @@ wdir <- "remote"
 # pulp planted area
 pulp_area_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\pulp_by_year_hti.csv'))
 
+# pulp mill production
+pulp_mill_prod <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\PULP_MILL_PRODUCTION.xlsx'))
+
+# wood supply
+pulpwood_supply <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2019.csv", bucket),delim=",") 
+
 
 ## clean data ------------------------------------------------
 
@@ -59,4 +64,18 @@ pulp_area_clean_hti <- pulp_area_hti %>%
   pivot_longer(cols = starts_with("id_"),
                names_to = 'year',
                names_prefix = 'id_',
-               values_to = 'pulp_area_ha') 
+               values_to = 'pulp_area_ha') %>%
+  mutate(year = as.double(year))
+
+# mill production by year
+mill_prod <- pulp_mill_prod %>%
+  group_by(year=YEAR,mill_id=MILL_ID,mill_name=MILL_NAME) %>%
+  summarize(pulp_tons = sum(TOTAL_PROD_KG_NET/1000))
+
+# flow of wood supply to mill
+ws_flow <- pulpwood_supply %>%
+  select(year=YEAR,supplier_id=SUPPLIER_ID,mill_id=EXPORTER_ID,volume_m3=VOLUME_M3) %>%
+  group_by(year,supplier_id,mill_id) %>%
+  summarize(volume_m3 = sum(volume_m3))
+
+
