@@ -33,7 +33,7 @@ library(khroma) # palettes for color blindness
 library(d3.format)
 
 
-## credentials ----------------------------------------------
+## credentials ------------------------------------------------
 
 aws.signature::use_credentials()
 bucket <- "trase-storage"
@@ -53,10 +53,13 @@ results <- read_delim(get_object(object="SUBNATIONAL/INDONESIA/WOOD_PULP/V3.0.1/
 ws_hti <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2019.csv", bucket), delim = ",")
 
 # annual deforestation
-annual_defor_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\annual_defor_hti.csv'))
+annual_defor_hti <- read_csv(paste0(wdir,'\\01_data\\01_in\\gee\\annual_defor_hti.csv'))
 
 # landuse in 2019
-lu_2019_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\lu_classes_2019_by_hti.csv'))
+lu_2019_hti <- read_csv(paste0(wdir,'\\01_data\\01_in\\gee\\lu_classes_2019_by_hti.csv'))
+
+# annual woodpulp planted areas in concessions
+wp_annual_hti <- read_csv(paste0(wdir,'\\01_data\\01_in\\gee\\annual_woodpulp_areas_hti.csv'))
 
 # hti license dates
 lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE_DATES.csv"),
@@ -64,16 +67,16 @@ lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE
 
 ## jrc dataset
 # forest cover changes since 1990 (JRC TMF dataset)
-fc_jrc_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\jrc_tmf_year_hti.csv'))
+fc_jrc_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\jrc\\jrc_tmf_year_hti.csv'))
 
 # deforested areas since 1990 (JRC TMF dataset)
-def_jrc_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\jrc_def_year_hti.csv'))
+def_jrc_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\jrc\\jrc_def_year_hti.csv'))
 
 # degraded areas since 1990 (JRC TIMF dataset)
-deg_jrc_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\jrc_deg_tmf_year_hti.csv'))
+deg_jrc_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\jrc\\jrc_deg_tmf_year_hti.csv'))
 
 # regrowth areas since 1990 (JRC TIMF dataset)
-reg_jrc_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\jrc_reg_tmf_year_hti.csv'))
+reg_jrc_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\jrc\\jrc_reg_tmf_year_hti.csv'))
 
 # perm or seasonal water since 1990 (JRC TIMF dataset)
 psw_jrc_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\jrc_perm_sw_tmf_year_hti.csv'))
@@ -82,13 +85,24 @@ psw_jrc_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\jrc_perm_sw_tmf_yea
 oth_jrc_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\jrc_other_tmf_year_hti.csv'))
 
 
-# compare jrc tmf forest cover and hansen masked for all active suppliers in 2019 ------
+## merge and create annual changes map ------------------
 
 # get active concessions in 2019
 active_htis <- ws_hti %>%
   filter(YEAR == 2019 & str_detect(SUPPLIER_ID, "^H-")) %>%
   distinct(SUPPLIER_ID) %>%
   pull(SUPPLIER_ID)
+
+# woodpulp planted areas
+wp_gav_clean_hti <- wp_annual_hti %>%
+  select(supplier_id=ID,starts_with("id")) %>%
+  pivot_longer(cols = starts_with("id"),
+               names_to = 'year',
+               values_to = 'area_ha') %>%
+  mutate(year = str_replace(year,"id_", "")) %>%
+  mutate(year = as.double(year),source="gaveau") %>%
+  mutate(class="Woodpulp planted area")
+
 
 # area of forests in jrc dataset
 fc_jrc_clean_hti <- fc_jrc_hti %>%
@@ -98,7 +112,7 @@ fc_jrc_clean_hti <- fc_jrc_hti %>%
                values_to = 'area_ha') %>%
   mutate(year = str_replace(year,"Dec", "")) %>%
   mutate(year = as.double(year),source="jrc tmf") %>%
-  mutate(class="05 - Tropical Moist Forest (TMF)")
+  mutate(class="04 - Tropical Moist Forest (TMF)")
 
 # deforestation from jrc dataset
 def_jrc_clean_hti <- def_jrc_hti %>%
@@ -157,8 +171,9 @@ jrc_areas_hti <- fc_jrc_clean_hti %>%
   bind_rows(def_jrc_clean_hti) %>%
   bind_rows(deg_jrc_clean_hti) %>%
   bind_rows(reg_jrc_clean_hti) %>%
+  bind_rows(wp_gav_clean_hti) %>%
   #bind_rows(psw_jrc_clean_hti) %>%
-  bind_rows(oth_jrc_clean_hti) %>%
+  #bind_rows(oth_jrc_clean_hti) %>%
   left_join(lic_dates_clean_hti,by="supplier_id") %>%
   left_join(hti_in_rpbbi,by=c("supplier_id")) %>%
   left_join(select(results,supplier_id,supplier_grp=`SUPPLIER GROUP`,supplier=`WOOD SUPPLIER`),by="supplier_id") %>%
@@ -200,22 +215,24 @@ options(crayon.enabled = FALSE)
 #jrc_areas_hti <- jrc_areas_hti %>%
 #  filter(supplier_id %in% hti_selected)
 
-p <- ggplot(jrc_areas_hti,aes(year,area_ha)) +
+p <- ggplot(subset(jrc_areas_hti,class != "Woodpulp planted area"),aes(year,area_ha)) +
      geom_area(aes(fill= class), position = 'stack') +
      scale_x_continuous(expand=c(0,0),breaks=seq(1990,2019,by=1)) +
      scale_y_continuous(labels = d3_format(".2~s",suffix = "ha"),expand = c(0,0.5)) +
-     geom_vline(aes(xintercept=as.numeric(first_year_rpbbi),color="First year RPBBI"),linetype="dashed",size=0.5)+
+     #geom_vline(aes(xintercept=as.numeric(first_year_rpbbi),color="First year RPBBI"),linetype="dashed",size=0.5)+
      geom_vline(aes(xintercept=as.numeric(license_year),color="License year"),size=0.5)+
-     ylab("Area (ha)\n") +
-     xlab("\nYear") +
+     geom_point(data=subset(jrc_areas_hti,class == "Woodpulp planted area"),aes(x=year,y=area_ha,shape=class),color="black",size=1.5)+
+     ylab("") +
+     xlab("") +
      #scale_fill_muted() +
-     scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen","lightsteelblue1", "seagreen4"))+ 
-     scale_color_manual(values = c("First year RPBBI" = "black","License year" = "palevioletred4")) +
-     facet_wrap(~supplier,ncol=5,scales="free_y") +
+     scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen", "seagreen4"))+ 
+     scale_shape_manual(values=17,labels="Woodpulp planted area")+ 
+     scale_color_manual(values = c("License year" = "palevioletred4")) +
+     facet_wrap(~supplier,ncol=5,scales="free") +
      theme_plot
 
 p
 
 # export to csv
-ggsave(p,file=paste0(wdir,"\\01_data\\02_out\\plots\\hti_jrc_class_areas.png"), dpi=400, w=30, h=40,type="cairo-png",limitsize = FALSE)
+ggsave(p,file=paste0(wdir,"\\01_data\\02_out\\plots\\hti_jrc_class_areas.png"), dpi=400, w=30, h=50,type="cairo-png",limitsize = FALSE)
 
