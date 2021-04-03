@@ -78,4 +78,84 @@ ws_flow <- pulpwood_supply %>%
   group_by(year,supplier_id,mill_id) %>%
   summarize(volume_m3 = sum(volume_m3))
 
+## Calculate mill area demand ------------------------------------------------
 
+# Effective yield for concession c in year t
+conc_prod <- ws_flow %>% 
+  group_by(supplier_id, year) %>% 
+  summarise(volume_m3 = sum(volume_m3))
+
+active_hti <- conc_prod %>%
+  group_by(supplier_id) %>% 
+  summarise(volume_m3 = sum(volume_m3)) %>% 
+  filter(volume_m3 > 0) %>% 
+  pull(supplier_id)
+
+conc_area <- pulp_area_clean_hti %>% 
+  mutate(prod_year = year + 4) %>% 
+  select(supplier_id, prod_year, pulp_area_ha) %>% 
+  filter(prod_year >= 2015,
+         prod_year <=2019)
+
+
+conc_yield = conc_area %>% 
+  left_join(conc_prod, by = c("supplier_id", "prod_year" = "year")) %>% 
+  mutate(volume_m3 = replace_na(volume_m3, 0),
+         pulp_area_ha = na_if(pulp_area_ha, 0),
+         active_hti = supplier_id %in% active_hti) %>% 
+  filter(active_hti==TRUE) %>% 
+  rename(year = prod_year) %>% 
+  drop_na()
+
+mean_yield <- conc_yield %>% 
+  group_by(supplier_id) %>% 
+  summarise(mean_yield = sum(volume_m3) / sum(pulp_area_ha))
+
+
+# Apply mean concession yield to flows
+assumed_yield <- conc_yield %>% 
+  select(supplier_id, year) %>% 
+  left_join(mean_yield, by = "supplier_id")
+
+area_flow <- ws_flow %>% 
+  left_join(assumed_yield, by = c("supplier_id", "year")) %>% 
+  mutate(area_demand = volume_m3 * mean_yield)
+
+area_demand <- area_flow %>% 
+  group_by(mill_id, year) %>% 
+  summarise(area_demand_ha = sum(area_demand, na.rm = TRUE))
+
+# Apply area demand to pulp production
+mill_demand_tot <- area_flow %>% 
+  group_by(mill_id, year) %>% 
+  summarise(volume_m3 = sum(volume_m3))
+
+mill_demand_incl <- area_flow %>%
+  drop_na() %>% 
+  group_by(mill_id, year) %>% 
+  summarise(volume_m3_incl = sum(volume_m3))
+
+mill_demand <- mill_demand_tot %>% 
+  left_join(mill_demand_incl, by = c("mill_id", "year")) %>% 
+  mutate(shr_incl = volume_m3_incl / volume_m3)
+  
+mill_demand <- mill_demand %>% 
+  left_join(mill_prod, by = c("mill_id", "year")) %>% 
+  mutate(pulp_tons_incl = pulp_tons * shr_incl) %>%   
+  left_join(area_demand, by = c("mill_id", "year"))
+
+
+annual_mill_area_intensity <- mill_demand %>% 
+  mutate(pulp_area_intensity = (pulp_tons_incl / area_demand_ha))
+
+mill_area_intensity <- mill_demand %>% 
+  group_by(mill_id) %>% 
+  summarise(pulp_area_intensity = sum(pulp_tons_incl) / sum(area_demand_ha))
+
+area_intensity <- sum(mill_demand$pulp_tons_incl) / sum(mill_demand$area_demand_ha)
+
+oki_prod_2019 <- mill_prod %>% 
+  filter(mill_name=="OKI", 
+         year == 2019) %>% 
+  pull(pulp_tons)
+oki_land_demand = area_intensity * oki_prod_2019
