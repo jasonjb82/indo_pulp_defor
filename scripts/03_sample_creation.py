@@ -49,7 +49,7 @@ def CreateFishnetsForFeats(in_polys, out_loc, cell_x=0, cell_y=0):
                                            labels='LABELS')
             where='"ID"' + '=' + '\'' + str(row[2]) + '\''
             hti_selected = arcpy.SelectLayerByAttribute_management(in_polys,"NEW_SELECTION",where)
-            selected_samples = arcpy.SelectLayerByLocation_management(output_dir + 'fish_{0}'.format(row[2]) + "_label.shp",'INTERSECT',hti_selected)
+            selected_samples = arcpy.SelectLayerByLocation_management(output_dir + 'fish_{0}'.format(row[2]) + "_label.shp",'COMPLETELY_WITHIN',hti_selected)
             arcpy.FeatureClassToFeatureClass_conversion(selected_samples, output_dir,'samples_{0}'.format(row[2]) + ".shp")
             arcpy.Delete_management(selected_samples)
 
