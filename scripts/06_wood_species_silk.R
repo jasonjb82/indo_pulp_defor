@@ -223,3 +223,21 @@ silk_species_shipments <- silk_pulp %>%
 yearly_shipments_total <- silk_species_shipments %>%
   group_by(YEAR) %>%
   summarize(TONS = sum(TONS))
+
+
+p2 <-   ggplot(data=silk_species_shipments) +
+  geom_bar(stat="identity",position="stack",aes(x=YEAR,y=TONS,fill=as.factor(SPECIES_SHIPMENT))) +
+  scale_x_continuous(breaks = seq(from = 2012, to = 2019, by =1)) +
+  xlab("") +
+  scale_y_continuous(name="Pulp (Tons)\n",
+                     limits=c(0,6000000),
+                     breaks=seq(0,6000000, by=1000000),
+                     labels= scales::comma,expand = c(0,0)) + 
+  theme_plot +
+  labs(fill = "\n") +
+  scale_fill_bright() +
+  guides(fill = guide_legend(title.position = "top")) + 
+  #facet_wrap(~MILL_NAME,nrow=2) +
+  ggtitle("") 
+
+p2
