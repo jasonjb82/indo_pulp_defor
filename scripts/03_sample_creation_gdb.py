@@ -21,7 +21,6 @@ hti_proj = data_dir + "klhk/IUPHHK_HT_proj.shp"
 # =============================================================================
 # Draw fishnet sample covering indonesia
 # =============================================================================
-
 sample_interval = 100 # x,y distance between samples (m)
 origin_x = arcpy.Describe(idn_proj).extent.XMin
 origin_y = arcpy.Describe(idn_proj).extent.YMin
@@ -50,15 +49,19 @@ sample_clipped = arcpy.Intersect_analysis(in_features = [output_dir + '/fishnet_
 # =============================================================================
 # Intersect to create sample points from fishnet line intersects
 # =============================================================================
-
 intersections= output_dir + "/fishnet_pts"
 arcpy.Intersect_analysis(in_features=output_dir + '/fishnet_clip_hti', out_feature_class=intersections, output_type="POINT")
 
 # =============================================================================
+# Extract sample points that are completely within concessions
+# =============================================================================
+selected_samples = arcpy.SelectLayerByLocation_management(intersections,'COMPLETELY_WITHIN',hti_proj)
+arcpy.FeatureClassToFeatureClass_conversion(selected_samples,output_dir,"fishnet_pts_hti")
+
+# =============================================================================
 # Dissolve to delete overlapping points from intersect 
 # =============================================================================
-
-arcpy.Dissolve_management(intersections,output_dir + '/samples_hti', "", "","SINGLE_PART", "")
+arcpy.Dissolve_management(output_dir + '/fishnet_pts_hti',output_dir + '/samples_hti', "", "","SINGLE_PART", "")
 
 # =============================================================================
 # Add sample ID (sid)
