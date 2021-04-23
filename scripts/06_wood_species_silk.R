@@ -31,6 +31,8 @@ library(scales)
 library(aws.s3)
 library(testthat)
 library(concordance)
+library(rcartocolor)
+library(d3.format)
 library(khroma) # palettes for color blindness
 
 ## credentials ----------------------------------------------
@@ -48,7 +50,7 @@ wdir <- "remote"
 # silk data
 silk_data <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\WOOD_EXPORTS_SILK_MERGED.csv"))
 
-# wood species 
+# wood species lookup table
 wood_species <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\SILK_PULP_WOOD_SPECIES.csv"))
 
 # mills
@@ -93,7 +95,7 @@ silk_pulp_clean <- silk_pulp %>%
   mutate(PROP_BERAT_BERSIH_KG = PROP_BERAT_BERSIH*BERAT_BERSIH_KG, PROP_VALUE_UNIT = PROP_VALUE*VALUE) %>%
   mutate(SCIENTIFIC_NAMES = str_trim(SCIENTIFIC_NAMES,side="both")) %>%
   left_join(wood_species,by="SCIENTIFIC_NAMES") %>%
-  mutate(MAJOR_WOOD_SPECIES = ifelse(SPECIES_GENERIC != "AKASIA" & SPECIES_GENERIC != "EKALIPTUS", "OTHERS", SPECIES_GENERIC))
+  mutate(MAJOR_WOOD_SPECIES = ifelse(SPECIES_GENERIC != "ACACIA" & SPECIES_GENERIC != "EUCALYPTUS", "OTHERS", SPECIES_GENERIC))
 
 # get annual exports by HS codes
 silk_annual_pulp_exports_hs <- silk_pulp_clean %>%
@@ -170,8 +172,8 @@ silk_pulp_species <- silk_pulp_clean %>%
       SPECIES_CLEAN == "ACACIA MANGIUM" ~ "ACACIA MANGIUM",
       SPECIES_CLEAN == "ACACIA CRASSICARPA" ~ "ACACIA CRASSICARPA",
       SPECIES_CLEAN == "EUCALYPTUS PELLITA" ~ "EUCALYPTUS PELLITA",
-      MAJOR_WOOD_SPECIES == "AKASIA" & (SPECIES_CLEAN != "ACACIA MANGIUM" | SPECIES_CLEAN != "ACACIA CRASSICARPA") ~ "ACACIA (OTHERS)",
-      MAJOR_WOOD_SPECIES == "EKALIPTUS" & SPECIES_CLEAN != "EUCALYPTUS PELLITA" ~ "EUCALYPTUS (OTHERS)",
+      MAJOR_WOOD_SPECIES == "ACACIA" & (SPECIES_CLEAN != "ACACIA MANGIUM" | SPECIES_CLEAN != "ACACIA CRASSICARPA") ~ "ACACIA (OTHERS)",
+      MAJOR_WOOD_SPECIES == "EUCALYPTUS" & SPECIES_CLEAN != "EUCALYPTUS PELLITA" ~ "EUCALYPTUS (OTHERS)",
       TRUE ~ MAJOR_WOOD_SPECIES
     )
   )
@@ -195,26 +197,38 @@ p1
 
 ## checking shipments and composition of species
 
+
+f <- function(x)setNames(wood_species$GENERAL_CLASS, wood_species$SCIENTIFIC_NAMES)[x] 
+vars_to_process=c("TYPE1","TYPE2","TYPE3","TYPE4","TYPE5","TYPE6")
+
 silk_species_shipments <- silk_pulp %>%
   mutate(MIXED = ifelse(str_detect(SCIENTIFIC_NAMES,";"),"Y","N")) %>%
-  separate_rows(SCIENTIFIC_NAMES,sep=";") %>%
   group_by(NPWP,NAMA_EKSPORTIR,PROPINSI,KABUPATEN_KOTA,NO_ETPIK,NAMA_IMPORTIR,NEGARA_IMPORTIR,PELABUHAN_MUAT,PELABUHAN_BONGKAR,
            NEGARA_TUJUAN,NO_INVOICE,SKEMA_KERJASAMA,NO_V_LEGAL,TRANSPORTASI,TGL_INVOICE,KETERANGAN,PEJABAT_TTD,TEMPAT_TTD,
            DIGITAL_SIGN,LOKASI_STUFFING,NO,HS_NUMBER,HS_PRINTED,DESKRIPSI,NUMBER_OF_UNIT,HARVEST_COUNTRY,ID,YEAR,CURRENCY,
            VOLUME_M3,BERAT_BERSIH_KG,VALUE,MIXED) %>%
-  mutate(PROP_BERAT_BERSIH = prop.table(BERAT_BERSIH_KG),PROP_VALUE=prop.table(VALUE)) %>%
-  ungroup()%>%
-  mutate(PROP_BERAT_BERSIH_KG = PROP_BERAT_BERSIH*BERAT_BERSIH_KG, PROP_VALUE_UNIT = PROP_VALUE*VALUE) %>%
+  ungroup() %>%
+  #select(SCIENTIFIC_NAMES) %>%
   mutate(SCIENTIFIC_NAMES = str_trim(SCIENTIFIC_NAMES,side="both")) %>%
-  left_join(wood_species,by="SCIENTIFIC_NAMES") %>%
-  mutate(MAJOR_WOOD_SPECIES = ifelse(SPECIES_GENERIC != "AKASIA" & SPECIES_GENERIC != "EKALIPTUS", "OTHERS", SPECIES_GENERIC)) %>%
-  select(YEAR,PROP_BERAT_BERSIH_KG,ID,MAJOR_WOOD_SPECIES,MIXED) %>%
-  group_by(YEAR,ID,MAJOR_WOOD_SPECIES,MIXED) %>%
-  summarize(TONS = sum(PROP_BERAT_BERSIH_KG/1000)) %>%
+  separate(SCIENTIFIC_NAMES,c("TYPE1","TYPE2","TYPE3","TYPE4","TYPE5","TYPE6"),";") %>%
+  mutate_at(.vars=vars_to_process,funs(f)) %>%
+  #mutate(SPECIES_EXPORT = pmap_chr(select(., TYPE1,TYPE2,TYPE3,TYPE4,TYPE5,TYPE6), ~toString(unique(na.omit(c(...)))))) %>%
+  mutate(SPECIES_EXPORT=pmap_chr(list(TYPE1,TYPE2,TYPE3,TYPE4,TYPE5,TYPE6), ~paste(sort(c(...)), collapse = ","))) %>%
+  separate_rows(SPECIES_EXPORT, sep = ",") %>%
+  group_by(NPWP,NAMA_EKSPORTIR,PROPINSI,KABUPATEN_KOTA,NO_ETPIK,NAMA_IMPORTIR,NEGARA_IMPORTIR,PELABUHAN_MUAT,PELABUHAN_BONGKAR,
+           NEGARA_TUJUAN,NO_INVOICE,SKEMA_KERJASAMA,NO_V_LEGAL,TRANSPORTASI,TGL_INVOICE,KETERANGAN,PEJABAT_TTD,TEMPAT_TTD,
+           DIGITAL_SIGN,LOKASI_STUFFING,NO,HS_NUMBER,HS_PRINTED,DESKRIPSI,NUMBER_OF_UNIT,HARVEST_COUNTRY,ID,YEAR,CURRENCY,
+           VOLUME_M3,BERAT_BERSIH_KG,VALUE,MIXED) %>%
+  summarise(SPECIES_EXPORT = paste(unique(SPECIES_EXPORT), collapse = ",")) %>%
+  #mutate(SPECIES_EXPORT = ifelse(SPECIES_EXPORT == "ACACIA, OTHERS" | SPECIES_EXPORT == "OTHERS, ACACIA", "ACACIA, OTHERS",
+  #              ifelse(SPECIES_EXPORT == "ACACIA, EUCALYPTUS, OTHERS" | SPECIES_EXPORT == "ACACIA, OTHERS, EUCALYPTUS", "ACACIA, EUCALYPTUS, OTHERS",
+  #              ifelse(SPECIES_EXPORT == "ACACIA, EUCALYPTUS" | SPECIES_EXPORT == "EUCALYPTUS, ACACIA", "ACACIA, EUCALYPTUS",
+  #              ifelse(SPECIES_EXPORT == "EUCALTYPUS, OTHERS" | SPECIES_EXPORT == "OTHERS, EUCALYPTUS","EUCALYPTUS,OTHERS",SPECIES_EXPORT))))) %>%
+  select(YEAR,BERAT_BERSIH_KG,ID,SPECIES_EXPORT,MIXED) %>%
+  group_by(YEAR,ID,SPECIES_EXPORT,MIXED) %>%
+  summarize(TONS = sum(BERAT_BERSIH_KG/1000)) %>%
   group_by(YEAR,ID,MIXED) %>%
-  mutate(SPECIES_SHIPMENT = paste0(MAJOR_WOOD_SPECIES, collapse = ", ")) %>%
-  select(-MAJOR_WOOD_SPECIES) %>%
-  group_by(YEAR,SPECIES_SHIPMENT) %>%
+  group_by(YEAR,SPECIES_EXPORT) %>%
   summarize(NO_SHIPMENTS=n(),TONS=sum(TONS)) %>%
   group_by(YEAR) %>%
   mutate(PERC_SHIPMENT = prop.table(NO_SHIPMENTS)*100, PERC_VOLUME = prop.table(TONS)*100)
@@ -225,19 +239,23 @@ yearly_shipments_total <- silk_species_shipments %>%
   summarize(TONS = sum(TONS))
 
 
-p2 <-   ggplot(data=silk_species_shipments) +
-  geom_bar(stat="identity",position="stack",aes(x=YEAR,y=TONS,fill=as.factor(SPECIES_SHIPMENT))) +
+p2 <- ggplot(data=silk_species_shipments) +
+  geom_bar(stat="identity",position="stack",aes(x=YEAR,y=TONS,fill=as.factor(SPECIES_EXPORT))) +
   scale_x_continuous(breaks = seq(from = 2012, to = 2019, by =1)) +
   xlab("") +
   scale_y_continuous(name="Pulp (Tons)\n",
                      limits=c(0,6000000),
                      breaks=seq(0,6000000, by=1000000),
-                     labels= scales::comma,expand = c(0,0)) + 
+                     labels = d3_format(".3~s"),
+                     expand = c(0,0)) + 
   theme_plot +
   labs(fill = "\n") +
-  scale_fill_bright() +
-  guides(fill = guide_legend(title.position = "top")) + 
+  scale_fill_carto_d(palette="Safe") +
+  guides(fill = guide_legend(title.position = "top",nrow=5)) + 
   #facet_wrap(~MILL_NAME,nrow=2) +
   ggtitle("") 
 
 p2
+
+
+ggsave(p2,file=paste0(wdir,"\\01_data\\02_out\\plots\\silk_exports_woodtypes.png"), dpi=400, w=8, h=10,type="cairo-png") 
