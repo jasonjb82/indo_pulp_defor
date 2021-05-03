@@ -306,14 +306,17 @@ theme_plot2 <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
 
 options(crayon.enabled = FALSE)
 
+# set island code (1 - balinusa, 2 - kalimantan, 3 - maluku, 4 - papua, 5 - sulawesi, 6 - sumatera)
+code = 1
+
 o <- jrc_defor %>% 
-  filter(island_code == 1) %>%
+  filter(island_code == code) %>% # select island code
   filter(name == "rem_tmf_area_ha") %>% 
   pull("supplier_label")
 
 def_ba_plot <- jrc_defor %>% 
   mutate(name = factor(name,c('def_after_licyr','def_3yrs_before_licyr','def_before_licyr','rem_tmf_area_ha'))) %>%
-  filter(island_code == 1) %>%
+  filter(island_code == code) %>%
   mutate(supplier_label = factor(supplier_label,o)) %>% 
   ggplot() +
   aes(y = supplier_label, x = area_ha, fill = name) +
@@ -329,7 +332,8 @@ def_ba_plot <- jrc_defor %>%
 def_ba_plot
 
 # export to png
-ggsave(def_ba_plot,file="D:/balinusa_def_areas_ba_licyr_plot.png", dpi=400, w=15, h=6,type="cairo-png",limitsize = FALSE)
+ggsave(def_ba_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\jrc_deforestation\\balinusa_def_areas_ba_licyr_plot.png"),
+       dpi=400, w=15, h=6,type="cairo-png",limitsize = FALSE)
 
 
 # hansen annual deforestation
@@ -362,13 +366,16 @@ jrc_annual_defor <- samples_jrc_defyr %>%
   select(supplier_id,supplier,supplier_label,year,license_year,defor_jrc_area_ha=area_ha) 
 
 
+# set island code (1 - balinusa, 2 - kalimantan, 3 - maluku, 4 - papua, 5 - sulawesi, 6 - sumatera)
+code = 1
+
 # plot
 def_hansen_jrc <- jrc_annual_defor %>%
   left_join(hansen_annual_defor,by=c("supplier_id","year")) %>%
   left_join(jrc_island,by="supplier_id") %>%
   #pivot_longer(cols = starts_with("defor"),values_to="area_ha") %>%
   #replace(is.na(.), 0) %>%
-  filter(island_code == 3) %>%
+  filter(island_code == code) %>%
   ggplot() +
   geom_col(aes(x=year,y=defor_jrc_area_ha,fill=island_code)) +
   geom_line(aes(x=year,y=defor_hansen_area_ha,color=island_code),size=0.25) +
@@ -385,4 +392,5 @@ def_hansen_jrc <- jrc_annual_defor %>%
 def_hansen_jrc
   
 # export to png
-ggsave(def_hansen_jrc,file="D:/malu_jrc_vs_hansen_defor.png", dpi=400, w=20, h=8,type="cairo-png",limitsize = FALSE)
+ggsave(def_hansen_jrc,file=paste0(wdir,"01_data\\02_out\\plots\\jrc_deforestation\\jrc_vs_hansen\\malu_jrc_vs_hansen_defor.png"),
+       dpi=400, w=20, h=8,type="cairo-png",limitsize = FALSE)
