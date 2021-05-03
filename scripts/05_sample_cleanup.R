@@ -98,7 +98,7 @@ samples_hti_island_match_na <- samples_hti_isl_table %>%
 ## export to csv ---------------------------------------------
 
 # full table
-write_excel_csv(samples_hti_table,paste0(wdir,"\\01_data\\02_out\samples\\\tables\\samples_hti_id.csv"))
+write_excel_csv(samples_hti_table,paste0(wdir,"\\01_data\\02_out\\samples\\tables\\samples_hti_id.csv"))
 
 # shapefiles by island
 samples_hti_island %>%
