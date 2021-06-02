@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------
 ##
-## Purpose of script: Analysing GEE extracted datasets - JRC, GFC, peat, Gaveau maps and burn areas
+## Purpose of script: Analysing GEE extracted datasets - JRC, GFC, peat, Gaveau maps and burn areas from KLHK
 ##
 ## Author: Jason Benedict
 ##
@@ -121,7 +121,11 @@ filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\burn_areas\\"),
 samples_klhk_ba <- filenames %>%
   map_dfr(read_csv, .id = "burn_areas") %>%
   janitor::clean_names() %>%
-  select(-system_index,-geo)
+  select(-system_index,-geo,-burn_areas) %>%
+  pivot_longer(cols = starts_with("x"),
+               names_to = 'year',
+               values_to = 'burn_area') %>%
+  mutate(year = as.numeric(str_sub(year, 2,6)))
 
 
 ## cleaning data ---------------------------------------------
