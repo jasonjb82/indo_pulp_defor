@@ -449,7 +449,7 @@ def_april_ba_plot <- jrc_defor_april %>%
 def_april_ba_plot
 
 # export to png
-ggsave(def_april_ba_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\jrc_deforestation\\APRIL\\april_top15_def_areas_ba_licyr_plot.png"),
+ggsave(def_april_ba_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\april_top15_def_areas_ba_licyr_plot.png"),
        dpi=400, w=16, h=10,type="cairo-png",limitsize = FALSE)
 
 
