@@ -61,6 +61,9 @@ samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.
 # hti concessions
 hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
 
+# wood supply
+ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2019.csv", bucket), delim = ",")
+
 ## JRC
 
 ## Annual changes 
@@ -404,3 +407,82 @@ def_hansen_jrc
 # export to png
 ggsave(def_hansen_jrc,file=paste0(wdir,"01_data\\02_out\\plots\\jrc_deforestation\\jrc_vs_hansen\\malu_jrc_vs_hansen_defor.png"),
        dpi=400, w=20, h=8,type="cairo-png",limitsize = FALSE)
+
+
+### Analysis of APRIL wood suppliers ###
+
+# get list of APRIL suppliers
+ws_april <- ws %>%
+  filter(EXPORTER_GROUP == "ROYAL GOLDEN EAGLE / TANOTO") %>%
+  distinct() %>%
+  pull(SUPPLIER_ID)
+
+# filter deforestation to APRIL suppliers
+jrc_defor_april <- jrc_defor %>%
+  filter(supplier_id %in% ws_april)
+
+
+# Deforestation before-after plot
+
+o <- jrc_defor_april %>% 
+  filter(name == "rem_tmf_area_ha") %>% 
+  pull("supplier_label") 
+
+o1 <- jrc_defor_april %>% 
+  filter(name == "rem_tmf_area_ha") %>% 
+  pull("supplier_id") 
+
+# Only select suppliers from Top 15 (tmf remaining)
+selected <- o1[45:31]
+
+def_april_ba_plot <- jrc_defor_april %>% 
+  filter(supplier_id %in% selected) %>%
+  #top_n(10,rem_tmf) %>%
+  mutate(name = factor(name,c('def_after_licyr','def_3yrs_before_licyr','def_before_licyr','rem_tmf_area_ha'))) %>%
+  #filter(island_code == code) %>%
+  mutate(supplier_label = factor(supplier_label,o)) %>% 
+  ggplot() +
+  aes(y = supplier_label, x = area_ha, fill = name) +
+  geom_bar(stat = "identity") +
+  #coord_flip() +
+  theme_plot2 +
+  xlab("") + ylab("")+
+  scale_x_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0)) +
+  scale_fill_manual(values=c("seagreen4","palevioletred","slateblue1","yellow3"),
+                    breaks=c('rem_tmf_area_ha','def_before_licyr','def_3yrs_before_licyr','def_after_licyr'),
+                    labels= c("Remaining TMF","Deforestation before license year (more than 3 yrs)","Deforestation 3 yrs before license year","Deforestation after license year"))
+
+def_april_ba_plot
+
+# export to png
+ggsave(def_april_ba_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\april_top15_def_areas_ba_licyr_plot.png"),
+       dpi=400, w=16, h=10,type="cairo-png",limitsize = FALSE)
+
+
+# Annual deforestation plot
+
+# pick 3 concessions
+ws_april_selected <- c("H-0536","H-0476","H-0402")
+
+jrc_ac_april <- jrc_ac %>%
+  filter(supplier_id %in% ws_april_selected)
+
+p <- ggplot(data=jrc_ac_april,aes(year,shr_class)) +
+  geom_area(aes(fill= as.character(class_desc)), position = 'stack') +
+  scale_x_continuous(expand=c(0,0),breaks=seq(1990,2019,by=2)) +
+  scale_y_continuous(labels = d3_format(".2~s",suffix = "%"),expand = c(0,0)) +
+  geom_vline(aes(xintercept=as.numeric(license_year),color="License year"),size=0.5)+
+  geom_point(data=jrc_ac_april,aes(x=year,y=shr_gav_lu_areas,shape=gav_class),color="black",size=1.5)+
+  ylab("") +
+  xlab("") +
+  #scale_fill_muted() +
+  scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen","seagreen4"))+ 
+  scale_shape_manual(values=17,labels="Woodpulp planted area",na.translate=FALSE)+ 
+  scale_color_manual(values = c("License year" = "palevioletred4")) +
+  facet_wrap(~supplier_label,ncol=3,scales="free") +
+  theme_plot
+
+p
+
+# export to png
+ggsave(p,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\april_hti_jrc_class_areas.png"), dpi=400, w=18, h=5,type="cairo-png",limitsize = FALSE)
