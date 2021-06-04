@@ -2,7 +2,7 @@
 ##
 ## Purpose of script: Calculate area of planted pulp needed to satisfy a mill's demand
 ##
-## Author: Jason Benedict
+## Author: Jason Benedict and Robert Heilmayr
 ##
 ## Date Created: 2021-03-29
 ## 
@@ -47,7 +47,7 @@ wdir <- "remote"
 ## read data and clean ---------------------------------------
 
 # pulp planted area
-pulp_area_hti <- read_csv(paste0(wdir, '\\01_data\\01_in\\gee\\pulp_by_year_hti.csv'))
+pulp_area_hti <- read_csv(paste0(wdir, '\\01_data\\02_out\\gee\\pulp_by_year_hti.csv'))
 
 # pulp mill production
 pulp_mill_prod <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\PULP_MILL_PRODUCTION.xlsx'))
@@ -60,7 +60,7 @@ pulpwood_supply <- read_delim(get_object(object="indonesia/wood_pulp/production/
 
 # pulp area in hti by year
 pulp_area_clean_hti <- pulp_area_hti %>% 
-  select(supplier_id=ID,starts_with("id_")) %>%
+  select(supplier_id=ID,name = NAMOBJ,starts_with("id_")) %>% 
   pivot_longer(cols = starts_with("id_"),
                names_to = 'year',
                names_prefix = 'id_',
@@ -93,7 +93,7 @@ active_hti <- conc_prod %>%
 
 conc_area <- pulp_area_clean_hti %>% 
   mutate(prod_year = year + 4) %>% 
-  select(supplier_id, prod_year, pulp_area_ha) %>% 
+  select(supplier_id, name, prod_year, pulp_area_ha) %>% 
   filter(prod_year >= 2015,
          prod_year <=2019)
 
@@ -112,6 +112,58 @@ mean_yield <- conc_yield %>%
   summarise(mean_yield = sum(volume_m3) / sum(pulp_area_ha))
 
 
+# Estimate MAI for APRIL
+april_id <- 'M-0004'
+april_suppliers <- ws_flow %>% 
+  filter(mill_id == april_id) %>% 
+  pull(supplier_id) %>% 
+  unique()
+april_mean_yield <- conc_yield %>% 
+  filter(supplier_id %in% april_suppliers) %>% 
+  summarise(mean_yield = sum(volume_m3) / sum(pulp_area_ha))
+
+
+# Gut check - What is aggregate MAI looking across all concessions?
+total_area <- conc_yield %>% 
+  pull(pulp_area_ha) %>% 
+  sum()
+
+total_prod <- conc_yield %>% 
+  pull(volume_m3) %>% 
+  sum()
+
+ave_mai <- total_prod / total_area
+
+
+# How does MAI change through time?
+annual_yield <- conc_yield %>% 
+  group_by(year) %>% 
+  summarise(mean_yield = sum(volume_m3) / sum(pulp_area_ha))
+
+annual_yield %>% 
+  ggplot(aes(x = year, y = mean_yield)) + 
+  geom_line() +
+  geom_point() +
+  theme_minimal()
+
+
+# How does MAI change through time for the largest concessions?
+top_concessions <- conc_yield %>% 
+  filter(year==2019) %>% 
+  arrange(desc(pulp_area_ha)) %>% 
+  slice(1:10) %>% 
+  pull(supplier_id)
+
+top_conc_yield <- conc_yield %>%
+  filter(supplier_id %in% top_concessions) %>% 
+  mutate(mean_yield = volume_m3 / pulp_area_ha)
+
+top_conc_yield %>% 
+  ggplot(aes(x = year, y = mean_yield, color = name)) + 
+  geom_line() +
+  geom_point() +
+  theme_minimal()
+
 # Apply mean concession yield to flows
 assumed_yield <- conc_yield %>% 
   select(supplier_id, year) %>% 
@@ -119,7 +171,7 @@ assumed_yield <- conc_yield %>%
 
 area_flow <- ws_flow %>% 
   left_join(assumed_yield, by = c("supplier_id", "year")) %>% 
-  mutate(area_demand = volume_m3 * mean_yield)
+  mutate(area_demand = volume_m3 / mean_yield)
 
 area_demand <- area_flow %>% 
   group_by(mill_id, year) %>% 
@@ -148,14 +200,21 @@ mill_demand <- mill_demand %>%
 annual_mill_area_intensity <- mill_demand %>% 
   mutate(pulp_area_intensity = (pulp_tons_incl / area_demand_ha))
 
+
 mill_area_intensity <- mill_demand %>% 
   group_by(mill_id) %>% 
-  summarise(pulp_area_intensity = sum(pulp_tons_incl) / sum(area_demand_ha))
+  summarise(pulp_area_intensity = sum(area_demand_ha) / sum(pulp_tons_incl))
 
-area_intensity <- sum(mill_demand$pulp_tons_incl) / sum(mill_demand$area_demand_ha)
+area_intensity <- sum(mill_demand$area_demand_ha) / sum(mill_demand$pulp_tons_incl)
 
 oki_prod_2019 <- mill_prod %>% 
   filter(mill_name=="OKI", 
          year == 2019) %>% 
   pull(pulp_tons)
 oki_land_demand = area_intensity * oki_prod_2019
+
+
+# Gut check: Pulp wood to pulp conversion rate
+mill_demand <- mill_demand %>% 
+  mutate(conv_rate = volume_m3 / pulp_tons)
+mill_demand %>% select(conv_rate) %>% summary()
