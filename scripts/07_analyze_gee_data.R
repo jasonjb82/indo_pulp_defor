@@ -159,6 +159,12 @@ gaveau_pulp <- samples_gaveau_landuse %>%
 
 ## Analysis and visualization ----------------------------
 
+# TODO: I was getting memory errors when trying to process the full dataset. Might be ways to optimize - ie,
+# moving the filter before the pivot_longer? Another option would be to loop through islands. Could then output
+# the island-level cleaned data, and then do plotting in a separate script. Or possibly shift to data.table melt.
+# Note - have tested with melt and this seems to work MUCH better. Probably should start using melt rather than pivot_longer
+# for these types of large datasets.
+
 ## JRC annual changes
 jrc_ac <- samples_jrc_tmf %>%
   left_join(samples_hti,by="sid") %>%
