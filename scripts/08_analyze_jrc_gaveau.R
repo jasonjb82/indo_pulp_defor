@@ -450,10 +450,6 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
 options(crayon.enabled = FALSE)
 
 ## plotting
-
-jrc_ac_comb$class_desc <- factor(jrc_ac_comb$class_desc, levels=c("undisturbed tropical moist forest (tmf)", "deforested land",
-                                                                  "degraded tmf","forest regrowth","other land cover"))
-
 ac_plot <- ggplot(data=jrc_ac_comb,aes(year,shr_class)) +
   geom_area(aes(fill= as.character(class_desc)), position = 'stack') +
   scale_x_continuous(expand=c(0,0),breaks=seq(1990,2019,by=1)) +
@@ -471,5 +467,5 @@ ac_plot <- ggplot(data=jrc_ac_comb,aes(year,shr_class)) +
 
 ac_plot
 
-# export to csv
+## export to png
 ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\april_suppliers_jrc_annual_changes.png"), dpi=400, w=30, h=30,type="cairo-png",limitsize = FALSE)
