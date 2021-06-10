@@ -227,7 +227,9 @@ defort_df <- samples_df %>%
          defor_pulp = ifelse(ever_pulp==1, paste0(defor_time, ", converted to pulp plantation"), paste0(defor_time, ", not converted to pulp plantation")))
   
 
-## check if no of samples are same before deforestation timing reclass
+## QA checks
+
+## Check 1 - check if no of samples are same before deforestation timing reclass
 test_supp_id = "H-0262"
 expect_true(all.equal(dim(subset(as.data.frame(samples_df),supplier_id==test_supp_id))[1],dim(subset(as.data.frame(defort_df),supplier_id==test_supp_id))[1]))
 
@@ -245,7 +247,7 @@ freq_tab <- defort_df %>%
 
 freq_tab
 
-# check if total area for deforestation timings and frequency table are equal (if supplier label)
+# Check 2 - check if total area for deforestation timings and frequency table are equal (if supplier label)
 condition = grepl("supplier_label", names(as_tibble(freq_tab)))
 
 select.vars <- function (df, cond=condition[1]){
@@ -261,7 +263,7 @@ select.vars <- function (df, cond=condition[1]){
 area_test_supp_id <- select.vars(freq_tab) %>%
   slice(1) %>%
   select(!!sym(group_var)) %>%
-  mutate(id = str_extract_all(supplier_label,"(?<=\\().+?(?=\\))")) %>%
+  mutate(id = str_extract_all(supplier_label,"(?<=\\().+?(?=\\))")[[1]]) %>%
   pull
 
 test_defort_area = defort_df %>%
@@ -274,7 +276,7 @@ test_defort_area = defort_df %>%
 
 test_freq_tab_area <- freq_tab %>%
   as_tibble() %>%
-  mutate(supplier_id = str_extract_all(supplier_label,"(?<=\\().+?(?=\\))")) %>%
+  mutate(supplier_id = stringr::str_extract(string = supplier_label,pattern = "(?<=\\().*(?=\\))")) %>%
   filter(supplier_id == area_test_supp_id) %>%
   group_by(supplier_id) %>%
   summarize(area_ha = sum(area_ha))
@@ -363,7 +365,7 @@ ggsave(freq_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\kali_april_d
 # Analyze annual changes --------------------------------------------------
 ###########################################################################
 
-## TODO: add earliest year of downstream mill ZDC
+## TODO: add earliest year of downstream mill ZDC, add more QA tests
 
 ## annual pulp planted areas
 gaveau_annual_pulp <- samples_gaveau_landuse %>%
@@ -386,9 +388,12 @@ gaveau_annual_pulp <- samples_gaveau_landuse %>%
 ## melt annual changes dataset into long dataset
 jrc_ac_long <- samples_jrc_tmf %>%
   as.data.table() %>%
-  melt(measure = patterns("^dec"), value.name = "class",variable.name = "year")
+  #melt(measure = patterns("^dec"), value.name = "class",variable.name = "year")
+  dt_pivot_longer(cols = c(-jrc_tmf_ac,-sid),
+                names_to = 'year',
+                values_to = 'class')
 
-# join with HTI's and get areas by class
+## join with HTI's and get areas by class
 jrc_ac <- jrc_ac_long %>% 
   lazy_dt() %>%
   left_join(samples_hti,by="sid") %>%
@@ -396,7 +401,7 @@ jrc_ac <- jrc_ac_long %>%
   summarize(n = n()) %>%
   mutate(shr_class = prop.table(n)*100) 
 
-# join with downstream mill supplier, license year,concession names and annual change class names
+## join with downstream mill supplier, license year,concession names and annual change class names
 jrc_hti_ac <- jrc_ac %>%
   rename(supplier_id=ID,island_code=jrc_tmf_ac) %>%
   left_join(subset(lu_table,dataset =="jrc tmf annual changes"),by="class") %>%
@@ -410,14 +415,40 @@ jrc_hti_ac <- jrc_ac %>%
   mutate(year = as.double(year)) %>%
   left_join(select(gaveau_annual_pulp,supplier_id,year,shr_gav_lu_areas,gav_class),by=c("year","supplier_id"))
 
-# garbage clean
+## garbage collection (clearing memory)
 gc()
-  
-# filter or aggregate for plot
+
+## filter or aggregate for plot (by island, downstream mill, etc)
 jrc_ac_comb <- jrc_hti_ac %>%
   as_tibble() %>%
   #filter(island_code == 5) %>%
-  filter(april == 1)
+  filter(marubeni == 1)
+
+## QA checks
+
+## Check 1 - check if area before and after area aggregation is equal
+
+# get supplier ID
+area_test_supp_id <- jrc_ac_comb %>%
+  slice(1) %>%
+  select(supplier_id) %>%
+  pull
+
+# area pre area calculation
+ac_supp_pre_area <- jrc_ac %>%
+  as_tibble() %>%
+  filter(ID == area_test_supp_id) %>%
+  group_by(ID) %>%
+  summarize(area_ha = sum(n))
+
+# area post area calculation
+ac_supp_post_area <- jrc_ac_comb %>%
+  as_tibble() %>%
+  filter(supplier_id == area_test_supp_id) %>%
+  group_by(supplier_id) %>%
+  summarize(area_ha = sum(n))
+
+expect_true(all.equal(ac_supp_pre_area[1,2],ac_supp_post_area[1,2]))
 
 #########################################################################
 # Plotting --------------------------------------------------------------
@@ -468,4 +499,4 @@ ac_plot <- ggplot(data=jrc_ac_comb,aes(year,shr_class)) +
 ac_plot
 
 ## export to png
-ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\april_suppliers_jrc_annual_changes.png"), dpi=400, w=30, h=30,type="cairo-png",limitsize = FALSE)
+ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\marubeni_suppliers_jrc_annual_changes.png"), dpi=400, w=30, h=30,type="cairo-png",limitsize = FALSE)
