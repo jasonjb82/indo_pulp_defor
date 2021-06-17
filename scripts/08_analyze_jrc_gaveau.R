@@ -20,7 +20,7 @@
 ## Clean up plot to match what's being produced in 07_analyze_gee_data.R
 ## Convert n in frequency table to hectares - DONE
 ## Confirm Gaveau data is being interpreted correctly - DONE
-## Confirm JRC data is being interpreted correctly. E.g. confirm that 0 in defyear means no deforestation observed in 1990-2019? - DONE
+## Confirm JRC data is being interpreted correctly. E.g. confirm that 0 in defyear means no deforestation observed in 1990-2019? - Need to check
 ## Seems like JRC data only covers locations that started as forest in 1990? If so, need to add deforested points to ensure final ha = total area within concessions 
 ## Add qc checks
 ## Add three binary columns indicating whether concession supplies APRIL, APP, Marubeni mills - DONE
@@ -64,7 +64,7 @@ wdir <- "remote"
 ## read data -------------------------------------------------
 
 ## increase memory size
-memory.limit(size=40000)
+memory.limit(size=60000)
 
 ## load color palette
 source("scripts\\001_color_palettes.R")
@@ -179,7 +179,7 @@ gaveau_pulp <- gaveau_pulp %>%
 ## identify pixels that started as forest in 1990
 ## NOTE: dataset currently doesn't include any pixels that are not forested at t0
 forest_sids <- samples_jrc_tmf %>% 
-  filter(dec1990 %in% c(1,2)) %>% # 1 = undisturbed tropical moist forest; 2 = degraded tmf
+  filter(dec1990 == 1) %>% # 1 = undisturbed tropical moist forest; 2 = degraded tmf
   pull(sid)
 
 ## create pixel-level dataset starting with JRC deforestation year
@@ -216,10 +216,10 @@ defort_df <- samples_df %>%
   mutate(def_year = ifelse(def_year==0, ifelse(start_for == 1, 2999, 0), def_year)) %>%  
   mutate(defor_time = ifelse((def_year < license_year - lag), paste0("Deforestation >",lag," years before license"),  # Note: works because no licenses were issued prior to 1992 so JRC fully covers period of interest
          ifelse((def_year >= license_year - lag) & (def_year < license_year), paste0("Deforestation in ",lag," years prior to license"),
-             ifelse((def_year >= license_year) & (def_year < 2013) & (april == 1), "Deforestation on licensed concession, before earliest ZDC of downstream mill",
-                   ifelse((def_year >= 2013) & (def_year != 2999) & (april == 1), "Deforestation on licensed concession, after earliest ZDC of downstream mill",
-                        ifelse((def_year >= license_year) & (def_year < 2015) & (april == 0 & app == 1), "Deforestation on licensed concession, before earliest ZDC of downstream mill",
-                            ifelse((def_year >= 2015) & (def_year != 2999) & (april == 0 & app == 1), "Deforestation on licensed concession, after earliest ZDC of downstream mill",
+             ifelse((def_year >= license_year) & (def_year < 2013) & (app == 1), "Deforestation on licensed concession, before earliest ZDC of downstream mill",
+                   ifelse((def_year >= 2013) & (def_year != 2999) & (app == 1), "Deforestation on licensed concession, after earliest ZDC of downstream mill",
+                        ifelse((def_year >= license_year) & (def_year < 2015) & (april == 1 & app == 0), "Deforestation on licensed concession, before earliest ZDC of downstream mill",
+                            ifelse((def_year >= 2015) & (def_year != 2999) & (april == 1 & app == 0), "Deforestation on licensed concession, after earliest ZDC of downstream mill",
                                 ifelse((def_year >= license_year) & (def_year < 2018) & (april == 0 & app == 0 & marubeni == 1), "Deforestation on licensed concession, before earliest ZDC of downstream mill", # need to confirm with Brian ZDC yr
                                     ifelse((def_year >= 2018) & (def_year != 2999) & (april == 0 & app == 0 & marubeni == 1), "Deforestation on licensed concession, after earliest ZDC of downstream mill", # need to confirm with Brian ZDC yr
                                        ifelse((def_year != 2999) & (april == 0 & app == 0 & marubeni == 0), "Deforestation on concession after license",
@@ -235,7 +235,7 @@ expect_true(all.equal(dim(subset(as.data.frame(samples_df),supplier_id==test_sup
 
 ## Generate frequency table by group
 group_var <- "supplier_label" # Generally either island or supplier_label
-class_var <- "defor_time" # Generally either defor_time or defor_pulp
+class_var <- "defor_pulp" # Generally either defor_time or defor_pulp
 mill_var <- "april" # Generally either april,app,marubeni or all (all concessions)
 freq_tab <- defort_df %>%
   filter(!!sym(mill_var) == 1) %>%
@@ -413,16 +413,30 @@ jrc_hti_ac <- jrc_ac %>%
   left_join(hti_concession_names,by="supplier_id") %>%
   mutate(year = str_replace(year,"dec", "")) %>%
   mutate(year = as.double(year)) %>%
-  left_join(select(gaveau_annual_pulp,supplier_id,year,shr_gav_lu_areas,gav_class),by=c("year","supplier_id"))
+  select(-supplier,-n) %>%
+  left_join(select(gaveau_annual_pulp,supplier_id,year,shr_gav_lu_areas,gav_class),by=c("year","supplier_id")) %>%
+  mutate(
+    zdc_year = case_when(
+      app == 1 ~ 2013,
+      app == 0 & april == 1 ~ 2015,
+      april == 0 & app == 0 & marubeni == 1 ~ 2018,
+      TRUE ~ 0
+    )
+  ) %>%
+  mutate(zdc_year == ifelse(zdc_year ==0,NA,zdc_year))
+
 
 ## garbage collection (clearing memory)
 gc()
+rm(samples_hti)
+rm(samples_jrc_defyr)
+rm(samples_jrc_tmf)
 
 ## filter or aggregate for plot (by island, downstream mill, etc)
 jrc_ac_comb <- jrc_hti_ac %>%
   as_tibble() %>%
-  #filter(island_code == 5) %>%
-  filter(marubeni == 1)
+  filter(island_code == 2) %>%
+  filter(april == 1)
 
 ## QA checks
 
@@ -470,6 +484,7 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                     axis.title.y = element_text(size = 10, color = "grey30"),
                     strip.text.x = element_text(size = 12, face = "bold",color="grey30"),
                     strip.background = element_rect(color=NA, fill=NA),
+                    legend.key = element_rect(size = 12, fill = "white", colour = NA),
                     legend.key.height = unit(12, "pt"),
                     legend.key.width = unit(12, "pt"),
                     legend.text = element_text(size = 9,colour="grey30"),
@@ -482,21 +497,23 @@ options(crayon.enabled = FALSE)
 
 ## plotting
 ac_plot <- ggplot(data=jrc_ac_comb,aes(year,shr_class)) +
-  geom_area(aes(fill= as.character(class_desc)), position = 'stack') +
+  geom_area(aes(fill= as.character(class_desc)), position = position_stack(reverse = T)) +
   scale_x_continuous(expand=c(0,0),breaks=seq(1990,2019,by=1)) +
   scale_y_continuous(labels = d3_format(".2~s",suffix = "%"),expand = c(0,0)) +
   geom_vline(aes(xintercept=as.numeric(license_year),color="License year"),size=0.5)+
+  geom_vline(aes(xintercept=as.numeric(zdc_year),color="Earliest ZDC year of downstream mill"),size=0.5)+
   geom_point(data=jrc_ac_comb,aes(x=year,y=shr_gav_lu_areas,shape=gav_class),color="black",size=1.5)+
   ylab("") +
   xlab("") +
   #scale_fill_muted() +
   scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen","#F8F899","seagreen4"))+ 
   scale_shape_manual(values=17,labels="Woodpulp planted area",na.translate=FALSE)+ 
-  scale_color_manual(values = c("License year" = "palevioletred4")) +
-  facet_wrap(~supplier_label,ncol=5,scales="free") +
+  scale_color_manual(values = c("palevioletred4","#064383")) +
+  facet_wrap(~supplier_label,ncol=2,scales="free") +
+  guides(fill = guide_legend(nrow = 2),color = guide_legend(nrow=1),keyheight = 10) +
   theme_plot
 
 ac_plot
 
 ## export to png
-ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\marubeni_suppliers_jrc_annual_changes.png"), dpi=400, w=30, h=30,type="cairo-png",limitsize = FALSE)
+ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\april_suppliers_jrc_annual_changes.png"), dpi=400, w=12, h=18,type="cairo-png",limitsize = FALSE)
