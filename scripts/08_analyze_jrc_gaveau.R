@@ -435,7 +435,7 @@ rm(samples_jrc_tmf)
 ## filter or aggregate for plot (by island, downstream mill, etc)
 jrc_ac_comb <- jrc_hti_ac %>%
   as_tibble() %>%
-  filter(island_code == 2) %>%
+  filter(island_code == 6) %>%
   filter(april == 1)
 
 ## QA checks
@@ -516,4 +516,4 @@ ac_plot <- ggplot(data=jrc_ac_comb,aes(year,shr_class)) +
 ac_plot
 
 ## export to png
-ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\april_suppliers_jrc_annual_changes.png"), dpi=400, w=12, h=18,type="cairo-png",limitsize = FALSE)
+ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\suma_april_suppliers_jrc_annual_changes.png"), dpi=400, w=12, h=42,type="cairo-png",limitsize = FALSE)
