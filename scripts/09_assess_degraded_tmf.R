@@ -285,3 +285,40 @@ lu_traj
 
 ## export to png
 ggsave(lu_traj,file=paste0(wdir,"\\01_data\\02_out\\plots\\jrc_ac_transition\\pt_tanjung_redeb_hutani_jrc_ac_transition.png"), dpi=300, w=10, h=6,type="cairo-png",limitsize = FALSE)
+
+
+
+### Get JRC class in 2019 on Gaveau LU
+
+# gaveau classes in 2019
+gaveau_class_2019 <- samples_gaveau_landuse %>%
+  lazy_dt() %>%
+  left_join(samples_hti,by="sid") %>%
+  select(sid,ID,id_2019) %>%
+  as_tibble()
+
+jrc_pulp_plot <- samples_jrc_tmf %>%
+  lazy_dt() %>%
+  select(sid,dec2019) %>%
+  left_join(samples_hti,by="sid") %>%
+  rename(supplier_id = ID) %>% 
+  left_join(select(gaveau_class_2019,sid,id_2019),by="sid") %>% 
+  left_join(hti_concession_names,by="supplier_id") %>% 
+  left_join(mill_supplier,by="supplier_id") %>%
+  select(sid,supplier_id,supplier_label,class=dec2019,gav_class=id_2019,app,april,marubeni) %>%
+  filter(gav_class == 4 & april == 1) %>%
+  left_join(subset(lu_table,dataset =="jrc tmf annual changes"),by="class") %>%
+  as_tibble() %>%
+  group_by(supplier_id,supplier_label,class_desc) %>%
+  summarise(n = n()) %>%
+  mutate(area_ha = n) %>%
+  ggplot() +
+  aes(y = reorder(supplier_label,area_ha), x = area_ha, fill = class_desc) +
+  geom_bar(stat = "identity",position = position_fill(reverse = TRUE)) +
+  theme_plot2 +
+  xlab("") + ylab("")+
+  scale_x_continuous(labels = scales::percent_format()) +
+  guides(fill = guide_legend(nrow = 2)) 
+
+## export to png
+ggsave(jrc_pulp_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\april_gav_pulp_jrc_class.png"), dpi=300, w=12, h=8,type="cairo-png",limitsize = FALSE)
