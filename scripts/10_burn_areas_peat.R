@@ -32,6 +32,7 @@ library(showtext)
 library(khroma) # palettes for color blindness
 library(nngeo)
 library(d3.format)
+library(rmapshaper)
 
 ## credentials ----------------------------------------------
 
@@ -70,7 +71,7 @@ hti_concession_names <- hti %>%
 # choose projection: Cylindrical Equal Area
 indonesian_crs <- "+proj=cea +lon_0=115.0 +lat_ts=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
 
-idn_sinu_crs = "proj:+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+idn_sinu_crs = "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
 
 # reproject
 hti_proj <- hti %>%
@@ -80,7 +81,8 @@ ba_proj <- ba %>%
   st_transform(crs=idn_sinu_crs)
 
 peat_proj <- peat %>%
-  st_transform(crs=idn_sinu_crs)
+  st_transform(crs=idn_sinu_crs) %>%
+  st_make_valid()
 
 ## intersect and tabulate -----------------------------------
 
@@ -109,14 +111,30 @@ hti_ba_peat <- sf::st_intersection(hti_ba_overlap,peat_proj) %>%
   group_by(supplier_id,year=burn) %>%
   summarise(burn_area_on_peat_ha = as.numeric(sum(area))/10000) %>%
   left_join(hti_concession_names,by="supplier_id") %>%
-  left_join(select(hti_peat,supplier_id,peat_area_ha=area_ha),by="supplier_id") %>%
-  mutate(burn_area_not_peat_ha = peat_area_ha - burn_area_on_peat_ha) %>%
-  relocate(burn_area_not_peat_ha,.after="burn_area_on_peat_ha") %>%
-  select(-peat_area_ha) %>%
-  arrange(desc(supplier_label)) %>%
-  ungroup() %>%
-  select(concession=supplier_label,year,burn_area_not_peat_ha,burn_area_on_peat_ha)
+  left_join(select(hti_peat,supplier_id,peat_area_ha=area_ha),by="supplier_id") 
+
+# calculate burned areas outside peat
+st_erase = function(x, y) st_difference(x, st_union(st_combine(y)))
+hti_ba_no_peat <- st_erase(hti_ba_overlap,peat_proj) 
+
+hti_ba_not_peat <- hti_ba_no_peat %>%
+  mutate(area = st_area(.)) %>%
+  st_drop_geometry() %>%
+  pivot_longer(cols = starts_with("yr_"),
+               names_to = 'year',
+               values_to = 'burn') %>%
+  select(-year) %>%
+  filter(burn > 0) %>%
+  group_by(supplier_id,year=burn) %>%
+  summarise(burn_area_not_on_peat_ha = as.numeric(sum(area))/10000) %>%
+  left_join(hti_concession_names,by="supplier_id") 
+
+# combine areas
+hti_peat_not_peat_ba <- hti_ba_peat %>%
+  left_join(select(hti_ba_not_peat,supplier_id,year,burn_area_not_on_peat_ha),by=c("supplier_id","year")) %>%
+  select(concession=supplier_label,year,burn_area_not_on_peat_ha,burn_area_on_peat_ha,peat_area_ha) %>%
+  arrange(-desc(concession))
 
 # write to csv
-write_csv(hti_ba_peat,paste0(wdir,"\\01_data\\02_out\\tables\\concessions_burned_area_peat.csv"))
+write_csv(hti_peat_not_peat_ba,paste0(wdir,"\\01_data\\02_out\\tables\\concessions_burned_area_peat.csv"))
             
