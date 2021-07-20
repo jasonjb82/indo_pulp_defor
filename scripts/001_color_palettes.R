@@ -1,15 +1,15 @@
 deft_colors <- c(
   `Never deforested`="#136b3a",
   `Never deforested, not converted to pulp plantation` = "#136b3a",
-  `Deforestation pre-permit and first planting`="#733f3c",
-  `Deforestation pre-permit and first planting, not converted to pulp plantation`="#733f3c",
+  `Deforestation pre-permit and first planting`="#EB4A40",
   `Deforestation pre-permit and first planting, converted to pulp plantation`="#EB4A40",
-  `Deforestation post-permit / post-first planting`="#cc8037",
+  `Deforestation pre-permit and first planting, not converted to pulp plantation`="#ed8f8a",
+  `Deforestation post-permit / post-first planting`="#733f3c",
+  `Deforestation post-permit / post-first planting, converted to pulp plantation`="#733f3c",
   `Deforestation post-permit / post-first planting, not converted to pulp plantation`="#cc8037",
-  `Deforestation post-permit / post-first planting, converted to pulp plantation`="#F3AD6A",
   `Deforestation post-permit / post-first planting and after first ZDC of downstream mill`="#4b0e82",
-  `Deforestation post-permit / post-first planting and after first ZDC of downstream mill, not converted to pulp plantation`="#4b0e82",
-  `Deforestation post-permit / post-first planting and after first ZDC of downstream mill, converted to pulp plantation`="#e30ece")
+  `Deforestation post-permit / post-first planting and after first ZDC of downstream mill, converted to pulp plantation`="#7827c2",
+  `Deforestation post-permit / post-first planting and after first ZDC of downstream mill, not converted to pulp plantation`="#c194d4")
   #`Deforestation on licensed concession, after earliest ZDC of downstream mill`="#b681e6",
   #`Deforestation on licensed concession, after earliest ZDC of downstream mill, converted to pulp plantation`="#b681e6",
   #`Deforestation on licensed concession, after earliest ZDC of downstream mill, not converted to pulp plantation`="#f299f1",
