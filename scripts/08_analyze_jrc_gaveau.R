@@ -226,7 +226,7 @@ samples_df <- samples_df %>%
   left_join(hti_concession_names,by="supplier_id") %>% 
   left_join(gaveau_pulp, by = "sid") %>% 
   left_join(gaveau_pulp_styr) %>%
-  mutate(def_year = ifelse(def_year == 0 & ever_pulp == 1,year,def_year),
+  mutate(def_year = ifelse(def_year == 0 & ever_pulp == 1,year,def_year), # reclassifying def_year to year pulp assigned by Gaveau if def_year = 0
          year = ifelse(is.na(year),2999,year)) %>%
   select(sid, island, supplier_id, def_year, ever_pulp, license_year, start_pulp=year,supplier_label,rand) %>% 
   mutate(start_for = sid %in% forest_sids)
