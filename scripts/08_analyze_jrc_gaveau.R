@@ -259,9 +259,9 @@ defort_df <- samples_df %>%
   mutate(mgmt_year = ifelse(start_pulp < license_year ,max(license_year-5),
                             ifelse(start_pulp > license_year,license_year,start_pulp))) %>%
   mutate(def_year = ifelse(def_year== 0, ifelse(start_for == 1, 2999, 0), def_year)) %>%  
-  mutate(defor_time = case_when(def_year >= 2013 & def_year > mgmt_year & app == 1 & def_year != 2999 ~ "Deforestation post-permit / post-first planting and after first ZDC of downstream mill",
-                                def_year >= 2015 & def_year > mgmt_year & app == 0 & april == 1 & def_year != 2999 ~ "Deforestation post-permit / post-first planting and after first ZDC of downstream mill",
-                                def_year >= 2018 & def_year > mgmt_year & app == 0 & april == 0 & marubeni == 1 & def_year != 2999 ~ "Deforestation post-permit / post-first planting and after first ZDC of downstream mill",
+  mutate(defor_time = case_when(def_year >= 2013 & def_year >= mgmt_year & app == 1 & def_year != 2999 ~ "Deforestation post-permit / post-first planting and after first ZDC of downstream mill",
+                                def_year >= 2015 & def_year >= mgmt_year & app == 0 & april == 1 & def_year != 2999 ~ "Deforestation post-permit / post-first planting and after first ZDC of downstream mill",
+                                def_year >= 2018 & def_year >= mgmt_year & app == 0 & april == 0 & marubeni == 1 & def_year != 2999 ~ "Deforestation post-permit / post-first planting and after first ZDC of downstream mill",
                                 def_year >= mgmt_year & def_year != 2999 ~ "Deforestation post-permit / post-first planting",
                                 def_year < mgmt_year & def_year != 2999 ~ "Deforestation pre-permit and first planting",
                                 def_year == 2999  ~ "Never deforested",TRUE ~ 0)) %>%
