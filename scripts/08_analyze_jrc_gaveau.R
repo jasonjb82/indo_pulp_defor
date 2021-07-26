@@ -12,19 +12,10 @@
 ##
 ## Notes: Input datasets
 ##        1) HTI concessions (boundaries) and concession start year - from KLHK
-##        2) Gaveau landuse change - mapped land use change from 2001 - 2019 (IOPP,ITP and smallholders)
-##        3)
+##        2) Gaveau landuse change - commodity deforestation (2000 - 2019) (IOPP,ITP and smallholders)
+##        3) JRC deforestation (1990 - 2019)
 ##
 ##
-## Todo: 
-## Clean up plot to match what's being produced in 07_analyze_gee_data.R
-## Convert n in frequency table to hectares - DONE
-## Confirm Gaveau data is being interpreted correctly - DONE
-## Confirm JRC data is being interpreted correctly. E.g. confirm that 0 in defyear means no deforestation observed in 1990-2019? - Need to check
-## Seems like JRC data only covers locations that started as forest in 1990? If so, need to add deforested points to ensure final ha = total area within concessions 
-## Add qc checks
-## Add three binary columns indicating whether concession supplies APRIL, APP, Marubeni mills - DONE
-## Update <2013 cut-off to match earliest ZDC of their downstream mill - DONE
 ##
 ## ---------------------------------------------------------
 
@@ -78,7 +69,6 @@ lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE
 
 ## supplier groups
 groups <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.csv"))
-
 
 ## HTI and sample IDs
 samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
@@ -143,7 +133,6 @@ mill_supplier <- ws %>%
                         EXPORTER == "INDAH KIAT" ~ "app",
                         EXPORTER == "APRIL" ~ "april",
                         TRUE  ~ "marubeni")) %>%
-  
   select(-EXPORTER) %>%
   distinct() 
 
@@ -156,7 +145,6 @@ supplier_groups <- groups %>%
 gaveau_pulp_styr <- samples_gaveau_landuse %>%
   lazy_dt() %>%
   left_join(samples_hti,by="sid") %>%
-  #filter(ID == "H-0644") %>%
   select(supplier_id=ID,gaveau,starts_with("id_")) %>%
   as.data.table() %>%
   dt_pivot_longer(cols = c(-supplier_id,-gaveau),
@@ -252,19 +240,20 @@ samples_df <- samples_df %>%
 #                                           ifelse((def_year == 2999), "Never deforested", 0)))))))))),
 #          defor_pulp = ifelse(ever_pulp==1, paste0(defor_time, ", converted to pulp plantation"), paste0(defor_time, ", not converted to pulp plantation")))
 
+lag <- 5
 defort_df <- samples_df %>% 
   left_join(mill_supplier,by="supplier_id") %>%
   left_join(supplier_groups,by="supplier_id") %>%
   group_by(supplier_id) %>%
-  mutate(mgmt_year = ifelse(start_pulp < license_year ,max(license_year-5),
+  mutate(mgmt_year = ifelse(start_pulp < license_year ,max(license_year - lag),
                             ifelse(start_pulp > license_year,license_year,start_pulp))) %>%
   mutate(def_year = ifelse(def_year== 0, ifelse(start_for == 1, 2999, 0), def_year)) %>%  
   mutate(defor_time = case_when(def_year >= 2013 & def_year >= mgmt_year & app == 1 & def_year != 2999 ~ "Deforestation post-permit / post-first planting and after first ZDC of downstream mill",
-                                def_year >= 2015 & def_year >= mgmt_year & app == 0 & april == 1 & def_year != 2999 ~ "Deforestation post-permit / post-first planting and after first ZDC of downstream mill",
-                                def_year >= 2018 & def_year >= mgmt_year & app == 0 & april == 0 & marubeni == 1 & def_year != 2999 ~ "Deforestation post-permit / post-first planting and after first ZDC of downstream mill",
-                                def_year >= mgmt_year & def_year != 2999 ~ "Deforestation post-permit / post-first planting",
-                                def_year < mgmt_year & def_year != 2999 ~ "Deforestation pre-permit and first planting",
-                                def_year == 2999  ~ "Never deforested",TRUE ~ 0)) %>%
+         def_year >= 2015 & def_year >= mgmt_year & app == 0 & april == 1 & def_year != 2999 ~ "Deforestation post-permit / post-first planting and after first ZDC of downstream mill",
+         def_year >= 2018 & def_year >= mgmt_year & app == 0 & april == 0 & marubeni == 1 & def_year != 2999 ~ "Deforestation post-permit / post-first planting and after first ZDC of downstream mill", # still waiting for info from Brian to confirm
+         def_year >= mgmt_year & def_year != 2999 ~ "Deforestation post-permit / post-first planting",
+         def_year < mgmt_year & def_year != 2999 ~ "Deforestation pre-permit and first planting",
+         def_year == 2999  ~ "Never deforested",TRUE ~ 0)) %>%
   mutate(defor_pulp = ifelse(ever_pulp==1, paste0(defor_time, ", converted to pulp plantation"), paste0(defor_time, ", not converted to pulp plantation")))
 
 ## QA checks
@@ -287,38 +276,39 @@ freq_tab <- defort_df %>%
 
 freq_tab
 
-# Check 2 - check if total area for deforestation timings and frequency table are equal (if supplier label)
-condition = grepl("supplier_label", names(as_tibble(freq_tab)))
+# Check 2 - check if total area of deforestation timings and frequency table are equal (for supplier group)
+condition = grepl("supplier_group", names(as_tibble(freq_tab)))
 
 select.vars <- function (df, cond=condition[1]){
   if(cond){
     df %>%
-      select(supplier_label,area_ha)
+      select(supplier_group,area_ha)
   } else {
     df %>%
       select(island,area_ha)
   }
 }
 
-area_test_supp_id <- select.vars(freq_tab) %>%
-  slice(1) %>%
-  select(!!sym(group_var)) %>%
-  mutate(id = str_extract_all(supplier_label,"(?<=\\().+?(?=\\))")[[1]]) %>%
-  pull
+# area_test_supp_id <- select.vars(freq_tab) %>%
+#   slice(1) %>%
+#   select(!!sym(group_var)) %>%
+#   mutate(id = str_extract_all(supplier_group,"(?<=\\().+?(?=\\))")[[1]]) %>%
+#   pull
+supplier_grp = "SINAR MAS"
 
 test_defort_area = defort_df %>%
-  filter(supplier_id == area_test_supp_id) %>%
+  filter(supplier_group == supplier_grp) %>%
   as_tibble() %>%
-  group_by(supplier_id) %>%
+  group_by(supplier_group) %>%
   tally(sort=TRUE) %>%
   mutate(area_ha = n) %>%
   summarize(area_ha = sum(area_ha))
 
 test_freq_tab_area <- freq_tab %>%
   as_tibble() %>%
-  mutate(supplier_id = stringr::str_extract(string = supplier_label,pattern = "(?<=\\().*(?=\\))")) %>%
-  filter(supplier_id == area_test_supp_id) %>%
-  group_by(supplier_id) %>%
+  #mutate(supplier_id = stringr::str_extract(string = supplier_label,pattern = "(?<=\\().*(?=\\))")) %>%
+  filter(supplier_group == supplier_grp) %>%
+  group_by(supplier_group) %>%
   summarize(area_ha = sum(area_ha))
 
 expect_true(all.equal(test_defort_area[1,1],test_freq_tab_area[1,2]))
@@ -353,12 +343,15 @@ theme_plot2 <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
 
 options(crayon.enabled = FALSE)
 
-## ordering by never deforested areas
-order <- freq_tab %>% 
-  as_tibble() %>%
-  filter(!!sym(class_var) == "Never deforested, not converted to pulp plantation" | !!sym(class_var) == "Never deforested") %>% 
-  arrange(-area_ha) %>%
-  pull(!!sym(group_var))
+# ## ordering by never deforested areas
+# order <- freq_tab %>% 
+#   as_tibble() %>%
+#   filter(!!sym(class_var) == "Never deforested, not converted to pulp plantation" | !!sym(class_var) == "Never deforested") %>% 
+#   arrange(-area_ha) %>%
+#   pull(!!sym(group_var))
+
+# manuall reordering
+order <- c("SINAR MAS","ROYAL GOLDEN EAGLE / TANOTO","GOVERNMENT","MARUBENI","GOVERNEMENT","SUMITOMO","KORINDO","DJARUM","OTHER")
 
 ## set plot order
 plot_order_deft_pulp <- c(
@@ -392,7 +385,7 @@ freq_plot <- freq_tab %>%
 freq_plot
 
 ## save plot to png
-ggsave(freq_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\kali_april_defort_pulp.png"), dpi=400, w=15, h=8,type="cairo-png",limitsize = FALSE)
+ggsave(freq_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\jrc_deforestation\\supplier_groups_defort_pulp.png"), dpi=400, w=15, h=10,type="cairo-png",limitsize = FALSE)
 
 
 ###########################################################################
@@ -447,7 +440,7 @@ jrc_hti_ac <- jrc_ac %>%
   left_join(hti_concession_names,by="supplier_id") %>%
   mutate(year = str_replace(year,"dec", "")) %>%
   mutate(year = as.double(year)) %>%
-  select(-supplier,-n) %>%
+  select(-supplier) %>%
   left_join(select(gaveau_annual_pulp,supplier_id,year,shr_gav_lu_areas,gav_class),by=c("year","supplier_id")) %>%
   mutate(
     zdc_year = case_when(
@@ -457,7 +450,7 @@ jrc_hti_ac <- jrc_ac %>%
       TRUE ~ 0
     )
   ) %>%
-  mutate(zdc_year == ifelse(zdc_year ==0,NA,zdc_year))
+  mutate(zdc_year = ifelse(zdc_year ==0,NA,zdc_year))
 
 
 ## garbage collection (clearing memory)
