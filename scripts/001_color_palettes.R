@@ -4,9 +4,9 @@ deft_colors <- c(
   `Deforestation pre-permit and first planting`="#EB4A40",
   `Deforestation pre-permit and first planting, converted to pulp plantation`="#EB4A40",
   `Deforestation pre-permit and first planting, not converted to pulp plantation`="#ed8f8a",
-  `Deforestation post-permit / post-first planting`="#733f3c",
-  `Deforestation post-permit / post-first planting, converted to pulp plantation`="#733f3c",
-  `Deforestation post-permit / post-first planting, not converted to pulp plantation`="#cc8037",
+  `Deforestation post-permit / post-first planting`="#94764d",
+  `Deforestation post-permit / post-first planting, converted to pulp plantation`="#94764d",
+  `Deforestation post-permit / post-first planting, not converted to pulp plantation`="#dfc398",
   `Deforestation post-permit / post-first planting and after first ZDC of downstream mill`="#4b0e82",
   `Deforestation post-permit / post-first planting and after first ZDC of downstream mill, converted to pulp plantation`="#7827c2",
   `Deforestation post-permit / post-first planting and after first ZDC of downstream mill, not converted to pulp plantation`="#c194d4")
