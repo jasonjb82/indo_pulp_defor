@@ -41,6 +41,7 @@ library(dtplyr)
 library(testthat)
 library(d3.format)
 library(tidyfast)
+library(patchwork)
 
 ## credentials ----------------------------------------------
 
@@ -385,8 +386,36 @@ freq_plot <- freq_tab %>%
 freq_plot
 
 ## save plot to png
-ggsave(freq_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\jrc_deforestation\\supplier_groups_defort_pulp.png"), dpi=400, w=15, h=10,type="cairo-png",limitsize = FALSE)
+#ggsave(freq_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\jrc_deforestation\\supplier_groups_defort_pulp.png"), dpi=400, w=15, h=10,type="cairo-png",limitsize = FALSE)
 
+## plot frequencies (for pulp converted areas only)
+
+freq_conv_plot <- freq_tab %>% 
+  as_tibble() %>%
+  filter(stringr::str_detect(defor_pulp, ', converted to pulp plantation')) %>%
+  mutate(label_order = factor(!!sym(group_var),rev(order))) %>%
+  ggplot() +
+  aes(y = label_order, x = area_ha, fill = factor(!!sym(class_var),levels=plot_order_deft_pulp)) +
+  geom_bar(stat = "identity",position = position_stack(reverse = TRUE)) +
+  theme_plot2 +
+  xlab("") + ylab("")+
+  scale_x_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0)) +
+  guides(fill = guide_legend(nrow = 4)) +
+  scale_fill_manual(values = cols_alpha,name ="Group",
+                    breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp) +
+  theme(legend.position = "none")
+
+freq_conv_plot
+
+## save plot to png
+#ggsave(freq_conv_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\jrc_deforestation\\supplier_groups_defort_pulp_conv_only.png"), dpi=400, w=15, h=10,type="cairo-png",limitsize = FALSE)
+
+# merging plots
+freq_comb <- (freq_plot + plot_layout(guides = "collect") & theme(legend.position = "bottom")) + (freq_conv_plot + theme(legend.position = "none")) 
+freq_comb
+
+## save plot to png
+ggsave(freq_comb,file=paste0(wdir,"\\01_data\\02_out\\plots\\jrc_deforestation\\supplier_groups_defort_pulp.png"), dpi=400, w=15, h=7,type="cairo-png",limitsize = FALSE)
 
 ###########################################################################
 # Analyze annual changes --------------------------------------------------
@@ -544,3 +573,42 @@ ac_plot
 
 ## export to png
 ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\suma_april_suppliers_jrc_annual_changes.png"), dpi=400, w=12, h=42,type="cairo-png",limitsize = FALSE)
+
+##################################################
+#### Info requests ###############################
+##################################################
+
+## 1. Top 10 other HTI's never deforested areas
+
+top10_others <- defort_df %>%
+  as_tibble() %>%
+  filter(defor_time == "Never deforested") %>%
+  group_by(supplier_id,defor_time) %>%
+  summarize(area_ha = n()) %>% 
+  mutate(freq = area_ha / sum(area_ha)) %>%
+  ungroup() %>%
+  left_join(hti_concession_names,by="supplier_id") %>%
+  left_join(supplier_groups,by="supplier_id") %>%
+  filter(supplier_group == "OTHER") %>%
+  arrange(-area_ha) %>%
+  select(supplier_id,supplier_label,area_ha) %>%
+  top_n(10,area_ha)
+
+write_csv(top10_others,file=paste0(wdir,"\\01_data\\02_out\\tables\\top10_neverdeforested.csv"))
+
+## 2. All HTI's never deforested areas
+
+hti_remfor <- defort_df %>%
+  as_tibble() %>%
+  filter(defor_time == "Never deforested") %>%
+  group_by(supplier_id,defor_time) %>%
+  summarize(area_ha = n()) %>% 
+  mutate(freq = area_ha / sum(area_ha)) %>%
+  ungroup() %>%
+  left_join(hti_concession_names,by="supplier_id") %>%
+  left_join(supplier_groups,by="supplier_id") %>%
+  arrange(-area_ha) %>%
+  select(supplier_id,supplier_label,area_ha) 
+
+write_csv(hti_remfor,file=paste0(wdir,"\\01_data\\02_out\\tables\\all_hti_neverdeforested.csv"))
+
