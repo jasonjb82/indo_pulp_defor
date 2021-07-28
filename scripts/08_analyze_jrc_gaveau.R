@@ -608,7 +608,7 @@ hti_remfor <- defort_df %>%
   left_join(hti_concession_names,by="supplier_id") %>%
   left_join(supplier_groups,by="supplier_id") %>%
   arrange(-area_ha) %>%
-  select(supplier_id,supplier_label,area_ha) 
+  select(supplier_id,supplier_group,supplier_label,area_ha) 
 
 write_csv(hti_remfor,file=paste0(wdir,"\\01_data\\02_out\\tables\\all_hti_neverdeforested.csv"))
 
