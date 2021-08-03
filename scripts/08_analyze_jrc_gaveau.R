@@ -245,6 +245,8 @@ lag <- 5
 defort_df <- samples_df %>% 
   left_join(mill_supplier,by="supplier_id") %>%
   left_join(supplier_groups,by="supplier_id") %>%
+  mutate(supplier_group = ifelse(supplier_group == "OTHER" & ever_pulp == "FALSE","OTHER - NO PLANTED PULP",
+         ifelse(supplier_group == "OTHER" & ever_pulp == "TRUE","OTHER - WITH PLANTED PULP",supplier_group))) %>%
   group_by(supplier_id) %>%
   mutate(mgmt_year = ifelse(start_pulp < license_year ,max(license_year - lag),
                             ifelse(start_pulp > license_year,license_year,start_pulp))) %>%
@@ -351,8 +353,9 @@ options(crayon.enabled = FALSE)
 #   arrange(-area_ha) %>%
 #   pull(!!sym(group_var))
 
-# manuall reordering
-order <- c("SINAR MAS","ROYAL GOLDEN EAGLE / TANOTO","GOVERNMENT","MARUBENI","GOVERNEMENT","SUMITOMO","KORINDO","DJARUM","OTHER")
+# manual reordering
+order <- c("SINAR MAS","ROYAL GOLDEN EAGLE / TANOTO","GOVERNMENT","MARUBENI","GOVERNEMENT","SUMITOMO",
+           "KORINDO","DJARUM","OTHER - WITH PLANTED PULP", "OTHER - NO PLANTED PULP")
 
 ## set plot order
 plot_order_deft_pulp <- c(
@@ -396,7 +399,7 @@ freq_conv_plot <- freq_tab %>%
   mutate(label_order = factor(!!sym(group_var),rev(order))) %>%
   ggplot() +
   aes(y = label_order, x = area_ha, fill = factor(!!sym(class_var),levels=plot_order_deft_pulp)) +
-  geom_bar(stat = "identity",position = position_stack(reverse = TRUE)) +
+  geom_bar(stat = "identity",position = fill(reverse = TRUE)) +
   theme_plot2 +
   xlab("") + ylab("")+
   scale_x_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0)) +
@@ -407,11 +410,30 @@ freq_conv_plot <- freq_tab %>%
 
 freq_conv_plot
 
+## plot frequencies (for pulp converted areas only) - percent
+
+freq_conv_perc_plot <- freq_tab %>% 
+  as_tibble() %>%
+  filter(stringr::str_detect(defor_pulp, ', converted to pulp plantation')) %>%
+  mutate(label_order = factor(!!sym(group_var),rev(order))) %>%
+  ggplot() +
+  aes(y = label_order, x = area_ha, fill = factor(!!sym(class_var),levels=plot_order_deft_pulp)) +
+  geom_bar(stat = "identity",position = "fill") +
+  theme_plot2 +
+  xlab("") + ylab("")+
+  scale_x_continuous(labels = percent,expand = c(0,0)) +
+  guides(fill = guide_legend(nrow = 4)) +
+  scale_fill_manual(values = cols_alpha,name ="Group",
+                    breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp) +
+  theme(legend.position = "none")
+
+freq_conv_perc_plot
+
 ## save plot to png
 #ggsave(freq_conv_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\jrc_deforestation\\supplier_groups_defort_pulp_conv_only.png"), dpi=400, w=15, h=10,type="cairo-png",limitsize = FALSE)
 
 # merging plots
-freq_comb <- (freq_plot + plot_layout(guides = "collect") & theme(legend.position = "bottom")) + (freq_conv_plot + theme(legend.position = "none")) 
+freq_comb <- (freq_plot + plot_layout(guides = "collect") & theme(legend.position = "bottom")) + (freq_conv_perc_plot + theme(legend.position = "none")) 
 freq_comb
 
 ## save plot to png
