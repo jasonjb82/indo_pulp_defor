@@ -219,7 +219,10 @@ silk_species_shipments <- silk_pulp %>%
            NEGARA_TUJUAN,NO_INVOICE,SKEMA_KERJASAMA,NO_V_LEGAL,TRANSPORTASI,TGL_INVOICE,KETERANGAN,PEJABAT_TTD,TEMPAT_TTD,
            DIGITAL_SIGN,LOKASI_STUFFING,NO,HS_NUMBER,HS_PRINTED,DESKRIPSI,NUMBER_OF_UNIT,HARVEST_COUNTRY,ID,YEAR,CURRENCY,
            VOLUME_M3,BERAT_BERSIH_KG,VALUE,MIXED) %>%
-  summarise(SPECIES_EXPORT = paste(unique(SPECIES_EXPORT), collapse = ",")) %>%
+  summarise(SPECIES_EXPORT = paste(unique(SPECIES_EXPORT), collapse = ","))
+
+# create species shipments by year
+species_shipments_yr <- silk_species_shipments %>%
   #mutate(SPECIES_EXPORT = ifelse(SPECIES_EXPORT == "ACACIA, OTHERS" | SPECIES_EXPORT == "OTHERS, ACACIA", "ACACIA, OTHERS",
   #              ifelse(SPECIES_EXPORT == "ACACIA, EUCALYPTUS, OTHERS" | SPECIES_EXPORT == "ACACIA, OTHERS, EUCALYPTUS", "ACACIA, EUCALYPTUS, OTHERS",
   #              ifelse(SPECIES_EXPORT == "ACACIA, EUCALYPTUS" | SPECIES_EXPORT == "EUCALYPTUS, ACACIA", "ACACIA, EUCALYPTUS",
@@ -234,12 +237,11 @@ silk_species_shipments <- silk_pulp %>%
   mutate(PERC_SHIPMENT = prop.table(NO_SHIPMENTS)*100, PERC_VOLUME = prop.table(TONS)*100)
 
 # check yearly shipments
-yearly_shipments_total <- silk_species_shipments %>%
+yearly_shipments_total <- species_shipments_yr %>%
   group_by(YEAR) %>%
   summarize(TONS = sum(TONS))
 
-
-p2 <- ggplot(data=silk_species_shipments) +
+p2 <- ggplot(data=species_shipments_yr) +
   geom_bar(stat="identity",position="stack",aes(x=YEAR,y=TONS,fill=as.factor(SPECIES_EXPORT))) +
   scale_x_continuous(breaks = seq(from = 2012, to = 2019, by =1)) +
   xlab("") +
@@ -259,3 +261,46 @@ p2
 
 
 ggsave(p2,file=paste0(wdir,"\\01_data\\02_out\\plots\\silk_exports_woodtypes.png"), dpi=400, w=8, h=10,type="cairo-png") 
+
+# create species shipments by downstream group and year
+
+species_shipments_grp_yr <- silk_species_shipments %>%
+  select(YEAR,NPWP,NAMA_EKSPORTIR,BERAT_BERSIH_KG,ID,SPECIES_EXPORT,MIXED) %>%
+  group_by(YEAR,NPWP,NAMA_EKSPORTIR,ID,SPECIES_EXPORT,MIXED) %>%
+  summarize(TONS = sum(BERAT_BERSIH_KG/1000)) %>%
+  group_by(YEAR,NPWP,NAMA_EKSPORTIR,ID,MIXED) %>%
+  group_by(YEAR,NPWP,NAMA_EKSPORTIR,SPECIES_EXPORT) %>%
+  summarize(NO_SHIPMENTS=n(),TONS=sum(TONS)) %>%
+  group_by(YEAR) %>%
+  mutate(PERC_SHIPMENT = prop.table(NO_SHIPMENTS)*100, PERC_VOLUME = prop.table(TONS)*100) %>%
+  left_join(select(mills,MILL_GROUP,EXPORTER_ID),by=c("NPWP"="EXPORTER_ID"))
+
+# check yearly shipments
+yearly_shipments_total <- species_shipments_grp_yr %>%
+  group_by(YEAR) %>%
+  summarize(TONS = sum(TONS))
+
+mill_order <- c("SINAR MAS","ROYAL GOLDEN EAGLE / TANOTO","MARUBENI")
+
+species_shipments_grp_yr <- arrange(transform(species_shipments_grp_yr,MILL_GROUP=factor(MILL_GROUP,levels=mill_order)),MILL_GROUP) 
+
+p3 <- ggplot(data=species_shipments_grp_yr) +
+  geom_bar(stat="identity",position="stack",aes(x=YEAR,y=TONS,fill=as.factor(SPECIES_EXPORT))) +
+  scale_x_continuous(breaks = seq(from = 2012, to = 2019, by =1)) +
+  xlab("") +
+  scale_y_continuous(name="Pulp (Tons)\n",
+                     limits=c(0,4000000),
+                     breaks=seq(0,4000000, by=1000000),
+                     labels = d3_format(".3~s"),
+                     expand = c(0,0)) + 
+  theme_plot +
+  labs(fill = "\n") +
+  scale_fill_carto_d(palette="Safe") +
+  guides(fill = guide_legend(title.position = "top",nrow=3)) + 
+  facet_wrap(~MILL_GROUP,nrow=1, scales = "free") +
+  ggtitle("") 
+
+p3
+
+
+ggsave(p3,file=paste0(wdir,"\\01_data\\02_out\\plots\\mth_exports\\silk_exports_group_woodtypes.png"), dpi=400, w=16, h=8,type="cairo-png") 
