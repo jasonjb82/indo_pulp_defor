@@ -64,7 +64,7 @@ mb_gav_code_shares <- mb_gav_code %>%
    mutate(code_gav = substr(code,1,2),
           code_mb = substr(code,3,4)) %>%
    filter(code_gav != "99" & code_mb != "99") %>%
-   filter(code_gav != "00" & code_mb != "00") %>%
+   #filter(code_gav != "00" & code_mb != "00") %>%
    select(-code,-count) 
 
 ############################################################################
@@ -72,12 +72,12 @@ mb_gav_code_shares <- mb_gav_code %>%
 ############################################################################
 
 # set up theme
-theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
+theme_heatmap <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                      panel.background = element_rect(colour=NA,fill=NA),
                      panel.grid.minor = element_blank(),
-                     panel.grid.major.x= element_line(color="grey70",linetype="dashed",size=0.35),
+                     panel.grid.major = element_blank(),
                      plot.title = element_text(hjust = 0.5),
-                     axis.line.x = element_line(),
+                     axis.line.x = element_blank(),
                      axis.ticks.x = element_blank(),
                      axis.ticks.y = element_blank(),
                      panel.spacing = unit(2, "lines"),
@@ -102,7 +102,7 @@ agplot <- ggplot(data=mb_gav_code_shares)+
    aes(y=code_gav,x=code_mb,fill=shares) +
    geom_tile() +
    scale_fill_carto_c(palette = "Sunset",direction = -1, name= "Share of overlap") +
-   theme_plot +
+   theme_heatmap +
    guides(colour = guide_legend()) +
    xlab("\nMapbiomas") +
    ylab("Gaveau\n")
@@ -110,4 +110,93 @@ agplot <- ggplot(data=mb_gav_code_shares)+
 agplot
 
 # export plot to png
-ggsave(agplot,file=paste0(wdir,"\\01_data\\02_out\\plots\\mapbiomas_review\\gav_mb_agreement_plot_v2.png"), dpi=400, w=12, h=10,type="cairo-png",limitsize = FALSE)
+ggsave(agplot,file=paste0(wdir,"\\01_data\\02_out\\plots\\mapbiomas_review\\gav_mb_agreement_plot_v1.png"), dpi=400, w=8, h=5,type="cairo-png",limitsize = FALSE)
+
+
+############################################################################
+# Create data for observable comparison plot -------------------------------
+############################################################################
+
+### Read data
+
+# hti concessions
+hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
+
+## HTI and sample IDs
+samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
+
+## Gaveau data
+filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),
+                 pattern = "*.csv",
+                 full.names= TRUE)
+
+samples_gaveau_landuse <- filenames %>%
+   map_dfr(read_csv, .id = "gaveau") %>%
+   janitor::clean_names() %>%
+   select(-system_index,-geo)
+
+## Mapbiomas data
+filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\mapbiomas\\"),
+                 pattern = "*.csv",
+                 full.names= TRUE)
+
+samples_mapbiomas_landuse <- filenames %>%
+   map_dfr(read_csv, .id = "mapbiomas") %>%
+   janitor::clean_names() %>%
+   select(-system_index,-geo)
+
+## clean hti concession names
+hti_concession_names <- hti %>%
+   st_drop_geometry() %>%
+   select(supplier_id=ID,supplier=NAMOBJ) %>%
+   mutate(supplier_label = paste0(supplier," (",supplier_id,")"))
+
+### Clean data
+
+## annual pulp planted areas - gaveau
+gaveau_annual_pulp <- samples_gaveau_landuse %>%
+   lazy_dt() %>%
+   left_join(samples_hti,by="sid") %>%
+   select(supplier_id=ID,gaveau,starts_with("id_")) %>%
+   as.data.table() %>%
+   dt_pivot_longer(cols = c(-supplier_id,-gaveau),
+                   names_to = 'year',
+                   values_to = 'class') %>%
+   as_tibble() %>%
+   mutate(year = str_replace(year,"id_", ""),year = as.double(year)) %>%
+   mutate(gav_class = ifelse(class == 4,"Pulp","Others")) %>%
+   group_by(supplier_id,year,gav_class) %>%
+   summarize(n = n()) %>%
+   group_by(supplier_id,year) %>%
+   mutate(area_ha = n) %>%
+   filter(gav_class != "Others")
+
+## annual pulp planted areas - mapbiomas
+mapbiomas_annual_pulp <- samples_mapbiomas_landuse %>%
+   lazy_dt() %>%
+   left_join(samples_hti,by="sid") %>%
+   select(supplier_id=ID,mapbiomas,starts_with("classification_")) %>%
+   as.data.table() %>%
+   dt_pivot_longer(cols = c(-supplier_id,-mapbiomas),
+                   names_to = 'year',
+                   values_to = 'class') %>%
+   as_tibble() %>%
+   mutate(year = str_replace(year,"classification_", ""),year = as.double(year)) %>%
+   mutate(mb_class = ifelse(class == 9,"Pulp","Others")) %>%
+   group_by(supplier_id,year,mb_class) %>%
+   summarize(n = n()) %>%
+   group_by(supplier_id,year) %>%
+   mutate(area_ha = n) %>%
+   filter(mb_class != "Others")
+
+annual_pulp_comb <- gaveau_annual_pulp %>%
+   full_join(mapbiomas_annual_pulp,by=c("supplier_id","year")) %>%
+   select(supplier_id,year,Gaveau=area_ha.x,Mapbiomas=area_ha.y) %>%
+   pivot_longer(cols = -c(supplier_id,year),
+                names_to = 'dataset',
+                values_to = 'area_ha') %>%
+   left_join(select(hti_concession_names,supplier_id,supplier_label),by="supplier_id") %>%
+   select(supplier_id,supplier_label,year,area_ha,dataset)
+
+# write to csv
+write_csv(annual_pulp_comb,paste0(wdir,"\\01_data\\02_out\\tables\\mapbiomas_gaveau_pulp_areas.csv"))
