@@ -59,6 +59,8 @@ ba <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\burn_areas\\ba_2015_2019.shp"
 # peat
 peat <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\peat\\Indonesian_Peat_Map_BBSDLP_MoAgri_2011.shp"))
 
+# wood supply
+ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2019.csv", bucket), delim = ",")
 
 ## clean data ------------------------------------------------
 
@@ -137,4 +139,29 @@ hti_peat_not_peat_ba <- hti_ba_peat %>%
 
 # write to csv
 write_csv(hti_peat_not_peat_ba,paste0(wdir,"\\01_data\\02_out\\tables\\concessions_burned_area_peat.csv"))
-            
+
+
+### Get areas for APRIL suppliers
+
+## clean mill supplier
+app_supplier <- ws %>%
+  filter(str_detect(SUPPLIER_ID, '^H-')) %>%
+  select(supplier_id=SUPPLIER_ID,EXPORTER) %>%
+  mutate(mill = case_when(EXPORTER == "OKI" ~ "APP",
+                          EXPORTER == "INDAH KIAT" ~ "APP",
+                          EXPORTER == "APRIL" ~ "APRIL",
+                          TRUE  ~ "MARUBENI")) %>%
+  select(-EXPORTER) %>%
+  distinct() %>%
+  filter(mill == "APP") %>%
+  select(supplier_id) %>%
+  pull
+
+## filter to APRIL
+hti_app_peat_not_peat_ba <- hti_peat_not_peat_ba %>%
+  filter(supplier_id %in% app_supplier) 
+
+# write to csv
+write_csv(hti_app_peat_not_peat_ba,paste0(wdir,"\\01_data\\02_out\\tables\\app_concessions_burned_area_peat.csv"))
+
+  
