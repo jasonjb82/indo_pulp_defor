@@ -126,10 +126,12 @@ gaveau_first_pulp <- gaveau_lu_long %>%
           code_gav = ifelse(class == 99,class,code_gav),
           code_gav = str_pad(code_gav, side = "left", width = 2, pad = "0")) %>%
    ungroup() %>%
+   arrange(sid,year) %>%
    select(sid,code_gav) %>%
    group_by(sid) %>%
-   filter(code_gav == min(code_gav)) # get first year of pulp for sid
-   #as_tibble()
+   filter(code_gav == min(code_gav))  # get first year of pulp for sid
+   #as_tibble() 
+
 
 mb_first_pulp <- mapbiomas_lu_long %>%
    lazy_dt() %>%
@@ -146,6 +148,7 @@ mb_first_pulp <- mapbiomas_lu_long %>%
           code_mb = ifelse(class == 99,class,code_mb),
           code_mb = str_pad(code_mb, side = "left", width = 2, pad = "0")) %>%
    ungroup() %>%
+   arrange(sid,year) %>%
    select(sid,code_mb) %>%
    group_by(sid) %>%
    filter(code_mb == min(code_mb))  # get first year of pulp for sid
