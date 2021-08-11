@@ -111,6 +111,16 @@ samples_gaveau_landuse <- filenames %>%
   janitor::clean_names() %>%
   select(-system_index,-geo)
 
+## Mapbiomas data
+filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\mapbiomas\\"),
+                 pattern = "*.csv",
+                 full.names= TRUE)
+
+samples_mapbiomas_landuse <- filenames %>%
+  map_dfr(read_csv, .id = "mapbiomas") %>%
+  janitor::clean_names() %>%
+  select(-system_index,-geo)
+
 ############################################################################
 # Clean / prep data --------------------------------------------------------
 ############################################################################
@@ -445,7 +455,7 @@ ggsave(freq_comb,file=paste0(wdir,"\\01_data\\02_out\\plots\\jrc_deforestation\\
 
 ## TODO: add earliest year of downstream mill ZDC, add more QA tests
 
-## annual pulp planted areas
+## annual pulp planted areas - gaveau
 gaveau_annual_pulp <- samples_gaveau_landuse %>%
   lazy_dt() %>%
   left_join(samples_hti,by="sid") %>%
@@ -462,7 +472,26 @@ gaveau_annual_pulp <- samples_gaveau_landuse %>%
   group_by(supplier_id,year) %>%
   mutate(shr_gav_lu_areas = prop.table(n)*100) %>%
   filter(gav_class != "Others")
-  
+
+## annual pulp planted areas - mapbiomas
+mapbiomas_annual_pulp <- samples_mapbiomas_landuse %>%
+  lazy_dt() %>%
+  left_join(samples_hti,by="sid") %>%
+  select(supplier_id=ID,mapbiomas,starts_with("classification_")) %>%
+  as.data.table() %>%
+  dt_pivot_longer(cols = c(-supplier_id,-mapbiomas),
+                  names_to = 'year',
+                  values_to = 'class') %>%
+  as_tibble() %>%
+  mutate(year = str_replace(year,"classification_", ""),year = as.double(year)) %>%
+  mutate(mb_class = ifelse(class == 9,"Pulp","Others")) %>%
+  group_by(supplier_id,year,mb_class) %>%
+  summarize(n = n()) %>%
+  group_by(supplier_id,year) %>%
+  mutate(shr_mb_lu_areas = prop.table(n)*100) %>%
+  filter(mb_class != "Others")
+
+
 ## melt annual changes dataset into long dataset
 jrc_ac_long <- samples_jrc_tmf %>%
   as.data.table() %>%
@@ -493,6 +522,7 @@ jrc_hti_ac <- jrc_ac %>%
   mutate(year = as.double(year)) %>%
   select(-supplier) %>%
   left_join(select(gaveau_annual_pulp,supplier_id,year,shr_gav_lu_areas,gav_class),by=c("year","supplier_id")) %>%
+  left_join(select(mapbiomas_annual_pulp,supplier_id,year,shr_mb_lu_areas,mb_class),by=c("year","supplier_id")) %>%
   mutate(
     zdc_year = case_when(
       app == 1 ~ 2013,
@@ -581,6 +611,7 @@ ac_plot <- ggplot(data=jrc_ac_comb,aes(year,shr_class)) +
   geom_vline(aes(xintercept=as.numeric(license_year),color="License year"),size=0.5)+
   geom_vline(aes(xintercept=as.numeric(zdc_year),color="Earliest ZDC year of downstream mill"),size=0.5)+
   geom_point(data=jrc_ac_comb,aes(x=year,y=shr_gav_lu_areas,shape=gav_class),color="black",size=1.5)+
+  #geom_point(data=jrc_ac_comb,aes(x=year,y=shr_mb_lu_areas,shape=mb_class),color="blue",size=1.5)+
   ylab("") +
   xlab("") +
   #scale_fill_muted() +
