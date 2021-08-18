@@ -40,6 +40,7 @@ library(testthat)
 library(tidyfast)
 library(readxl)
 library(rcartocolor)
+library(yardstick)
 
 ## credentials ----------------------------------------------
 
@@ -200,3 +201,102 @@ annual_pulp_comb <- gaveau_annual_pulp %>%
 
 # write to csv
 write_csv(annual_pulp_comb,paste0(wdir,"\\01_data\\02_out\\tables\\mapbiomas_gaveau_pulp_areas.csv"))
+
+############################################################################
+### Create confusion matrix ################################################
+############################################################################
+
+## convert to long dataset
+
+# gaveau landuse
+gaveau_lu_long <- samples_gaveau_landuse %>%
+   add_column(rand = runif(nrow(.))) %>%
+   lazy_dt() %>%
+   left_join(samples_hti,by="sid") %>%
+   select(sid,gaveau,rand,starts_with("id_")) %>%
+   as.data.table() %>%
+   dt_pivot_longer(cols = c(-gaveau,-sid,-rand),
+                   names_to = 'year',
+                   values_to = 'class') 
+
+# mapbiomas landuse
+mapbiomas_lu_long <- samples_mapbiomas_landuse %>%
+   add_column(rand = runif(nrow(.))) %>%
+   lazy_dt() %>%
+   left_join(samples_hti,by="sid") %>%
+   select(sid,mapbiomas,rand,starts_with("classification_")) %>%
+   as.data.table() %>%
+   dt_pivot_longer(cols = c(-mapbiomas,-sid,-rand),
+                   names_to = 'year',
+                   values_to = 'class')
+
+## reclass to match
+
+### Gaveau class values
+## 1 - Forest
+## 2 - Non Forest
+## 3 - IOPP - Industrial Palm Oil Plantation
+## 4 - ITP - Industrial Timber Plantation
+## 5 - Smallholder
+
+yr <- 2019
+
+# gaveau
+gav_rc <- gaveau_lu_long %>%
+   lazy_dt() %>%
+   #filter(sid <= 1000000) %>%
+   mutate(year = str_replace(year,"id_", "")) %>% 
+   filter(year == yr) %>%
+   mutate(reclass = case_when(class == 1 | class == 2 ~ "3 - Other", # all other classes
+                              class == 4 ~ "1 - Pulp", # pulp
+                              class == 3 | class == 5 ~ "2 - Oil palm", # oil palm
+                              TRUE ~ "3 - Other")) %>% as_tibble()
+### Mapbiomas class values
+## 3    Forest 
+## 5    Mangrove
+## 9    Planted Forest
+## 13   Natural Non Forest 
+## 21   Other Agriculture Land
+## 25   Other Non Vegetated Area
+## 30   Mining
+## 31   Aquaculture
+## 33   Water
+## 35   Palm Oil
+
+# mapbiomas
+mb_rc <- mapbiomas_lu_long %>%
+   lazy_dt() %>%
+   #filter(sid <= 1000000) %>%
+   mutate(year = str_replace(year,"classification_", "")) %>% 
+   filter(year == yr) %>%
+   mutate(reclass = case_when(class == 3 | class == 5 | class == 13 | class == 21 | class == 25 | class == 30 | class == 31 | class == 33 ~ "3 - Other", # all other classes
+                              class == 9 ~ "1 - Pulp", # pulp
+                              class == 35 ~ "2 - Oil palm", # oil palm
+                              TRUE ~ "3 - Other")) %>% as_tibble()
+
+# merge datasets
+merge_df <- gav_rc %>%
+   left_join(mb_rc,by="sid") 
+
+# convert levels as factors
+merge_df$reclass.x <- as.factor(merge_df$reclass.x)
+levels(merge_df$reclass.x) <- c("1 - Pulp","2 - Oil palm","3 - Other")
+merge_df$reclass.y <- as.factor(merge_df$reclass.y)
+
+# create conversion matrix
+cm <- conf_mat(merge_df,reclass.x,reclass.y)
+
+# create plot
+cm_plot <- autoplot(cm, type = "heatmap") +
+   xlab("\nGaveau") + ylab("Mapbiomas\n") +
+   theme_heatmap +
+   theme(legend.position = "none") +
+   ggtitle(paste0("Confusion matrix for classes in ",yr,"")) +
+   scale_fill_gradient(low = "pink", high = "cyan")
+
+cm_plot
+
+# save to png
+ggsave(cm_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\mapbiomas_review\\gav_mb_cm_plot_2019.png"), dpi=400, w=8, h=5,type="cairo-png",limitsize = FALSE)
+
+
