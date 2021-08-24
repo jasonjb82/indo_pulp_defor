@@ -54,7 +54,14 @@ wdir <- "remote"
 
 ## read data -------------------------------------------------
 
+# code counts
 mb_gav_code <- read_excel(paste0(wdir,"\\01_data\\02_out\\tables\\mapbiomas_gaveau_code_counts.xlsx"))
+
+# idn wide samples 4x4 km
+# gaveau
+gav_samples <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\idn\\idn_gaveau_classes_sampled.csv"))
+# mapbiomas
+mb_samples <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\idn\\idn_mapbiomas_classes_sampled.csv"))
 
 ############################################################################
 # Clean / prep data --------------------------------------------------------
@@ -251,7 +258,7 @@ gav_rc <- gaveau_lu_long %>%
                               class == 4 ~ "1 - Pulp", # pulp
                               class == 3 | class == 5 ~ "2 - Oil palm", # oil palm
                               TRUE ~ "3 - Other")) %>% as_tibble()
-### Mapbiomas class values
+### MapBiomas class values
 ## 3    Forest 
 ## 5    Mangrove
 ## 9    Planted Forest
@@ -299,4 +306,59 @@ cm_plot
 # save to png
 ggsave(cm_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\mapbiomas_review\\gav_mb_cm_plot_2019.png"), dpi=400, w=8, h=5,type="cairo-png",limitsize = FALSE)
 
+####################################
+#### Indonesia wide ################
+####################################
 
+yr = 2019
+
+# gaveau landuse
+gaveau_idn_lu_long <- gav_samples %>%
+   select(sid,starts_with("id_")) %>%
+   pivot_longer(cols = c(-sid),
+                   names_to = 'year',
+                   values_to = 'class') %>%
+   mutate(year = str_replace(year,"id_", "")) %>% 
+   filter(year == yr) %>%
+   mutate(reclass = case_when(class == 1 | class == 2 ~ "3 - Other", # all other classes
+                              class == 4 ~ "1 - Pulp", # pulp
+                              class == 3 | class == 5 ~ "2 - Oil palm", # oil palm
+                              TRUE ~ "3 - Other"))
+
+# mapbiomas landuse
+mapbiomas_idn_lu_long <- mb_samples %>%
+   select(sid,starts_with("classification_")) %>%
+   pivot_longer(cols = c(-sid),
+                names_to = 'year',
+                values_to = 'class') %>%
+   mutate(year = str_replace(year,"classification_", "")) %>% 
+   filter(year == yr) %>%
+   mutate(reclass = case_when(class == 3 | class == 5 | class == 13 | class == 21 | class == 25 | class == 30 | class == 31 | class == 33 ~ "3 - Other", # all other classes
+                              class == 9 ~ "1 - Pulp", # pulp
+                              class == 35 ~ "2 - Oil palm", # oil palm
+                              TRUE ~ "3 - Other"))
+
+# merge datasets
+merge_cm_df <- gaveau_idn_lu_long %>%
+   left_join(mapbiomas_idn_lu_long,by="sid") 
+
+# convert levels as factors
+merge_cm_df$reclass.x <- as.factor(merge_cm_df$reclass.x)
+levels(merge_cm_df$reclass.x) <- c("1 - Pulp","2 - Oil palm","3 - Other")
+merge_cm_df$reclass.y <- as.factor(merge_cm_df$reclass.y)
+
+# create conversion matrix
+idn_cm <- conf_mat(merge_cm_df,reclass.x,reclass.y)
+
+# create plot
+idn_cm_plot <- autoplot(idn_cm, type = "heatmap") +
+   xlab("\nGaveau") + ylab("Mapbiomas\n") +
+   theme_heatmap +
+   theme(legend.position = "none") +
+   ggtitle(paste0("Confusion matrix for classes in ",yr,"")) +
+   scale_fill_gradient(low = "pink", high = "cyan")
+
+idn_cm_plot
+
+# save to png
+ggsave(idn_cm_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\mapbiomas_review\\idn_gav_mb_cm_plot_2019.png"), dpi=400, w=8, h=5,type="cairo-png",limitsize = FALSE)
