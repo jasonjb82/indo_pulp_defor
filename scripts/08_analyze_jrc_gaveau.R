@@ -14,6 +14,7 @@
 ##        1) HTI concessions (boundaries) and concession start year - from KLHK
 ##        2) Gaveau landuse change - commodity deforestation (2000 - 2019) (IOPP,ITP and smallholders)
 ##        3) JRC deforestation (1990 - 2019)
+##        4) MapBiomas land use classification (2000 - 2019)
 ##
 ##
 ##
@@ -163,7 +164,22 @@ gaveau_pulp_styr <- samples_gaveau_landuse %>%
                   values_to = 'class') %>%
   as_tibble() %>%
   filter(class == 4) %>%
-  mutate(year = str_replace(year,"id_", ""),year = as.double(year)+1) %>% # lag of once year between deforestation event and start of pulp planting
+  mutate(year = str_replace(year,"id_", ""),year = as.double(year)) %>% 
+  group_by(supplier_id) %>% 
+  slice(which.min(year)) 
+
+## first year mapbiomas assigns as pulp
+mapbiomas_pulp_styr <- samples_mapbiomas_landuse %>%
+  lazy_dt() %>%
+  left_join(samples_hti,by="sid") %>%
+  select(supplier_id=ID,mapbiomas,starts_with("classification_")) %>%
+  as.data.table() %>%
+  dt_pivot_longer(cols = c(-supplier_id,-mapbiomas),
+                  names_to = 'year',
+                  values_to = 'class') %>%
+  as_tibble() %>%
+  filter(class == 9) %>%
+  mutate(year = str_replace(year,"classification_", ""),year = as.double(year)) %>% 
   group_by(supplier_id) %>% 
   slice(which.min(year)) 
 
@@ -188,16 +204,31 @@ mill_supplier$all <- "1" # 1 value for all concessions
 island_tab <- tibble("island_code" = c(1, 2, 3, 4, 5, 6), "island" = c("balinusa", "kalimantan", "maluku", "papua", "sulawesi", "sumatera"))
 
 ## identify pixels that were cleared for pulp at some point in the time series
+# gaveau
 gaveau_pulp <- samples_gaveau_landuse %>%
   lazy_dt() %>%
   left_join(samples_hti,by="sid") %>%
   as_tibble()
 
-# TRUE/FALSE if sample is ever on pulp clearing  
+# mapbiomas
+mapbiomas_pulp <- samples_mapbiomas_landuse %>%
+  lazy_dt() %>%
+  left_join(samples_hti,by="sid") %>%
+  as_tibble()
+
+# TRUE/FALSE if sample is ever on pulp clearing 
+# gaveau
 gaveau_pulp$ever_pulp <- (rowSums(gaveau_pulp[,startsWith(names(gaveau_pulp),"id_")]==4) >= 1) # Gaveau class 4 is industrial pulp clearing
+# mapbiomas
+mapbiomas_pulp$ever_pulp <- (rowSums(mapbiomas_pulp[,startsWith(names(mapbiomas_pulp),"classification_")]==9) >= 1) # MapBiomas class 9 is plantations
 
 # select columns
+# gaveau
 gaveau_pulp <- gaveau_pulp %>% 
+  select(sid,ever_pulp)
+
+# mapbiomas
+mapbiomas_pulp <- mapbiomas_pulp %>% 
   select(sid,ever_pulp)
 
 ## identify pixels that started as forest in 1990
@@ -225,7 +256,9 @@ samples_df <- samples_df %>%
   left_join(hti_concession_names,by="supplier_id") %>% 
   left_join(gaveau_pulp, by = "sid") %>% 
   left_join(gaveau_pulp_styr) %>%
-  mutate(def_year = ifelse(def_year == 0 & ever_pulp == 1,year,def_year), # reclassifying def_year to year pulp assigned by Gaveau if def_year = 0
+  #left_join(mapbiomas_pulp, by = "sid") %>% 
+  #left_join(mapbiomas_pulp_styr) %>%
+  mutate(def_year = ifelse(def_year == 0 & ever_pulp == 1,year,def_year), # reclassifying def_year to year pulp assigned by Gaveau/MapBiomas if def_year = 0
          year = ifelse(is.na(year),2999,year)) %>%
   select(sid, island, supplier_id, def_year, ever_pulp, license_year, start_pulp=year,supplier_label,rand) %>% 
   mutate(start_for = sid %in% forest_sids)
@@ -491,7 +524,6 @@ mapbiomas_annual_pulp <- samples_mapbiomas_landuse %>%
   mutate(shr_mb_lu_areas = prop.table(n)*100) %>%
   filter(mb_class != "Others")
 
-
 ## melt annual changes dataset into long dataset
 jrc_ac_long <- samples_jrc_tmf %>%
   as.data.table() %>%
@@ -508,6 +540,31 @@ jrc_ac <- jrc_ac_long %>%
   summarize(n = n()) %>%
   mutate(shr_class = prop.table(n)*100) 
 
+## create table of annual pulp for gaveau and mapbiomas dataset
+supplier_year_tbl <- hti_concession_names %>%
+  select(supplier_id) %>%
+  group_by(supplier_id) %>%
+  summarise(start = min(1990),
+            end = max(2019)) %>%
+  mutate(year = Map(seq, start, end)) %>%
+  unnest(cols =year) %>%
+  mutate(unique=1) %>%
+  select(supplier_id,year)
+
+gav_tbl <- gaveau_annual_pulp %>%
+  mutate(dataset = "gaveau",sh_area = shr_gav_lu_areas) %>%
+  select(supplier_id,year,sh_area,dataset) 
+
+mb_tbl <- mapbiomas_annual_pulp %>%
+  mutate(dataset = "mapbiomas",sh_area = shr_mb_lu_areas) %>%
+  select(supplier_id,year,sh_area,dataset)   
+
+merged_pulp_areas <- gav_tbl %>%
+  bind_rows(mb_tbl)
+
+pulp_area_tbl <- supplier_year_tbl %>%
+  left_join(merged_pulp_areas,by =c("supplier_id","year"))
+
 ## join with downstream mill supplier, license year,concession names and annual change class names
 jrc_hti_ac <- jrc_ac %>%
   rename(supplier_id=ID,island_code=jrc_tmf_ac) %>%
@@ -521,13 +578,15 @@ jrc_hti_ac <- jrc_ac %>%
   mutate(year = str_replace(year,"dec", "")) %>%
   mutate(year = as.double(year)) %>%
   select(-supplier) %>%
-  left_join(select(gaveau_annual_pulp,supplier_id,year,shr_gav_lu_areas,gav_class),by=c("year","supplier_id")) %>%
-  left_join(select(mapbiomas_annual_pulp,supplier_id,year,shr_mb_lu_areas,mb_class),by=c("year","supplier_id")) %>%
+  #left_join(supplier_year_tbl,by=c("year","supplier_id")) %>%
+  left_join(select(pulp_area_tbl,supplier_id,year,sh_area,dataset),by=c("year","supplier_id")) %>%
+  #left_join(select(gaveau_annual_pulp,supplier_id,year,shr_gav_lu_areas,gav_class),by=c("year","supplier_id")) %>%
+  #left_join(select(mapbiomas_annual_pulp,supplier_id,year,shr_mb_lu_areas,mb_class),by=c("year","supplier_id")) %>%
   mutate(
     zdc_year = case_when(
       app == 1 ~ 2013,
       app == 0 & april == 1 ~ 2015,
-      april == 0 & app == 0 & marubeni == 1 ~ 2018,
+      april == 0 & app == 0 & marubeni == 1 ~ 2019,
       TRUE ~ 0
     )
   ) %>%
@@ -543,7 +602,7 @@ rm(samples_jrc_tmf)
 ## filter or aggregate for plot (by island, downstream mill, etc)
 jrc_ac_comb <- jrc_hti_ac %>%
   as_tibble() %>%
-  filter(island_code == 6) %>%
+  filter(island_code == 2) %>%
   filter(april == 1)
 
 ## QA checks
@@ -604,28 +663,31 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
 options(crayon.enabled = FALSE)
 
 ## plotting
-ac_plot <- ggplot(data=jrc_ac_comb,aes(year,shr_class)) +
+ac_plot <- ggplot(subset(jrc_ac_comb,is.na(dataset)| dataset == "gaveau"),aes(year,shr_class)) +
   geom_area(aes(fill= as.character(class_desc)), position = position_stack(reverse = T)) +
   scale_x_continuous(expand=c(0,0),breaks=seq(1990,2019,by=1)) +
   scale_y_continuous(labels = d3_format(".2~s",suffix = "%"),expand = c(0,0)) +
-  geom_vline(aes(xintercept=as.numeric(license_year),color="License year"),size=0.5)+
-  geom_vline(aes(xintercept=as.numeric(zdc_year),color="Earliest ZDC year of downstream mill"),size=0.5)+
-  geom_point(data=jrc_ac_comb,aes(x=year,y=shr_gav_lu_areas,shape=gav_class),color="black",size=1.5)+
+  geom_vline(aes(xintercept=as.numeric(license_year),color="License\nyear"),size=0.5)+
+  geom_vline(aes(xintercept=as.numeric(zdc_year),color="Earliest ZDC year\nof downstream mill"),size=0.5)+
+  #geom_line(data=jrc_ac_comb,aes(x=year,y=sh_area,shape=dataset),fill="white",color="grey20",size=0.2)+
+  geom_point(data=jrc_ac_comb,aes(x=year,y=sh_area,shape=dataset),fill="white",color="black",size=1)+
+  #geom_point(data=jrc_ac_comb,aes(x=year,y=shr_gav_lu_areas,shape=gav_class),color="black",size=1.5)+
   #geom_point(data=jrc_ac_comb,aes(x=year,y=shr_mb_lu_areas,shape=mb_class),color="blue",size=1.5)+
   ylab("") +
   xlab("") +
   #scale_fill_muted() +
   scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen","#F8F899","seagreen4"))+ 
-  scale_shape_manual(values=17,labels="Woodpulp planted area",na.translate=FALSE)+ 
+  scale_shape_manual(values=c(1,2),labels=c("Area cleared for pulp - Gaveau","Wood pulp planted area - MapBiomas"),na.translate=FALSE)+ 
   scale_color_manual(values = c("palevioletred4","#064383")) +
   facet_wrap(~supplier_label,ncol=2,scales="free") +
-  guides(fill = guide_legend(nrow = 2),color = guide_legend(nrow=1),keyheight = 10) +
+  guides(fill = guide_legend(nrow = 2),color = guide_legend(nrow=1),shape = guide_legend(nrow=2),keyheight = 10) +
   theme_plot
 
 ac_plot
 
 ## export to png
-ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\suma_april_suppliers_jrc_annual_changes.png"), dpi=400, w=12, h=42,type="cairo-png",limitsize = FALSE)
+ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\suma_april_suppliers_jrc_ac_pulp_gav_mb.png"), dpi=400, w=12, h=42,type="cairo-png",limitsize = FALSE)
+ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\kali_april_suppliers_jrc_ac_pulp_gav_mb.png"), dpi=400, w=12, h=12,type="cairo-png",limitsize = FALSE)
 
 ##################################################
 #### Info requests ###############################
