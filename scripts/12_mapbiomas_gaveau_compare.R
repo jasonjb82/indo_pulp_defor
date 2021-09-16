@@ -350,6 +350,10 @@ merge_cm_df$reclass.y <- as.factor(merge_cm_df$reclass.y)
 # create conversion matrix
 idn_cm <- conf_mat(merge_cm_df,reclass.x,reclass.y)
 
+# create data.frame
+idn_cm_df <- as.data.frame(idn_cm[1]) %>%
+   pivot_wider(names_from = "table.Truth",values_from = "table.Freq")
+
 # create plot
 idn_cm_plot <- autoplot(idn_cm, type = "heatmap") +
    xlab("\nGaveau") + ylab("Mapbiomas\n") +
@@ -362,3 +366,5 @@ idn_cm_plot
 
 # save to png
 ggsave(idn_cm_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\mapbiomas_review\\idn_gav_mb_cm_plot_2019.png"), dpi=400, w=8, h=5,type="cairo-png",limitsize = FALSE)
+# save to csv
+write_csv(idn_cm_df,paste0(wdir,"\\01_data\\02_out\\plots\\mapbiomas_review\\idn_gav_mb_cm_plot_2019.csv"))
