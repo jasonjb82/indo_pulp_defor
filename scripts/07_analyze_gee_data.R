@@ -486,3 +486,23 @@ p
 
 # export to png
 ggsave(p,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\april_hti_jrc_class_areas.png"), dpi=400, w=18, h=5,type="cairo-png",limitsize = FALSE)
+
+
+# Annual Gaveau Pulp Clearing
+
+gaveau_annual_pulp <- gaveau_pulp %>%
+  group_by(year) %>%
+  summarize(area_ha = sum(n))
+
+dp <- ggplot(data=gaveau_annual_pulp,aes(year,area_ha)) +
+  geom_col(color="grey40",fill="grey40") +
+  scale_x_continuous(expand=c(0,0),breaks=seq(2000,2020,by=2)) +
+  scale_y_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0),breaks = seq(0,4000000,by=500000),limits=c(0,3000000)) +
+  ylab("") +
+  xlab("") +
+  theme_plot
+
+dp
+
+# export to png
+ggsave(p,file=paste0(wdir,"\\01_data\\02_out\\plots\\area_cleared_pulp_gaveau_2000_2020.png"), dpi=400, w=8, h=4,type="cairo-png",limitsize = FALSE)
