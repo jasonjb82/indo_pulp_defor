@@ -12,8 +12,8 @@
 ##
 ## Notes: Input datasets
 ##        1) HTI concessions (boundaries) and concession start year - from KLHK
-##        2) Gaveau landuse change - commodity deforestation (2000 - 2019) (IOPP,ITP and smallholders)
-##        3) JRC deforestation (1990 - 2019)
+##        2) Gaveau landuse change - commodity deforestation (2000 - 2020) (IOPP,ITP and smallholders)
+##        3) JRC deforestation (1990 - 2020)
 ##        4) MapBiomas land use classification (2000 - 2019)
 ##
 ##
@@ -727,3 +727,24 @@ hti_remfor <- defort_df %>%
 
 write_csv(hti_remfor,file=paste0(wdir,"\\01_data\\02_out\\tables\\all_hti_neverdeforested.csv"))
 
+## 3. Plantation from deforestation and plantation from areas never deforested
+# TODO:
+
+defor_tbl <- defort_df %>%
+  as_tibble() %>%
+  #filter(def_year > 2000) %>%
+  #filter(!str_detect(defor_pulp, 'not converted to pulp plantation')) %>%
+  group_by(defor_pulp,def_year) %>%
+  summarize(area_ha = n()) %>% 
+  mutate(freq = area_ha / sum(area_ha)) %>%
+  ungroup() %>%
+  group_by(def_year) 
+
+
+ggplot(defor_tbl,aes(x = def_year, y = area_ha, fill = defor_pulp)) +
+  geom_bar(stat = "identity") +
+  scale_x_continuous(expand=c(0,0),breaks=seq(2001,2020,by=2)) +
+  scale_y_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0),breaks = seq(0,300000,by=50000),limits=c(0,300000)) +
+  ylab("") +
+  xlab("") +
+  theme_plot
