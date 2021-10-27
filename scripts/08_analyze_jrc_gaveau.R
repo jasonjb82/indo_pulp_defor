@@ -81,6 +81,11 @@ hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
 # wood supply
 ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2019.csv", bucket), delim = ",")
 
+# kabupaten
+kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
+prov_slim <- kab %>% select(prov,prov_code) %>% st_drop_geometry() %>% distinct() %>%
+  mutate(prov_code = ifelse(prov == "PAPUA",92,prov_code))
+
 ## JRC
 ## Annual changes 
 filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\jrc\\annual_changes\\"),
@@ -113,14 +118,14 @@ samples_gaveau_landuse <- filenames %>%
   select(-system_index,-geo)
 
 ## Mapbiomas data
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\mapbiomas\\"),
-                 pattern = "*.csv",
-                 full.names= TRUE)
-
-samples_mapbiomas_landuse <- filenames %>%
-  map_dfr(read_csv, .id = "mapbiomas") %>%
-  janitor::clean_names() %>%
-  select(-system_index,-geo)
+# filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\mapbiomas\\"),
+#                  pattern = "*.csv",
+#                  full.names= TRUE)
+# 
+# samples_mapbiomas_landuse <- filenames %>%
+#   map_dfr(read_csv, .id = "mapbiomas") %>%
+#   janitor::clean_names() %>%
+#   select(-system_index,-geo)
 
 ############################################################################
 # Clean / prep data --------------------------------------------------------
@@ -169,19 +174,19 @@ gaveau_pulp_styr <- samples_gaveau_landuse %>%
   slice(which.min(year)) 
 
 ## first year mapbiomas assigns as pulp
-mapbiomas_pulp_styr <- samples_mapbiomas_landuse %>%
-  lazy_dt() %>%
-  left_join(samples_hti,by="sid") %>%
-  select(supplier_id=ID,mapbiomas,starts_with("classification_")) %>%
-  as.data.table() %>%
-  dt_pivot_longer(cols = c(-supplier_id,-mapbiomas),
-                  names_to = 'year',
-                  values_to = 'class') %>%
-  as_tibble() %>%
-  filter(class == 9) %>%
-  mutate(year = str_replace(year,"classification_", ""),year = as.double(year)) %>% 
-  group_by(supplier_id) %>% 
-  slice(which.min(year)) 
+# mapbiomas_pulp_styr <- samples_mapbiomas_landuse %>%
+#   lazy_dt() %>%
+#   left_join(samples_hti,by="sid") %>%
+#   select(supplier_id=ID,mapbiomas,starts_with("classification_")) %>%
+#   as.data.table() %>%
+#   dt_pivot_longer(cols = c(-supplier_id,-mapbiomas),
+#                   names_to = 'year',
+#                   values_to = 'class') %>%
+#   as_tibble() %>%
+#   filter(class == 9) %>%
+#   mutate(year = str_replace(year,"classification_", ""),year = as.double(year)) %>% 
+#   group_by(supplier_id) %>% 
+#   slice(which.min(year)) 
 
 # list of supplying concessions
 mill_supplier_list <- mill_supplier %>%
@@ -211,16 +216,16 @@ gaveau_pulp <- samples_gaveau_landuse %>%
   as_tibble()
 
 # mapbiomas
-mapbiomas_pulp <- samples_mapbiomas_landuse %>%
-  lazy_dt() %>%
-  left_join(samples_hti,by="sid") %>%
-  as_tibble()
+# mapbiomas_pulp <- samples_mapbiomas_landuse %>%
+#   lazy_dt() %>%
+#   left_join(samples_hti,by="sid") %>%
+#   as_tibble()
 
 # TRUE/FALSE if sample is ever on pulp clearing 
 # gaveau
 gaveau_pulp$ever_pulp <- (rowSums(gaveau_pulp[,startsWith(names(gaveau_pulp),"id_")]==4) >= 1) # Gaveau class 4 is industrial pulp clearing
 # mapbiomas
-mapbiomas_pulp$ever_pulp <- (rowSums(mapbiomas_pulp[,startsWith(names(mapbiomas_pulp),"classification_")]==9) >= 1) # MapBiomas class 9 is plantations
+# mapbiomas_pulp$ever_pulp <- (rowSums(mapbiomas_pulp[,startsWith(names(mapbiomas_pulp),"classification_")]==9) >= 1) # MapBiomas class 9 is plantations
 
 # select columns
 # gaveau
@@ -268,22 +273,6 @@ samples_df <- samples_df %>%
 ###########################################################################
 
 ### Identify different deforestation timings
-# lag <- 3
-# defort_df <- samples_df %>% 
-#   left_join(mill_supplier,by="supplier_id") %>%
-#   mutate(def_year = ifelse(def_year==0, ifelse(start_for == 1, 2999, 0), def_year)) %>%  
-#   mutate(defor_time = ifelse((def_year < license_year - lag), paste0("Deforestation >",lag," years before license"),  # Note: works because no licenses were issued prior to 1992 so JRC fully covers period of interest
-#          ifelse((def_year >= license_year - lag) & (def_year < license_year), paste0("Deforestation in ",lag," years prior to license"),
-#              ifelse((def_year >= license_year) & (def_year < 2013) & (app == 1), "Deforestation on licensed concession, before earliest ZDC of downstream mill",
-#                    ifelse((def_year >= 2013) & (def_year != 2999) & (app == 1), "Deforestation on licensed concession, after earliest ZDC of downstream mill",
-#                         ifelse((def_year >= license_year) & (def_year < 2015) & (april == 1 & app == 0), "Deforestation on licensed concession, before earliest ZDC of downstream mill",
-#                             ifelse((def_year >= 2015) & (def_year != 2999) & (april == 1 & app == 0), "Deforestation on licensed concession, after earliest ZDC of downstream mill",
-#                                 ifelse((def_year >= license_year) & (def_year < 2018) & (april == 0 & app == 0 & marubeni == 1), "Deforestation on licensed concession, before earliest ZDC of downstream mill", # need to confirm with Brian ZDC yr
-#                                     ifelse((def_year >= 2018) & (def_year != 2999) & (april == 0 & app == 0 & marubeni == 1), "Deforestation on licensed concession, after earliest ZDC of downstream mill", # need to confirm with Brian ZDC yr
-#                                        ifelse((def_year != 2999) & (april == 0 & app == 0 & marubeni == 0), "Deforestation on concession after license",
-#                                           ifelse((def_year == 2999), "Never deforested", 0)))))))))),
-#          defor_pulp = ifelse(ever_pulp==1, paste0(defor_time, ", converted to pulp plantation"), paste0(defor_time, ", not converted to pulp plantation")))
-
 lag <- 5
 defort_df <- samples_df %>% 
   left_join(mill_supplier,by="supplier_id") %>%
@@ -689,6 +678,155 @@ ac_plot
 ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\suma_april_suppliers_jrc_ac_pulp_gav_mb.png"), dpi=400, w=12, h=42,type="cairo-png",limitsize = FALSE)
 ggsave(ac_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\kali_april_suppliers_jrc_ac_pulp_gav_mb.png"), dpi=400, w=12, h=12,type="cairo-png",limitsize = FALSE)
 
+
+## Figure X (deforestation for plantation establishment)
+
+lag <- 2
+defort_df <- samples_df %>% 
+  left_join(mill_supplier,by="supplier_id") %>%
+  left_join(supplier_groups,by="supplier_id") %>%
+  mutate(supplier_group = ifelse(supplier_group == "OTHER" & ever_pulp == "FALSE","OTHER - NO PLANTED PULP",
+                                 ifelse(supplier_group == "OTHER" & ever_pulp == "TRUE","OTHER - WITH PLANTED PULP",supplier_group))) %>%
+  group_by(supplier_id) %>%
+  mutate(def_year = ifelse(def_year== 0, ifelse(start_for == 1, 2999, 0), def_year)) %>%  
+  mutate(defor_time = case_when(def_year >= license_year & def_year != 2999 ~ "Deforestation post-permit",
+                                def_year < license_year - lag & def_year != 2999 ~ "Deforestation pre-permit (< 2 years)",
+                                def_year < license_year & def_year != 2999 ~ "Deforestation pre-permit (> 2 years)",
+                                def_year == 2999  ~ "Never deforested",TRUE ~ 0)) %>%
+  mutate(defor_pulp = ifelse(ever_pulp==1, paste0(defor_time, ", converted to pulp plantation"), paste0(defor_time, ", not converted to pulp plantation")))
+
+## Generate frequency table by group
+class_var <- "defor_pulp" # Generally either defor_time or defor_pulp
+mill_var <- "all" # Generally either april,app,marubeni or all (all concessions)
+freq_tab <- defort_df %>%
+  filter(!!sym(mill_var) == 1) %>%
+  group_by(.data[[class_var]]) %>% 
+  summarize(area_ha = n()) %>% 
+  mutate(freq = area_ha / sum(area_ha)) %>%
+  ungroup() %>%
+  as_tibble()
+
+# Total area cleared for establishment of plantation
+freq_tab %>%
+  filter(stringr::str_detect(defor_pulp, ', converted to pulp plantation')) %>%
+  mutate(pc_shr = prop.table(area_ha)*100) %>%
+  select(-freq) %>% write.csv(.,file = paste0(wdir,"\\01_data\\02_out\\tables\\defor_plantation_est.csv"))
+
+freq_tab %>% filter(stringr::str_detect(defor_pulp, ', converted to pulp plantation')) %>% group_by() %>%
+  summarize(area_ha = sum(area_ha)) %>% print()
+
+## set plot order
+plot_order <- c(
+  "Deforestation pre-permit (> 2 years), converted to pulp plantation",
+  "Deforestation pre-permit (< 2 years), converted to pulp plantation",
+  "Deforestation post-permit, converted to pulp plantation")
+
+labels <- c("Deforestation pre-permit (> 2 years),\nconverted to pulp plantation",
+          "Deforestation pre-permit (< 2 years),\nconverted to pulp plantation", 
+           "Deforestation post-permit,\nconverted to pulp plantation") 
+
+dt_plot <- freq_tab %>% 
+  filter(stringr::str_detect(defor_pulp, ', converted to pulp plantation')) %>%
+  ggplot() +
+  aes(y = factor(defor_pulp,levels=rev(plot_order)), x = area_ha, fill = factor(defor_pulp,levels=plot_order)) +
+  geom_bar(position="stack", stat="identity",  width=0.75) +
+  theme_plot2 +
+  xlab("") + ylab("")+
+  scale_x_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0)) +
+  scale_fill_manual(values=c("#EB4A40", "#94764d","#7827c2"))+ 
+  guides(fill = guide_legend(nrow = 4)) +
+  theme(legend.position = "none") +
+  scale_y_discrete(labels = rev(labels))
+
+dt_plot
+
+ggsave(dt_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_defor_plantation_est.png"), 
+       dpi=400, w=8, h=4,type="cairo-png",limitsize = FALSE)
+
+
+## Fig X - Cumulative plantation development and deforestation (by province)
+
+# cumulative plantation development by province
+gaveau_annual_pulp_supplier <- samples_gaveau_landuse %>%
+  left_join(samples_hti,by="sid") %>%
+  select(supplier_id=ID,gaveau,starts_with("id_")) %>%
+  pivot_longer(cols = starts_with("id_"),
+               names_to = 'year',
+               values_to = 'class') %>%
+  mutate(year = str_replace(year,"id_", ""),year = as.double(year)) %>%
+  mutate(gav_class = ifelse(class == 4,"Pulp","Others")) %>%
+  group_by(supplier_id,year,gav_class) %>%
+  summarize(n = n()) %>%
+  filter(gav_class != "Others")
+
+cum_pulp_prov <- gaveau_annual_pulp_supplier %>%
+  left_join(select(hti,ID,Kode_Prov),by=c("supplier_id"="ID")) %>%
+  select(-geometry,-supplier_id) %>%
+  group_by(year,prov_code=Kode_Prov) %>%
+  summarize(area_ha = sum(n)) %>%
+  left_join(prov_slim,by="prov_code") %>%
+  distinct()
+
+plot_order <- c(
+  "ACEH","SUMATERA UTARA","RIAU","JAMBI","SUMATERA SELATAN","SUMATERA BARAT","LAMPUNG",
+  "KALIMANTAN BARAT","KALIMANTAN TENGAH","KALIMANTAN SELATAN","KALIMANTAN TIMUR","KALIMANTAN UTARA","PAPUA")
+
+cpd_prov_plot <- ggplot(data=cum_pulp_prov,aes(year,area_ha)) +
+  geom_bar(stat="identity",aes(fill = factor(prov,levels=plot_order))) +
+  scale_x_continuous(expand=c(0,0),breaks=seq(2000,2020,by=1)) +
+  scale_y_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0),breaks = seq(0,4000000,by=500000),limits=c(0,3000000)) +
+  scale_fill_manual(values=c("#666666", "#ed8f8a","#94764d","#dfc398","#e7298a", "#ff7f00",
+                             "#ffed6f","#7827c2","#80b1d3","#1f78b4","#bc80bd","#fccde5","#66c2a4"))+ 
+  ylab("") +
+  xlab("") +
+  theme_plot
+
+cpd_prov_plot
+
+ggsave(cpd_prov_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_pulp_areas_province.png"), 
+       dpi=400, w=10, h=6,type="cairo-png",limitsize = FALSE)
+
+# annual plantation expansion by province
+pulp_area_peryr <-  samples_gaveau_landuse %>%
+  left_join(samples_hti,by="sid") %>%
+  select(supplier_id=ID,sid,gaveau,starts_with("id_")) %>%
+  pivot_longer(cols = starts_with("id_"),
+               names_to = 'year',
+               values_to = 'class') %>%
+  mutate(year = str_replace(year,"id_", ""),year = as.double(year)) %>%
+  filter(class == 4) %>%
+  group_by(gaveau,sid,supplier_id) %>% 
+  filter(year == min(year) & year > 2000) %>%
+  group_by(year,supplier_id) %>%
+  summarize(n = n()) %>%
+  print()
+
+pulp_area_peryr_prov <- pulp_area_peryr %>%
+  left_join(select(hti,ID,Kode_Prov),by=c("supplier_id"="ID")) %>%
+  select(-geometry,-supplier_id) %>%
+  group_by(year,prov_code=Kode_Prov) %>%
+  summarize(area_ha = sum(n)) %>%
+  left_join(prov_slim,by="prov_code") %>%
+  distinct() %>%
+  print()
+
+pap_prov_plot <- ggplot(data=pulp_area_peryr_prov,aes(year,area_ha)) +
+  geom_bar(stat="identity",aes(fill = factor(prov,levels=plot_order))) +
+  scale_x_continuous(expand=c(0,0),breaks=seq(2001,2020,by=1)) +
+  scale_y_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0),breaks = seq(0,250000,by=50000),limits=c(0,240000)) +
+  scale_fill_manual(values=c("#666666", "#ed8f8a","#94764d","#dfc398","#e7298a", "#ff7f00",
+                             "#ffed6f","#7827c2","#80b1d3","#1f78b4","#bc80bd","#fccde5","#66c2a4"))+ 
+  ylab("") +
+  xlab("") +
+  theme_plot
+
+pap_prov_plot
+
+ggsave(pap_prov_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_pulp_areas_yr_province.png"), 
+       dpi=400, w=10, h=6,type="cairo-png",limitsize = FALSE)
+
+# TODO # cumulative deforestation by province
+
 ##################################################
 #### Info requests ###############################
 ##################################################
@@ -726,25 +864,3 @@ hti_remfor <- defort_df %>%
   select(supplier_id,supplier_group,supplier_label,area_ha) 
 
 write_csv(hti_remfor,file=paste0(wdir,"\\01_data\\02_out\\tables\\all_hti_neverdeforested.csv"))
-
-## 3. Plantation from deforestation and plantation from areas never deforested
-# TODO:
-
-defor_tbl <- defort_df %>%
-  as_tibble() %>%
-  #filter(def_year > 2000) %>%
-  #filter(!str_detect(defor_pulp, 'not converted to pulp plantation')) %>%
-  group_by(defor_pulp,def_year) %>%
-  summarize(area_ha = n()) %>% 
-  mutate(freq = area_ha / sum(area_ha)) %>%
-  ungroup() %>%
-  group_by(def_year) 
-
-
-ggplot(defor_tbl,aes(x = def_year, y = area_ha, fill = defor_pulp)) +
-  geom_bar(stat = "identity") +
-  scale_x_continuous(expand=c(0,0),breaks=seq(2001,2020,by=2)) +
-  scale_y_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0),breaks = seq(0,300000,by=50000),limits=c(0,300000)) +
-  ylab("") +
-  xlab("") +
-  theme_plot
