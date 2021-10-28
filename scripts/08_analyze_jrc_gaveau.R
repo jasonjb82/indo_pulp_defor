@@ -814,8 +814,11 @@ pap_prov_plot <- ggplot(data=pulp_area_peryr_prov,aes(year,area_ha)) +
   geom_bar(stat="identity",aes(fill = factor(prov,levels=plot_order))) +
   scale_x_continuous(expand=c(0,0),breaks=seq(2001,2020,by=1)) +
   scale_y_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0),breaks = seq(0,250000,by=50000),limits=c(0,240000)) +
-  scale_fill_manual(values=c("#666666", "#ed8f8a","#94764d","#dfc398","#e7298a", "#ff7f00",
-                             "#ffed6f","#7827c2","#80b1d3","#1f78b4","#bc80bd","#fccde5","#66c2a4"))+ 
+  #scale_fill_manual(values=c("#666666", "#ed8f8a","#94764d","#dfc398","#e7298a", "#ff7f00",
+  #                           "#ffed6f","#7827c2","#80b1d3","#1f78b4","#bc80bd","#fccde5","#66c2a4"))+ 
+  scale_fill_manual(values=c("#120112", "#5d0e5e","#9b189e","#df65b0","#c994c7", "#d4b9da","#e7e1ef",
+  "#082882","#3b48b3","#1d91c0","#22b3ab","#ace6ce",
+  "#ffff33"))+ 
   ylab("") +
   xlab("") +
   theme_plot
