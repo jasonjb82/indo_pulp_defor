@@ -55,6 +55,9 @@ pulp_mill_prod <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\PULP_MILL_PROD
 # wood supply
 pulpwood_supply <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2019.csv", bucket),delim=",") 
 
+# 2020 wood supply
+pw_supply_2020 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2020_compiled.xlsx')) %>%
+  select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
 
 ## clean data ------------------------------------------------
 
@@ -74,6 +77,7 @@ mill_prod <- pulp_mill_prod %>%
 
 # flow of wood supply to mill
 ws_flow <- pulpwood_supply %>%
+  bind_rows(pw_supply_2020) %>%
   select(year=YEAR,supplier_id=SUPPLIER_ID,mill_id=EXPORTER_ID,volume_m3=VOLUME_M3) %>%
   group_by(year,supplier_id,mill_id) %>%
   summarize(volume_m3 = sum(volume_m3))
@@ -95,7 +99,7 @@ conc_area <- pulp_area_clean_hti %>%
   mutate(prod_year = year + 4) %>% 
   select(supplier_id, name, prod_year, pulp_area_ha) %>% 
   filter(prod_year >= 2015,
-         prod_year <=2019)
+         prod_year <=2020)
 
 
 conc_yield = conc_area %>% 
