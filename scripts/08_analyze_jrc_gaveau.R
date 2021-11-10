@@ -233,8 +233,8 @@ gaveau_pulp <- gaveau_pulp %>%
   select(sid,ever_pulp)
 
 # mapbiomas
-mapbiomas_pulp <- mapbiomas_pulp %>% 
-  select(sid,ever_pulp)
+#mapbiomas_pulp <- mapbiomas_pulp %>% 
+#  select(sid,ever_pulp)
 
 ## identify pixels that started as forest in 1990
 ## NOTE: dataset currently doesn't include any pixels that are not forested at t0
@@ -828,7 +828,34 @@ pap_prov_plot
 ggsave(pap_prov_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_pulp_areas_yr_province.png"), 
        dpi=400, w=10, h=6,type="cairo-png",limitsize = FALSE)
 
-# TODO # cumulative deforestation by province
+# pulp deforestation by province
+
+def_pulp_year <- samples_df %>%
+  filter(def_year >= 2001 & def_year < 2999 & ever_pulp == TRUE) %>%
+  as_tibble() %>%
+  #group_by(def_year,island) %>%
+  left_join(select(hti,ID,Kode_Prov),by=c("supplier_id"="ID")) %>%
+  select(-geometry,-supplier_id) %>%
+  group_by(def_year,prov_code=Kode_Prov) %>%
+  summarize(area_ha = n()) %>%
+  left_join(prov_slim,by="prov_code") %>%
+  distinct() %>%
+  print()
+
+
+dp_plot <- ggplot(data=def_pulp_year,aes(def_year,area_ha)) +
+  geom_bar(stat="identity",aes(fill = factor(prov,levels=plot_order))) +
+  scale_x_continuous(expand=c(0,0),breaks=seq(2001,2020,by=1)) +
+  scale_y_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0),breaks = seq(0,250000,by=50000),limits=c(0,200000)) +
+  scale_fill_manual(values=c("#120112", "#5d0e5e","#9b189e","#df65b0","#c994c7", "#d4b9da","#e7e1ef",
+                             "#082882","#3b48b3","#1d91c0","#22b3ab","#ace6ce",
+                             "#ffff33"))+ 
+  theme_plot
+
+dp_plot
+
+ggsave(dp_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_defor_pulp_yr_province.png"),w=10, h=6,limitsize = FALSE)
+
 
 ##################################################
 #### Info requests ###############################
