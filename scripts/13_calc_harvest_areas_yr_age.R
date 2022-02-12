@@ -12,8 +12,8 @@
 ##
 ## Notes: Input datasets
 ##        1) HTI concessions (boundaries) and concession start year - from KLHK
-##        2) Gaveau harvested areas
-##
+##        2) Gaveau harvested areas (2010 - 2021)
+##        3) Wood supply data - RPBBI (cleaned and checked by UCSB & WWI)
 ##
 ## ---------------------------------------------------------
 
@@ -72,7 +72,7 @@ ws_2020 <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\RPBBI_2020_compiled.xl
 
 itp_hv_proj <- st_transform(itp_hv, crs = st_crs(hti)) 
 
-# intersect to get associated HTI
+# intersect to get associated HTI concession
 hti_itp_hv <- pi <- st_intersection(hti,itp_hv_proj) %>% mutate(area_m2 = st_area(.))
 
 # create table and clean up
