@@ -81,15 +81,16 @@ harvest_df <- harvest_df %>%
 ## explore rotation lengths -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 harvest_year_summary <- harvest_df %>% 
-  # filter(HARVEST_YEAR>2018) %>% 
+  # filter(HARVEST_YEAR==2020) %>%
   group_by(years_since_clear) %>% 
   summarise(area_sum = sum(area))
 
 harvest_year_summary %>% 
   ggplot(aes(x = years_since_clear, y = area_sum)) +
   geom_line() +
-  theme_bw() +
+  theme_bw(base_size = 16) +
   xlab("Years since last clearing when harvested") +
+  # ylab("Total area harvested in 2019 (ha)")
   ylab("Total area harvested over 2015-2020 (ha)")
   
 ## NOTE: based on rotation length plot, set max length for rotation
