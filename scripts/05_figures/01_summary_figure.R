@@ -96,11 +96,16 @@ wood_species <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\SILK_PULP_WOOD_SPE
 policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline.csv"))
 
 # pulp prices (FRED)
-pulp_prices <- read_csv(paste0(wdir,"\\02_literature\\pulp_prices\\FRED\\WPU0911.csv"))
+pulp_prices <- read_csv(paste0(wdir,"\\02_literature\\pulp_prices\\FRED\\WPU0911_yearly.csv"))
 
 # deforestation within concessions (Trase)
+alldefor_conc <- read_csv(paste0(wdir,"\\01_data\\01_in\\jrc\\jrc_def_year_hti.csv"))
 
-alldefor_conc <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\defor_conc_2001_2019.csv"))
+# Indonesia deforestation
+alldefor_idn <- read_csv(paste0(wdir,"\\01_data\\01_in\\jrc\\jrc_def_areas_year_idn.csv"))
+
+# annual pulp capacities
+pulp_cap <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\annual_pulp_cap.csv"))
 
 # kabupaten
 kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
@@ -251,6 +256,31 @@ samples_df <- samples_df %>%
 # Create figures
 ###########################################################################
 
+# set up theme
+theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
+                    panel.background = element_rect(colour=NA,fill=NA),
+                    panel.grid.minor = element_blank(),
+                    panel.grid.major.y = element_line(color="grey70",linetype="dashed",size=0.35),
+                    plot.title = element_text(hjust = 0.5),
+                    axis.line.x = element_line(),
+                    axis.ticks.x = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    panel.spacing = unit(2, "lines"),
+                    axis.text.x = element_text(size = 9, color = "grey30",angle = 45,hjust=1),
+                    axis.text.y = element_text(size = 9, color = "grey30"),
+                    axis.title.x = element_text(size = 10, color = "grey30"),
+                    axis.title.y = element_text(size = 10, color = "grey30"),
+                    strip.text.x = element_text(size = 12, face = "bold",color="grey30"),
+                    strip.background = element_rect(color=NA, fill=NA),
+                    legend.key.height = unit(12, "pt"),
+                    legend.key.width = unit(12, "pt"),
+                    legend.text = element_text(size = 9,colour="grey30"),
+                    legend.title = element_blank(),
+                    legend.position="bottom",
+                    legend.direction="horizontal",
+                    plot.margin=unit(c(0.1,1.5,0.1,0.5),"cm"))
+
+options(crayon.enabled = FALSE)
 
 # Panel A - Pulp contributions to deforestation through time -----------
 
@@ -259,9 +289,71 @@ samples_df <- samples_df %>%
 # to pulp plantations (bottom bar, gaveau).
 # Right axis: Possibly overlay pulp price curve on right axis if it doesn't get too messy?
 
+# idn deforestation (jrc)
+defor_idn_year <- alldefor_idn %>%
+  pivot_longer(cols=c(-'country'),names_to="year",values_to="area_m2") %>%
+  mutate(year = as.double(year),area_ha = area_m2*0.0001) %>%
+  filter(year >= 2001) %>%
+  select(year,area_ha) %>%
+  mutate(name = "Deforestation in Indonesia")
+
+# hti concession deforestation (JRC)
+defor_hti_year <- samples_jrc_defyr %>%
+  rename(year = deforestation_year) %>%
+  group_by(year) %>%
+  summarize(area_ha = n()) %>%
+  filter(year >= 2001) %>%
+  mutate(name = "Deforestation\nwithin HTI concessions")
+
+# pulp deforestation (Gaveau)
+defor_pulp_year <- samples_df %>%
+  filter(def_year >= 2001 & def_year < 2999 & ever_pulp == TRUE) %>%
+  as_tibble() %>%
+  #group_by(def_year,island) %>%
+  left_join(select(hti,ID),by=c("supplier_id"="ID")) %>%
+  select(-geometry,-supplier_id) %>%
+  rename(year=def_year) %>%
+  group_by(year) %>%
+  summarize(area_ha = n()) %>%
+  mutate(name = "Deforestation for pulp\nwithin HTI concessions")
+
+# pulp prices
 pulp_prices_clean <- pulp_prices %>%
-  select(YEAR=DATE,PPI=WPU0911) %>%
-  filter(between(YEAR, as.Date("2000-01-01"),as.Date("2019-12-31"))) 
+  select(DATE,PPI=WPU0911) %>%
+  filter(between(DATE, as.Date("2000-01-01"),as.Date("2019-12-31"))) %>%
+  mutate(year = year(DATE),PPI = as.double(PPI)) %>%
+  select(year,PPI)
+
+# merge deforestation df's and pulp prices
+defor_pp_comb <- defor_idn_year %>%
+  rbind(defor_hti_year) %>%
+  rbind(defor_pulp_year) %>%
+  left_join(pulp_prices_clean,by="year") %>%
+  filter(year < 2020)
+
+
+def_plot_order <- c("Deforestation for pulp\nwithin HTI concessions","Deforestation\nwithin HTI concessions","Deforestation in Indonesia")
+
+# create dual-axis plot
+defor_pp_plot <- ggplot(defor_pp_comb)  + 
+  geom_bar(stat="identity",position="stack",aes(x=year,y=area_ha/100000,fill = factor(name,levels=def_plot_order))) +
+  geom_line(aes(x=year, y=PPI*max(area_ha)/10000000,color = "Producer Price Index"),stat="identity") +
+  geom_point(aes(x=year, y=PPI*max(area_ha)/10000000,color = "Producer Price Index"),stat="identity")+
+  scale_color_manual(NULL, values = "black") +
+  scale_x_continuous(breaks = seq(from = 2000, to = 2019, by =1),expand=c(0,0)) +
+  ylab("Area (thousand ha)\n") +
+  xlab("") +
+  scale_fill_manual(values=c("#fcd483","#a6e1f5","#c194d4"))+ 
+  scale_y_continuous(sec.axis = sec_axis(~./max(defor_pp_comb$area_ha)*10000000,
+                                         name="Producer Price Index\n"),
+                     #labels = d3_format(".3~s"),
+                     limits=c(0,45),
+                     #breaks=seq(0,500, by=50),
+                     expand=c(0,0)) +
+  theme_plot +
+  theme(panel.grid.major.y = element_blank())
+
+defor_pp_plot
 
 # Panel B - Industrial capacity ----------------------------------------
 
@@ -270,19 +362,17 @@ pulp_prices_clean <- pulp_prices %>%
 # Right axis: Total installed mill capacity line chart. We'll probably need to dig up these values for
 # the 2000-2015 period, maybe WWI or Auriga has these numbers?
 
-
-mill_caps_ts <- mills %>% select(MILL_ID,START_OPER_YEAR,PULP_CAP_2019_MTPY) %>% 
-  distinct(MILL_ID,START_OPER_YEAR,PULP_CAP_2019_MTPY) %>%
-  mutate(YEAR = START_OPER_YEAR) %>% 
-  complete(MILL_ID,YEAR = seq(min(YEAR), 2020, by = 1)) %>% 
-  fill(PULP_CAP_2019_MTPY) %>%
-  mutate(CAP = ifelse(is.na(START_OPER_YEAR),NA,PULP_CAP_2019_MTPY)) %>%
-  group_by(MILL_ID) %>%
-  fill(CAP, .direction = "down") %>%
-  select(MILL_ID,YEAR,CAP) %>%
-  group_by(YEAR) %>%
-  summarize(CAP = sum(CAP,na.rm=T))
-
+# mill_caps_ts <- mills %>% select(MILL_ID,START_OPER_YEAR,PULP_CAP_2019_MTPY) %>% 
+#   distinct(MILL_ID,START_OPER_YEAR,PULP_CAP_2019_MTPY) %>%
+#   mutate(YEAR = START_OPER_YEAR) %>% 
+#   complete(MILL_ID,YEAR = seq(min(YEAR), 2020, by = 1)) %>% 
+#   fill(PULP_CAP_2019_MTPY) %>%
+#   mutate(CAP = ifelse(is.na(START_OPER_YEAR),NA,PULP_CAP_2019_MTPY)) %>%
+#   group_by(MILL_ID) %>%
+#   fill(CAP, .direction = "down") %>%
+#   select(MILL_ID,YEAR,CAP) %>%
+#   group_by(YEAR) %>%
+#   summarize(CAP = sum(CAP,na.rm=T))
 
 # cumulative plantation development by island
 gaveau_annual_pulp_supplier <- samples_gaveau_landuse %>%
@@ -316,11 +406,16 @@ cum_pulp <- gaveau_annual_pulp_supplier %>%
   group_by(year,island) %>%
   summarize(area_ha = sum(area_ha))
 
+cum_pulp <- gaveau_annual_pulp_supplier %>%
+  left_join(select(hti,ID,Kode_Prov),by=c("supplier_id"="ID")) %>%
+  select(-geometry,-supplier_id) %>%
+  group_by(year) %>%
+  summarize(area_ha = sum(n))
 
-plot_order <- c("Sumatera","Kalimantan","Papua")
+cpd_plot_order <- c("Sumatera","Kalimantan","Papua")
 
 cpd_island_plot <- ggplot(data=cum_pulp,aes(year,area_ha)) +
-  geom_bar(stat="identity",aes(fill = factor(island,levels=plot_order))) +
+  geom_bar(stat="identity",aes(fill = factor(island,levels=cpd_plot_order))) +
   scale_x_continuous(expand=c(0,0),breaks=seq(2000,2020,by=1)) +
   scale_y_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0),breaks = seq(0,4000000,by=500000),limits=c(0,3000000)) +
   scale_fill_manual(values=c("#ed8f8a","#dfc398","#66c2a4"))+ 
@@ -330,30 +425,51 @@ cpd_island_plot <- ggplot(data=cum_pulp,aes(year,area_ha)) +
 
 cpd_island_plot
 
+cpd_plot <- ggplot(data=cum_pulp,aes(year,area_ha)) +
+  geom_bar(stat="identity",aes(name = "Planted pulp" ),fill="red") +
+  scale_x_continuous(expand=c(0,0),breaks=seq(2000,2020,by=1)) +
+  scale_y_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0),breaks = seq(0,4000000,by=500000),limits=c(0,3000000)) +
+  scale_fill_manual(values=c("#ed8f8a","#dfc398","#66c2a4"))+ 
+  ylab("") +
+  xlab("") +
+  theme_plot
+
+cpd_plot
+
+# combine mill capacity and planted palm areas
+# mill_caps_pp <- cum_pulp %>%
+#   left_join(mill_caps_ts,by=c("year"="YEAR")) %>%
+#   rename(cap = CAP) %>%
+#   mutate(area_mha = area_ha/1000000) %>%
+#   filter(year <= 2019 & year > 2000)
+
 # combine mill capacity and planted palm areas
 mill_caps_pp <- cum_pulp %>%
-  left_join(mill_caps_ts,by=c("year"="YEAR")) %>%
-  rename(cap = CAP) %>%
+  left_join(pulp_cap,by="year") %>%
+  rename(cap = capacity_mtpy) %>%
   mutate(area_mha = area_ha/1000000) %>%
-  filter(year <= 2019)
+  filter(year <= 2019 & year > 2000) %>%
+  mutate(name = "indonesia")
 
 # create dual-axis plot
 mc_pp_plot <- ggplot(mill_caps_pp)  + 
-  geom_bar(stat="identity",position="stack",aes(x=year,y=area_mha,fill = factor(island,levels=plot_order))) +
-  geom_line(aes(x=year, y=cap*max(mill_caps_pp$area_mha)/10,color = "Total annual\npulp mill capacity"),stat="identity")+
-  geom_point(aes(x=year, y=cap*max(mill_caps_pp$area_mha)/10,color = "Total annual\npulp mill capacity"),stat="identity")+
+  geom_bar(stat="identity",position="stack",aes(x=year,y=area_mha,fill=name)) +
+  geom_line(aes(x=year, y=cap*max(mill_caps_pp$area_mha)/10,color = "Pulp production capacity"),stat="identity")+
+  geom_point(aes(x=year, y=cap*max(mill_caps_pp$area_mha)/10,color = "Pulp production capacity"),stat="identity")+
   scale_color_manual(NULL, values = "black") +
-  scale_x_continuous(breaks = seq(from = 2000, to = 2019, by =1),expand=c(0,0)) +
+  scale_x_continuous(breaks = seq(from = 2001, to = 2019, by =1),expand=c(0,0)) +
   ylab("Planted pulp (million ha)\n") +
   xlab("") +
-  scale_fill_manual(values=c("#ed8f8a","#dfc398","#66c2a4"))+ 
+  scale_fill_manual(values = "#a89671", label = "Planted pulp") +
+  #scale_fill_manual(values=c("#ed8f8a","#dfc398","#66c2a4"))+ 
   scale_y_continuous(sec.axis = sec_axis(~./max(mill_caps_pp$area_mha)*10,
-                                         name="Mill capacity (Million tonnes)\n"),
+                                         name="Pulp production capacity (MTPY)\n"),
                      #labels = d3_format(".3~s"),
-                     limits=c(0,3),
-                     breaks=seq(0,3, by=0.5),
+                     limits=c(0,3.5),
+                     breaks=seq(0,6, by=0.5),
                      expand=c(0,0)) +
-  theme_plot
+  theme_plot +
+  theme(panel.grid.major.y = element_blank())
 
 mc_pp_plot
 
@@ -446,32 +562,6 @@ exports_year <- silk_pulp %>%
   summarize(EXPORT_TONS = sum(BERAT_BERSIH_KG/1000)) %>%
   print()
 
-# set up theme
-theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
-                    panel.background = element_rect(colour=NA,fill=NA),
-                    panel.grid.minor = element_blank(),
-                    panel.grid.major.y = element_line(color="grey70",linetype="dashed",size=0.35),
-                    plot.title = element_text(hjust = 0.5),
-                    axis.line.x = element_line(),
-                    axis.ticks.x = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    panel.spacing = unit(2, "lines"),
-                    axis.text.x = element_text(size = 9, color = "grey30",angle = 45,hjust=1),
-                    axis.text.y = element_text(size = 9, color = "grey30"),
-                    axis.title.x = element_text(size = 10, color = "grey30"),
-                    axis.title.y = element_text(size = 10, color = "grey30"),
-                    strip.text.x = element_text(size = 12, face = "bold",color="grey30"),
-                    strip.background = element_rect(color=NA, fill=NA),
-                    legend.key.height = unit(12, "pt"),
-                    legend.key.width = unit(12, "pt"),
-                    legend.text = element_text(size = 9,colour="grey30"),
-                    legend.title = element_blank(),
-                    legend.position="bottom",
-                    legend.direction="horizontal",
-                    plot.margin=unit(c(0.1,1.5,0.1,0.5),"cm"))
-
-options(crayon.enabled = FALSE)
-
 # plot by general wood species
 silk_pulp_species <- silk_pulp_clean %>%
   select(YEAR,PROP_BERAT_BERSIH_KG,ID,MAJOR_WOOD_SPECIES,MILL_NAME,SPECIES_CLEAN) %>% 
@@ -521,7 +611,7 @@ woodtype_exports_yr <- silk_species_shipments %>%
   mutate(WOODTYPE_GENERAL = case_when(grepl("ACACIA", WOODTYPE_EXPORT) ~ "Plantation",
                                       grepl("EUCALYPTUS", WOODTYPE_EXPORT) ~ "Plantation",
                                       grepl("MIXED TROPICAL HARDWOODS", WOODTYPE_EXPORT, ignore.case = TRUE) ~"Mixed Tropical Hardwoods")) %>%
-  complete(YEAR = seq(2000, 2012, by = 1)) %>%
+  complete(YEAR = seq(2001, 2012, by = 1)) %>%
   mutate(TONS = ifelse(is.na(TONS),0,TONS), WOODTYPE_GENERAL = ifelse(is.na(WOODTYPE_GENERAL),"Plantation",WOODTYPE_GENERAL))
 
 # check yearly shipments
@@ -530,13 +620,13 @@ yearly_shipments_total <- woodtype_exports_yr %>%
   summarize(TONS = sum(TONS))
 
 wt_plot <- ggplot(data=woodtype_exports_yr) +
-  geom_bar(stat="identity",position="stack",aes(x=YEAR,y=TONS,fill=as.factor(WOODTYPE_GENERAL))) +
+  geom_bar(stat="identity",position="stack",aes(x=YEAR,y=TONS/1000000,fill=as.factor(WOODTYPE_GENERAL))) +
   scale_x_continuous(breaks = seq(from = 2000, to = 2019, by =1),expand=c(0,0)) +
   xlab("") +
-  scale_y_continuous(name="Pulp exports (Million Tons)\n",
-                     limits=c(0,6000000),
-                     breaks=seq(0,6000000, by=1000000),
-                     labels = d3_format(".3~s"),
+  scale_y_continuous(name="Pulp exports (Million tons)\n",
+                     limits=c(0,6),
+                     breaks=seq(0,6, by=1),
+                     #labels = d3_format(".3~s"),
                      expand = c(0,0)) + 
   theme_plot +
   labs(fill = "\n") +
@@ -555,7 +645,7 @@ wt_plot
 g.gantt <- gather(policy_tl, "state", "date", 2:3) %>% 
   mutate(date = as.Date(date, "%d/%m/%Y"))
 
-range <-  c(as.Date("2000-01-01"), as.Date("2019-01-01"))
+range <-  c(as.Date("2001-01-01"), as.Date("2019-01-01"))
 
 tl_plot <- ggplot(g.gantt, aes(date, label, group=label)) +
   geom_line(arrow = arrow(length=unit(0.5,"cm"), ends="last", type = "open"), size = 2,color="#ed8f8a",alpha=0.85) +
@@ -576,11 +666,10 @@ tl_plot <- ggplot(g.gantt, aes(date, label, group=label)) +
 
 tl_plot
 
-
 # merge plot using patchwork
-comb_plot <- mc_pp_plot + wt_plot + tl_plot + plot_layout(ncol=1)
+comb_plot <- defor_pp_plot + mc_pp_plot + wt_plot + tl_plot + plot_layout(ncol=1)
 comb_plot
 
-ggsave(comb_plot,file="D:/comb_plot_test.png", dpi=400, w=9, h=10,type="cairo-png") 
+ggsave(comb_plot,file="D:/comb_plot_test.png", dpi=400, w=9, h=13,type="cairo-png") 
 
 
