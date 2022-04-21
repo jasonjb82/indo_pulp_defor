@@ -335,25 +335,24 @@ defor_pp_comb <- defor_idn_year %>%
 def_plot_order <- c("Deforestation for pulp\nwithin HTI concessions","Deforestation\nwithin HTI concessions","Deforestation in Indonesia")
 
 # create dual-axis plot
-defor_pp_plot <- ggplot(defor_pp_comb)  + 
-  geom_bar(stat="identity",position="stack",aes(x=year,y=area_ha/100000,fill = factor(name,levels=def_plot_order))) +
-  geom_line(aes(x=year, y=PPI*max(area_ha)/10000000,color = "Producer Price Index"),stat="identity") +
-  geom_point(aes(x=year, y=PPI*max(area_ha)/10000000,color = "Producer Price Index"),stat="identity")+
-  scale_color_manual(NULL, values = "black") +
-  scale_x_continuous(breaks = seq(from = 2000, to = 2019, by =1),expand=c(0,0)) +
-  ylab("Area (thousand ha)\n") +
+pa_scale_factor <- 0.01
+defor_pp_plot <- ggplot(data = defor_pp_comb, aes(x = year))+
+  geom_bar(stat="identity",position = "stack",aes(y = area_ha/1000000,fill=factor(name,levels=rev(def_plot_order)))) +
+  geom_line(aes(y = PPI*pa_scale_factor,color="Producer Price Index")) +
+  geom_point(aes(y = PPI*pa_scale_factor,color="Producer Price Index")) +
+  ylab("Area (million ha)\n") +
   xlab("") +
-  scale_fill_manual(values=c("#fcd483","#a6e1f5","#c194d4"))+ 
-  scale_y_continuous(sec.axis = sec_axis(~./max(defor_pp_comb$area_ha)*10000000,
-                                         name="Producer Price Index\n"),
-                     #labels = d3_format(".3~s"),
-                     limits=c(0,45),
-                     #breaks=seq(0,500, by=50),
-                     expand=c(0,0)) +
-  theme_plot +
-  theme(panel.grid.major.y = element_blank())
+  scale_fill_manual(values=c("#c194d4","#a6e1f5","#fcd483"))+ 
+  scale_color_manual(NULL, values = "black") +
+  scale_x_continuous(breaks = seq(from = 2001, to = 2019, by =1),expand=c(0,0)) +
+  scale_y_continuous(sec.axis = sec_axis(~ .*1, labels = number_format(scale=1/pa_scale_factor),
+                                         name="Producer Price Index\n"), 
+                     limits = c(0,2.5),
+                     expand = c(0,0)) +
+  theme_plot 
 
 defor_pp_plot
+
 
 # Panel B - Industrial capacity ----------------------------------------
 
@@ -412,30 +411,6 @@ cum_pulp <- gaveau_annual_pulp_supplier %>%
   group_by(year) %>%
   summarize(area_ha = sum(n))
 
-cpd_plot_order <- c("Sumatera","Kalimantan","Papua")
-
-cpd_island_plot <- ggplot(data=cum_pulp,aes(year,area_ha)) +
-  geom_bar(stat="identity",aes(fill = factor(island,levels=cpd_plot_order))) +
-  scale_x_continuous(expand=c(0,0),breaks=seq(2000,2020,by=1)) +
-  scale_y_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0),breaks = seq(0,4000000,by=500000),limits=c(0,3000000)) +
-  scale_fill_manual(values=c("#ed8f8a","#dfc398","#66c2a4"))+ 
-  ylab("") +
-  xlab("") +
-  theme_plot
-
-cpd_island_plot
-
-cpd_plot <- ggplot(data=cum_pulp,aes(year,area_ha)) +
-  geom_bar(stat="identity",aes(name = "Planted pulp" ),fill="red") +
-  scale_x_continuous(expand=c(0,0),breaks=seq(2000,2020,by=1)) +
-  scale_y_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0),breaks = seq(0,4000000,by=500000),limits=c(0,3000000)) +
-  scale_fill_manual(values=c("#ed8f8a","#dfc398","#66c2a4"))+ 
-  ylab("") +
-  xlab("") +
-  theme_plot
-
-cpd_plot
-
 # combine mill capacity and planted palm areas
 # mill_caps_pp <- cum_pulp %>%
 #   left_join(mill_caps_ts,by=c("year"="YEAR")) %>%
@@ -444,7 +419,7 @@ cpd_plot
 #   filter(year <= 2019 & year > 2000)
 
 # combine mill capacity and planted palm areas
-mill_caps_pp <- cum_pulp %>%
+annual_caps_pp <- cum_pulp %>%
   left_join(pulp_cap,by="year") %>%
   rename(cap = capacity_mtpy) %>%
   mutate(area_mha = area_ha/1000000) %>%
@@ -452,27 +427,23 @@ mill_caps_pp <- cum_pulp %>%
   mutate(name = "indonesia")
 
 # create dual-axis plot
-mc_pp_plot <- ggplot(mill_caps_pp)  + 
-  geom_bar(stat="identity",position="stack",aes(x=year,y=area_mha,fill=name)) +
-  geom_line(aes(x=year, y=cap*max(mill_caps_pp$area_mha)/10,color = "Pulp production capacity"),stat="identity")+
-  geom_point(aes(x=year, y=cap*max(mill_caps_pp$area_mha)/10,color = "Pulp production capacity"),stat="identity")+
-  scale_color_manual(NULL, values = "black") +
-  scale_x_continuous(breaks = seq(from = 2001, to = 2019, by =1),expand=c(0,0)) +
+pb_scale_factor <- 0.25
+mc_pp_plot <- ggplot(data = annual_caps_pp, aes(x = year))+
+  geom_col(aes(y = area_mha,fill=name)) +
+  geom_line(aes(y = cap*pb_scale_factor,color="Pulp production capacity")) +
+  geom_point(aes(y = cap*pb_scale_factor,color="Pulp production capacity")) +
   ylab("Planted pulp (million ha)\n") +
   xlab("") +
   scale_fill_manual(values = "#a89671", label = "Planted pulp") +
-  #scale_fill_manual(values=c("#ed8f8a","#dfc398","#66c2a4"))+ 
-  scale_y_continuous(sec.axis = sec_axis(~./max(mill_caps_pp$area_mha)*10,
-                                         name="Pulp production capacity (MTPY)\n"),
-                     #labels = d3_format(".3~s"),
-                     limits=c(0,3.5),
-                     breaks=seq(0,6, by=0.5),
-                     expand=c(0,0)) +
-  theme_plot +
-  theme(panel.grid.major.y = element_blank())
+  scale_color_manual(NULL, values = "black") +
+  scale_x_continuous(breaks = seq(from = 2001, to = 2019, by =1),expand=c(0,0)) +
+  scale_y_continuous(sec.axis = sec_axis(~ .*1, labels = number_format(scale=1/pb_scale_factor),
+                                         name="Pulp production capacity (MTPY)\n"), 
+                                         limits = c(0,3.5),
+                                         expand = c(0,0)) +
+  theme_plot 
 
 mc_pp_plot
-
 
 # Panel C - Wood supply transition -------------------------------------
 
@@ -670,6 +641,5 @@ tl_plot
 comb_plot <- defor_pp_plot + mc_pp_plot + wt_plot + tl_plot + plot_layout(ncol=1)
 comb_plot
 
-ggsave(comb_plot,file="D:/comb_plot_test.png", dpi=400, w=9, h=13,type="cairo-png") 
-
+ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure.png"), dpi=400, w=9, h=13,type="cairo-png") 
 
