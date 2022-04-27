@@ -119,7 +119,7 @@ harvest_df <- harvest_df %>%
 
 
 ## Calculate MAI for entire sector
-sector_mai <- sum(harvest_df$VOLUME_M3) / sum(harvest_df$grow_ha_y)
+sector_mai <- sum(harvest_df$VOLUME_M3) / sum(harvest_df$grow_ha_y) # m3 / ha / y 
 
 ## Calculate annual MAI across sector
 year_mai <- harvest_df %>% 
@@ -163,3 +163,11 @@ year_mai %>%
   xlab("Harvest year") +
   ylab("Mean annual increment (m3/ha/y)") +
   ylim(c(0, 32))
+
+
+
+# Estimate of land demand from capacity expansions
+new_wood_demand <- 30600000 # m3 / y
+assumed_mai <- 21.78 # m3 / ha / y 
+(area_demand <- new_wood_demand / assumed_mai) # ha
+
