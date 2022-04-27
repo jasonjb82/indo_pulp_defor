@@ -167,7 +167,6 @@ year_mai %>%
 
 
 # Estimate of land demand from capacity expansions
-new_wood_demand <- 30600000 # m3 / y
-assumed_mai <- 21.78 # m3 / ha / y 
-(area_demand <- new_wood_demand / assumed_mai) # ha
+new_wood_demand <- 30600000 # m3 / y - taken from Brian's calculations in paper draft
+(area_demand <- new_wood_demand / sector_mai) # ha
 
