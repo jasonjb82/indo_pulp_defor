@@ -222,3 +222,7 @@ oki_land_demand = area_intensity * oki_prod_2019
 mill_demand <- mill_demand %>% 
   mutate(conv_rate = volume_m3 / pulp_tons)
 mill_demand %>% select(conv_rate) %>% summary()
+
+conv_rate <- sum(mill_demand$pulp_tons) / sum(mill_demand$volume_m3)
+
+
