@@ -220,7 +220,7 @@ hti_burn_areas <- samples_burn_areas %>%
   group_by(burn_year,supplier_id,supplier_label) %>%
   summarize(burn_plantation_area_ha = n())
 
-# merge tables
+## Merge tables ------------------------
 hti_merge <- hti %>%
   right_join(select(hti_pulp,supplier_id,pulp_area_ha),by="supplier_id") %>%
   left_join(select(hti_pulp_on_peat,supplier_id,pulp_on_peat_area_ha),by=c("supplier_id","pulp_year")) %>%
@@ -229,4 +229,7 @@ hti_merge <- hti %>%
   filter(year < 2021) %>%
   print()
 
+
+## Write to csv -----------------------
+write_csv(hti_merge,paste0(wdir,"\\01_data\\02_out\\tables\\hti_concessions_area_calcs.csv"))
   
