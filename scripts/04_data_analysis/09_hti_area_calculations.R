@@ -57,15 +57,6 @@ wdir <- "remote"
 
 ## read data -------------------------------------------------
 
-## increase memory size
-memory.limit(size=60000)
-
-## load color palette
-source("scripts\\001_color_palettes.R")
-
-## data lookup table
-lu_table <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\data_lookup_table.csv"))
-
 ## hti license dates
 lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE_DATES.csv"),
                                  col_types = cols(license_date = col_date("%m/%d/%Y")))
@@ -78,7 +69,6 @@ samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.
 
 # hti concessions
 hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
-
 
 ## Gaveau data
 filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),
@@ -97,8 +87,8 @@ filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_peat\\"),
 
 samples_peat_areas <- filenames %>%
   map_dfr(read_csv, .id = "peat_areas") %>%
-  janitor::clean_names() 
-
+  janitor::clean_names() %>%
+  select(-lossyear,-primary,-forcover)
 
 ## Burned areas
 filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\burn_areas\\"),
@@ -142,7 +132,12 @@ gaveau_pulp <- samples_gaveau_landuse %>%
 # gaveau
 gaveau_pulp$ever_pulp <- (rowSums(gaveau_pulp[,startsWith(names(gaveau_pulp),"id_")]==4) >= 1) # Gaveau class 4 is industrial pulp clearing
 
-## first year gaveau assigns as pulp
+# select columns
+# gaveau
+gaveau_pulp <- gaveau_pulp %>% 
+  select(sid,ever_pulp)
+
+## first year gaveau assigns as pulp for each sid
 gaveau_pulp_styr <- samples_gaveau_landuse %>%
   lazy_dt() %>%
   left_join(samples_hti,by="sid") %>%
@@ -154,8 +149,8 @@ gaveau_pulp_styr <- samples_gaveau_landuse %>%
   as_tibble() %>%
   filter(class == 4) %>%
   mutate(year = str_replace(year,"id_", ""),year = as.double(year)) %>% 
-  group_by(supplier_id) %>% 
-  slice(which.min(year)) 
+  group_by(sid) %>% 
+  slice(which.min(year)+1) 
 
 ## gaveau pulp detection year
 gaveau_pulp_yr <- samples_gaveau_landuse %>%
@@ -168,15 +163,15 @@ gaveau_pulp_yr <- samples_gaveau_landuse %>%
                   values_to = 'class') %>%
   as_tibble() %>%
   filter(class == 4) %>%
-  mutate(year = str_replace(year,"id_", ""),year = as.double(year)+1)
+  mutate(year = str_replace(year,"id_", ""),year = as.double(year)+1) # add lag of 1 year
 
 ## Join to gaveau, concession, mill supplied, first year pulp
 samples_df <- samples_hti %>%
   rename(supplier_id = ID) %>% 
   left_join(hti_dates_clean,by="supplier_id") %>%
   left_join(hti_concession_names,by="supplier_id") %>% 
-  left_join(gaveau_pulp, by = "sid") %>% 
-  left_join(gaveau_pulp_yr,by="sid") %>%
+  left_join(gaveau_pulp, by = "sid") %>% # 
+  left_join(gaveau_pulp_yr,by="sid") %>% 
   left_join(samples_peat_areas,by="sid") %>%
   select(sid, supplier_id=supplier_id.x,ever_pulp, license_year, pulp_year=year,supplier_label,peat) 
 
@@ -189,6 +184,13 @@ hti <- samples_hti %>%
   select(supplier_id,supplier,supplier_label,concession_area_ha) %>%
   print()
 
+## total pulp in concession
+hti_pulp <- samples_df %>%
+  filter(ever_pulp == "TRUE") %>%
+  group_by(pulp_year,supplier_id,supplier_label) %>%
+  summarize(pulp_area_ha = n()) %>%
+  print()
+
 ## total peat area on planted pulp area
 hti_pulp_on_peat <- samples_df %>%
   filter(!is.na(peat) & ever_pulp == "TRUE") %>%
@@ -196,13 +198,6 @@ hti_pulp_on_peat <- samples_df %>%
   summarize(pulp_on_peat_area_ha = n()) %>%
   print()
 
-## total pulp in concession
-hti_pulp <- samples_df %>%
-  filter(ever_pulp == "TRUE") %>%
-  group_by(pulp_year,supplier_id,supplier_label) %>%
-  summarize(pulp_area_ha = n()) %>%
-  print()
-  
 ### burn areas on pulp planted area
 hti_burn_areas <- samples_burn_areas %>%
   lazy_dt() %>%
@@ -212,10 +207,12 @@ hti_burn_areas <- samples_burn_areas %>%
                   values_to = 'burn') %>%
   as_tibble() %>%
   mutate(burn_year = str_replace(year,"x",""), burn_year = as.double(burn_year)) %>%
-  left_join(gaveau_pulp_styr,by="sid") %>%
+  left_join(samples_hti,by="sid") %>%
+  rename(supplier_id=ID) %>%
+  left_join(select(gaveau_pulp_styr,sid,pulp_year=year),by="sid") %>%
   left_join(gaveau_pulp, by = "sid") %>% 
   left_join(hti_concession_names, by = "supplier_id") %>% 
-  select(sid,burn_year,pulp_year=year.y,burn,ever_pulp,supplier_id,supplier_label) %>%
+  select(burn_year,pulp_year,burn,ever_pulp,supplier_id,supplier,supplier_label) %>%
   filter(ever_pulp == "TRUE" & burn == 1 & pulp_year <= burn_year) %>%
   group_by(burn_year,supplier_id,supplier_label) %>%
   summarize(burn_plantation_area_ha = n())
@@ -227,6 +224,7 @@ hti_merge <- hti %>%
   left_join(select(hti_burn_areas,supplier_id,burn_plantation_area_ha),by=c("supplier_id","pulp_year"="burn_year")) %>%
   select(year=pulp_year,supplier_id,supplier_label,concession_area_ha,pulp_area_ha,pulp_on_peat_area_ha,burn_plantation_area_ha) %>%
   filter(year < 2021) %>%
+  mutate_at(4:7, ~replace_na(.,0))
   print()
 
 
