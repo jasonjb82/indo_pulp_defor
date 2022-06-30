@@ -148,9 +148,9 @@ gaveau_pulp_styr <- samples_gaveau_landuse %>%
                   values_to = 'class') %>%
   as_tibble() %>%
   filter(class == 4) %>%
-  mutate(year = str_replace(year,"id_", ""),year = as.double(year)) %>% 
+  mutate(year = str_replace(year,"id_", ""),year = as.double(year)+1) %>% 
   group_by(sid) %>% 
-  slice(which.min(year)+1) 
+  slice(which.min(year)) 
 
 ## gaveau pulp detection year
 gaveau_pulp_yr <- samples_gaveau_landuse %>%
@@ -224,7 +224,7 @@ hti_merge <- hti %>%
   left_join(select(hti_burn_areas,supplier_id,burn_plantation_area_ha),by=c("supplier_id","pulp_year"="burn_year")) %>%
   select(year=pulp_year,supplier_id,supplier_label,concession_area_ha,pulp_area_ha,pulp_on_peat_area_ha,burn_plantation_area_ha) %>%
   filter(year < 2021) %>%
-  mutate_at(4:7, ~replace_na(.,0))
+  mutate_at(4:6, ~replace_na(.,0)) %>%
   print()
 
 
