@@ -148,7 +148,7 @@ gaveau_pulp_styr <- samples_gaveau_landuse %>%
                   values_to = 'class') %>%
   as_tibble() %>%
   filter(class == 4) %>%
-  mutate(year = str_replace(year,"id_", ""),year = as.double(year)+1) %>% 
+  mutate(year = str_replace(year,"id_", ""),year = as.double(year)+1) %>% # add lag year
   group_by(sid) %>% 
   slice(which.min(year)) 
 
