@@ -56,11 +56,8 @@ wdir <- "remote"
 
 ## read data -------------------------------------------------
 
-## increase memory size
-memory.limit(size=60000)
-
 ## load color palette
-source("scripts\\001_color_palettes.R")
+source("scripts\\001_misc\\001_color_palettes.R")
 
 ## data lookup table
 lu_table <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\data_lookup_table.csv"))
@@ -544,15 +541,16 @@ gav_tbl <- gaveau_annual_pulp %>%
   mutate(dataset = "gaveau",sh_area = shr_gav_lu_areas) %>%
   select(supplier_id,year,sh_area,dataset) 
 
-mb_tbl <- mapbiomas_annual_pulp %>%
-  mutate(dataset = "mapbiomas",sh_area = shr_mb_lu_areas) %>%
-  select(supplier_id,year,sh_area,dataset)   
+# mb_tbl <- mapbiomas_annual_pulp %>%
+#   mutate(dataset = "mapbiomas",sh_area = shr_mb_lu_areas) %>%
+#   select(supplier_id,year,sh_area,dataset)   
+# 
+# merged_pulp_areas <- gav_tbl %>%
+#   bind_rows(mb_tbl)
+# 
+# pulp_area_tbl <- supplier_year_tbl %>%
+#   left_join(merged_pulp_areas,by =c("supplier_id","year"))
 
-merged_pulp_areas <- gav_tbl %>%
-  bind_rows(mb_tbl)
-
-pulp_area_tbl <- supplier_year_tbl %>%
-  left_join(merged_pulp_areas,by =c("supplier_id","year"))
 
 ## join with downstream mill supplier, license year,concession names and annual change class names
 jrc_hti_ac <- jrc_ac %>%
@@ -568,8 +566,8 @@ jrc_hti_ac <- jrc_ac %>%
   mutate(year = as.double(year)) %>%
   select(-supplier) %>%
   #left_join(supplier_year_tbl,by=c("year","supplier_id")) %>%
-  left_join(select(pulp_area_tbl,supplier_id,year,sh_area,dataset),by=c("year","supplier_id")) %>%
-  #left_join(select(gaveau_annual_pulp,supplier_id,year,shr_gav_lu_areas,gav_class),by=c("year","supplier_id")) %>%
+  #left_join(select(pulp_area_tbl,supplier_id,year,sh_area,dataset),by=c("year","supplier_id")) %>%
+  left_join(select(gaveau_annual_pulp,supplier_id,year,shr_gav_lu_areas,gav_class),by=c("year","supplier_id")) %>%
   #left_join(select(mapbiomas_annual_pulp,supplier_id,year,shr_mb_lu_areas,mb_class),by=c("year","supplier_id")) %>%
   mutate(
     zdc_year = case_when(
