@@ -38,7 +38,6 @@ library(scales)
 library(aws.s3)
 library(dtplyr)
 library(testthat)
-library(d3.format)
 library(tidyfast)
 library(patchwork)
 
@@ -54,7 +53,7 @@ wdir <- "remote"
 
 ## read data -------------------------------------------------
 
-bol_2021 <- s3read_using(read_excel, object = "indonesia/trade/bol/in/2021/INDONESIA_EXPORT_MUL_HS_JAN21_DEC21.xlsx", bucket = bucket)
+bol_2021 <- s3read_using(read_excel, object = "indonesia/trade/bol/in/2021/INDONESIA_EXPORT_MUL_HS_CODE_JAN21_DEC21.xlsx", bucket = bucket)
 
 ## filter and export ------------------------------------------
 
