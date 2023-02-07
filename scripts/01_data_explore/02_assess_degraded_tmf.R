@@ -55,11 +55,8 @@ wdir <- "remote"
 
 ## read data -------------------------------------------------
 
-## increase memory size
-memory.limit(size=60000)
-
 ## load color palette
-source("scripts\\001_color_palettes.R")
+source("scripts\\001_misc\\001_color_palettes.R")
 
 ## data lookup table
 lu_table <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\data_lookup_table.csv"))
@@ -80,7 +77,7 @@ ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD
 ## JRC
 ## Annual changes 
 filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\jrc\\annual_changes\\"),
-                 pattern = "*.csv",
+                 pattern = "*2021.csv",
                  full.names= TRUE)
 
 samples_jrc_tmf <- filenames %>%
@@ -260,7 +257,7 @@ df <- samples_jrc_tmf %>%
   as_tibble() %>%
   make_long(dec1990,dec1991,dec1992,dec1993,dec1994,dec1995,dec1996,dec1997,dec1998,dec1999,dec2000,
             dec2001,dec2002,dec2003,dec2004,dec2005,dec2006,dec2007,dec2008,dec2009,dec2010,dec2011,
-            dec2012,dec2013,dec2014,dec2015,dec2016,dec2017,dec2018,dec2019) %>%
+            dec2012,dec2013,dec2014,dec2015,dec2016,dec2017,dec2018,dec2019,dec2019) %>%
   mutate(x = str_replace(x,"dec", ""),next_x = str_replace(next_x,"dec",""),x = as.double(x),next_x = as.double(next_x)) 
 
 
@@ -285,7 +282,6 @@ lu_traj
 
 ## export to png
 ggsave(lu_traj,file=paste0(wdir,"\\01_data\\02_out\\plots\\jrc_ac_transition\\pt_tanjung_redeb_hutani_jrc_ac_transition.png"), dpi=300, w=10, h=6,type="cairo-png",limitsize = FALSE)
-
 
 
 ### Get JRC class in 2019 on Gaveau LU
@@ -320,5 +316,7 @@ jrc_pulp_plot <- samples_jrc_tmf %>%
   scale_x_continuous(labels = scales::percent_format()) +
   guides(fill = guide_legend(nrow = 2)) 
 
+jrc_pulp_plot
+
 ## export to png
-ggsave(jrc_pulp_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\april_gav_pulp_jrc_class.png"), dpi=300, w=12, h=8,type="cairo-png",limitsize = FALSE)
+ggsave(jrc_pulp_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\APRIL\\april_gav_pulp_jrc_class_updated.png"), dpi=300, w=12, h=8,type="cairo-png",limitsize = FALSE)
