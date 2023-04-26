@@ -10,13 +10,13 @@ from arcpy import env
 
 # Set workspace environment
 data_dir = os.getcwd() + "/remote/01_data/01_in/"
-output_dir = os.getcwd() + "/remote/01_data/02_out/samples/data.gdb"
-env.workspace = os.getcwd() + "/remote/01_data/02_out/samples/data.gdb"
+output_dir = os.getcwd() + "/remote/01_data/02_out/samples/data_2023.gdb"
+env.workspace = os.getcwd() + "/remote/01_data/02_out/samples/data_2023.gdb"
 env.overwriteOutput=True
 
 # define location of input datasets
 idn_proj = data_dir + "bps/idn_adm0_bps_proj.shp"
-hti_proj = data_dir + "klhk/IUPHHK_HT_proj.shp"
+hti_proj = data_dir + "klhk/IUPHHK_HTI_20230314_proj.shp"
 
 # =============================================================================
 # Draw fishnet sample covering indonesia
@@ -42,7 +42,7 @@ arcpy.CreateFishnet_management(out_feature_class = 'fishnet_idn',
 # =============================================================================
 # Clip to hti concessions boundary
 # =============================================================================
-sample_clipped_path = output_dir + 'fishnet_clip_hti'
+sample_clipped_path = output_dir + '/fishnet_clip_hti'
 sample_clipped = arcpy.Intersect_analysis(in_features = [output_dir + '/fishnet_idn', hti_proj],
                         out_feature_class = sample_clipped_path)
 
