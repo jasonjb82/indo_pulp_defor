@@ -49,10 +49,13 @@ wdir <- "remote"
 samples <- read_sf(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti.shp"))
 
 # hti concessions
-hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
+hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_TRASE_20230314_proj.shp"))
 
 # islands
 island <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\KLHK_Kelompok_Pulau_20210308.shp"))
+
+## create island mapping
+island_tab <- tibble("island_code" = c(1, 2, 3, 4, 5, 6), "island" = c("BALINUSA", "KALIMANTAN", "MALUKU", "PAPUA", "SULAWESI", "SUMATERA"))
 
 ## intersect to get hti IDs ----------------------------------
 
@@ -98,7 +101,13 @@ samples_hti_island_match_na <- samples_hti_isl_table %>%
 ## export to csv ---------------------------------------------
 
 # full table
-write_excel_csv(samples_hti_table,paste0(wdir,"\\01_data\\02_out\\samples\\tables\\samples_hti_id.csv"))
+samples_hti_table <- samples_hti_island %>%
+  st_drop_geometry() %>%
+  left_join(island_tab,by="island") %>%
+  select(sid,ID,island_code) %>%
+  rename(island=island_code)
+
+write_excel_csv(samples_hti_table,paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
 
 # shapefiles by island
 samples_hti_island %>%
