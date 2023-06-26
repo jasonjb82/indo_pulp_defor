@@ -269,7 +269,7 @@ gaveau_annual_pulp <- samples_gaveau_landuse %>%
 # deforestation for pulp (1 - non-forest to pulp,2 - forest to pulp)
 hti_pulp_conv <- gaveau_annual_pulp %>%
   lazy_dt() %>%
-  as.data.table() %>%
+  # as.data.table() %>%
   arrange(sid,year) %>%
   group_by(sid) %>%
   mutate(conv_type = class - lag(class, default = first(class))) %>%
@@ -280,7 +280,7 @@ hti_pulp_conv <- gaveau_annual_pulp %>%
   filter(conv_type != 0) %>%
   as_tibble()
 
-# Option of using deforestation for other areas within concessions from Hansen GFC / JRC TMF
+# Option of using deforestation for other areas within concessions from Hansen GFC (lossyear) / JRC TMF (def_yr)
 # other deforestation (GFC) # conversion type = 3
 hti_other_conv <- samples_df %>%
   filter(pulp == "N" & start_for == "Y" & !is.na(lossyear)) %>%
@@ -375,7 +375,7 @@ hti_nonhti_conv <- hti_pulp_conv %>%
 # deforestation timing within concessions - (before/after permit)
 hti_defort <- gaveau_annual_pulp %>%
   lazy_dt() %>%
-  as.data.table() %>%
+  # as.data.table() %>%
   arrange(sid,year) %>%
   group_by(sid) %>%
   mutate(conv_type = class - lag(class, default = first(class))) %>%
@@ -463,7 +463,8 @@ p1 <- hti_conv %>%
   mutate(conv_type = factor(conv_type,levels=c(3,1,2))) %>%
   #filter(app == 1) %>%
   #filter(supplier_id == "H-0526") %>%
-  filter(island == "Kalimantan") %>%
+  # filter(island == "Kalimantan") %>%
+  # filter(conv_type %in% c(2,3)) %>%
   ggplot() +
   aes(y = area_ha, x = year, fill=as.factor(conv_type),color=as.factor(conv_type)) +
   geom_col() +
@@ -482,6 +483,28 @@ p1 <- hti_conv %>%
   theme_plot
 
 p1
+
+
+p1_island <- hti_conv %>%
+  mutate(conv_type = factor(conv_type,levels=c(3,1,2))) %>%
+  #filter(app == 1) %>%
+  #filter(supplier_id == "H-0526") %>%
+  filter(conv_type == 2) %>%
+  ggplot() +
+  aes(y = area_ha, x = year, fill=as.factor(island),color=as.factor(island)) +
+  geom_col() +
+  xlab("\nYear") +
+  ylab("Area (ha)") + 
+  scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
+  scale_x_continuous(expand=c(0,0),breaks=seq(2000,2022,by=1)) +
+  scale_fill_manual(values=c("#c194d4","orange1","yellowgreen"))+ 
+  scale_color_manual(values=c("#c194d4","orange1","yellowgreen"))+ 
+  guides(fill = guide_legend(nrow = 1,reverse = TRUE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
+  #facet_wrap(~supplier_label,ncol=1,scales="free") +
+  theme_plot
+
+p1_island
+
 
 ## Deforestation for pulp within and outside HTI concessions
 ## Note: Island level deforestation (Sumatera, Kalimantan and Papua) should match the plots on the Nusantara Atlas blog post at the link below -
