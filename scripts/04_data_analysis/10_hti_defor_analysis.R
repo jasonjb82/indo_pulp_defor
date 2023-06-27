@@ -289,13 +289,13 @@ hti_other_conv <- samples_df %>%
   summarize(area_ha = n()) %>%
   as_tibble()
 
-# other deforestation (JRC) # conversion type = 3
-hti_other_conv <- samples_df %>%
-  filter(pulp == "N" & start_for == "Y" & def_yr >= 2001) %>%
-  mutate(year = def_yr, conv_type = 3) %>%
-  group_by(year,supplier_id,supplier,supplier_label,license_year,island,conv_type) %>%
-  summarize(area_ha = n()) %>%
-  as_tibble()
+# # other deforestation (JRC) # conversion type = 3
+# hti_other_conv <- samples_df %>%
+#   filter(pulp == "N" & start_for == "Y" & def_yr >= 2001) %>%
+#   mutate(year = def_yr, conv_type = 3) %>%
+#   group_by(year,supplier_id,supplier,supplier_label,license_year,island,conv_type) %>%
+#   summarize(area_ha = n()) %>%
+#   as_tibble()
 
 # annual deforestation outside concessions (from forest and non-forest)
 id_pulp_defor_for <- pulp_for_id %>%
@@ -513,7 +513,7 @@ p1_island
 p2 <- hti_nonhti_conv %>%
   #filter(april == 1) %>%
   #filter(supplier_id == "H-0565") %>%
-  filter(island == "Kalimantan") %>%
+  filter(island == "Papua") %>%
   ggplot() +
   aes(y = area_ha, x = year, fill=as.factor(conv_type),color=as.factor(conv_type)) +
   geom_col() +
@@ -532,6 +532,26 @@ p2 <- hti_nonhti_conv %>%
   theme_plot
 
 p2
+
+p2_island <- hti_nonhti_conv %>%
+  #filter(april == 1) %>%
+  #filter(supplier_id == "H-0565") %>%
+  # filter(island == "Papua") %>%
+  filter(conv_type == 2) %>% 
+  ggplot() +
+  aes(y = area_ha, x = year, fill=as.factor(island),color=as.factor(island)) +
+  geom_col() +
+  xlab("\nYear") +
+  ylab("Area (ha)") + 
+  scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
+  scale_x_continuous(expand=c(0,0),breaks=seq(2000,2022,by=1)) +
+  scale_fill_manual(values=c("#c194d4","orange1","yellowgreen"))+ 
+  scale_color_manual(values=c("#c194d4","orange1","yellowgreen"))+ 
+  guides(fill = guide_legend(nrow = 1,reverse = TRUE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
+  #facet_wrap(~supplier_label,ncol=1,scales="free") +
+  theme_plot
+
+p2_island
 
 ## Deforestation timing plot
 
