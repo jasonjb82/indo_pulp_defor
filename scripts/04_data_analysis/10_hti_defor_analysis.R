@@ -381,6 +381,7 @@ hti_defort <- gaveau_annual_pulp %>%
   mutate(conv_type = class - lag(class, default = first(class))) %>%
   ungroup() %>%
   left_join(samples_df,by="sid") %>%
+  filter(conv_type != 0) %>%
   drop_na(license_year) %>%
   mutate(
     defor_time = ifelse(year <= license_year,"Deforestation pre-permit","Deforestation post-permit")
@@ -400,7 +401,7 @@ hti_defort <- gaveau_annual_pulp %>%
   ) %>%
   mutate(zdc_year = ifelse(zdc_year ==0,NA_real_,zdc_year)) %>%
   print()
-  
+
 #########################################################################
 # Plotting --------------------------------------------------------------
 #########################################################################
@@ -559,7 +560,8 @@ p2_island
 plot_order <- c("Deforestation pre-permit","Deforestation post-permit")
 
 p3 <- hti_defort %>% 
-  filter(island == "Kalimantan") %>%
+  filter(supplier_id == "H-0313") %>%
+  #filter(island == "Kalimantan") %>%
   #filter(marubeni == 1) %>%
   ggplot() +
   aes(y = factor(defor_time,levels=rev(plot_order)), x = area_ha, fill = factor(defor_time,levels=plot_order)) +
