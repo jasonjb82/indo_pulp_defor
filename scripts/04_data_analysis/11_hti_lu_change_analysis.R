@@ -410,7 +410,7 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
 ## filter for plot (by supplier)
 jrc_ac_comb <- jrc_hti_ac %>%
   as_tibble() %>%
-  filter(supplier_id == "H-0313")
+  filter(supplier_id == "H-0464")
 
 jrc_ac_plot <- ggplot(jrc_ac_comb,aes(year,shr_class)) +
   geom_area(aes(fill= as.character(class_desc)), position = position_stack(reverse = T)) +
@@ -421,7 +421,9 @@ jrc_ac_plot <- ggplot(jrc_ac_comb,aes(year,shr_class)) +
   geom_point(data=jrc_ac_comb,aes(x=year,y=shr_gav_lu_areas,shape=gav_class),color="black",size=1.5)+
   ylab("") +
   xlab("") +
-  scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen","#F8F899","seagreen4"))+ 
+  scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen","#F8F899","seagreen4"),
+                   breaks = c("deforested land","degraded tmf","forest regrowth","other land cover","undisturbed tropical moist forest (tmf)"),
+                   labels = c("Deforested land","Degraded tropical moist forest","Forest regrowth","Other land cover","Undisturbed tropical moist forest"))+ 
   scale_shape_manual(values=c(1),labels=c("Pulpwood area (TreeMap)"),na.translate=FALSE)+ 
   scale_color_manual(values = c("palevioletred4","#064383")) +
   #facet_wrap(~supplier_label,ncol=2,scales="free") +
@@ -431,7 +433,12 @@ jrc_ac_plot <- ggplot(jrc_ac_comb,aes(year,shr_class)) +
 jrc_ac_plot
 
 # Creating plots of individual concessions using a loop
-concessions = unique(jrc_hti_ac$supplier_label)[5:10]
+concessions = jrc_hti_ac %>%
+  filter(app == 1 | april == 1 | marubeni == 1) %>%
+  #filter(island == 2) %>%
+  distinct(supplier_label) %>%
+  pull(supplier_label)
+
 hti_plots = list()
 
 for(concession_ in concessions) {
@@ -445,9 +452,10 @@ for(concession_ in concessions) {
     ylab("") +
     xlab("") +
     ggtitle(paste0(concession_)) +
-    #scale_fill_muted() +
-    scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen","#F8F899","seagreen4"))+ 
-    scale_shape_manual(values=1,labels=c("Area cleared\nfor pulp (TreeMap"),na.translate=FALSE)+ 
+    scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen","#F8F899","seagreen4"),
+                      breaks = c("deforested land","degraded tmf","forest regrowth","other land cover","undisturbed tropical moist forest (tmf)"),
+                      labels = c("Deforested land","Degraded tropical moist forest","Forest regrowth","Other land cover","Undisturbed tropical moist forest"))+ 
+    scale_shape_manual(values=1,labels=c("Area cleared\nfor pulp (TreeMap)"),na.translate=FALSE)+ 
     scale_color_manual(values = c("palevioletred4","#064383")) +
     guides(fill = guide_legend(nrow = 3),color = guide_legend(nrow=1),shape = guide_legend(nrow=2),keyheight = 10) +
     theme_plot
