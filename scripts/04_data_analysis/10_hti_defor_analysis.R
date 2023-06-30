@@ -457,8 +457,6 @@ theme_plot2 <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
 
 options(crayon.enabled = FALSE)
 
-options(crayon.enabled = FALSE)
-
 ## Deforestation for pulp within concessions
 p1 <- hti_conv %>%
   mutate(conv_type = factor(conv_type,levels=c(3,1,2))) %>%
