@@ -14,8 +14,6 @@
 ##        1) HTI concessions (boundaries) and concession start year from KLHK
 ##        2) Gaveau landuse change - pulp deforestation (2000 - 2022) from TreeMap
 ##        3) JRC deforestation (1990 - 2022) - Vancutsem et.al (2021) - https://www.science.org/doi/10.1126/sciadv.abe1603
-##        4) GFC Hansen deforestation year (2001 - 2022) - earthenginepartners.appspot.com/science-2013-global-forest
-##        5) Peat (MoA Indonesia, 2019) & Margono forest mask (TreeMap version)
 ##
 ## ---------------------------------------------------------
 
@@ -319,7 +317,7 @@ gav_tbl <- gaveau_annual_pulp %>%
 jrc_hti_ac <- jrc_ac %>%
   rename(supplier_id=ID) %>%
   left_join(subset(lu_table,dataset =="jrc tmf annual changes"),by="class") %>%
-  mutate(class_desc = ifelse(class_desc == "permanent or seasonal water" | class_desc == "other land cover","other land cover",class_desc )) %>%
+  mutate(class_desc = ifelse(class_desc == "permanent or seasonal water" | class_desc == "other land cover" | is.na(class_desc),"other land cover",class_desc )) %>%
   group_by(supplier_id,class_desc,year,island) %>%
   summarize(n = sum(n),shr_class=sum(shr_class)) %>%
   left_join(hti_dates_clean,by="supplier_id") %>%
@@ -433,16 +431,42 @@ jrc_ac_plot <- ggplot(jrc_ac_comb,aes(year,shr_class)) +
 jrc_ac_plot
 
 # Creating plots of individual concessions using a loop
-concessions = jrc_hti_ac %>%
+
+class_descs <- unique(jrc_hti_ac$class_desc)
+years <- unique(jrc_hti_ac$year)
+supplier_ids <- unique(jrc_hti_ac$supplier_id)
+combinations <- expand.grid(year = years, class_desc = class_descs,supplier_id=supplier_ids) %>%
+  as_tibble() %>%
+  mutate(class_desc = as.character(class_desc),supplier_id = as.character(supplier_id))
+
+jrc_hti_ac_complete <- full_join(jrc_hti_ac,combinations,c("year"="year","class_desc"="class_desc","supplier_id"="supplier_id")) %>%
+  drop_na(class_desc) %>%
+  complete(year,class_desc,
+  fill = list(shr_class = 0, shr_gav_lu_areas=0)) %>%
+  group_by(supplier_id) %>%
+  fill(supplier_label, island,app,april,marubeni,none,all,zdc_year,license_year,gav_class, .direction="downup")
+
+# jrc_hti_ac_complete <- jrc_hti_ac %>%
+#   ungroup() %>%
+#   #filter(supplier_id == "H-0657" | supplier_id == "H-0318") %>%
+#   complete(year,class_desc,
+#            fill = list(shr_class = 0, shr_gav_lu_areas=0)) %>%
+#   fill(supplier_id,supplier_label,island,license_year,.direction = "downup") %>%
+#   mutate(zdc_year = ifelse(zdc_year == 0,NA,zdc_year)) %>%
+#   group_by(supplier_id) %>%
+#   mutate(zdc_year = min(zdc_year))
+
+concessions <- jrc_hti_ac_complete %>%
   filter(app == 1 | april == 1 | marubeni == 1) %>%
-  #filter(island == 2) %>%
+  filter(island == 6) %>%
   distinct(supplier_label) %>%
-  pull(supplier_label)
+  pull(supplier_label) %>%
+  print()
 
 hti_plots = list()
 
 for(concession_ in concessions) {
-  hti_plots[[concession_]] = ggplot(jrc_hti_ac %>% filter(supplier_label == concession_),aes(year,shr_class)) +
+  hti_plots[[concession_]] = ggplot(jrc_hti_ac_complete1 %>% filter(supplier_label == concession_),aes(year,shr_class)) +
     geom_area(aes(fill= as.character(class_desc)), position = position_stack(reverse = T)) +
     scale_x_continuous(expand=c(0,0),breaks=seq(1990,2022,by=1)) +
     scale_y_continuous(labels = d3_format(".2~s",suffix = "%"),expand = c(0,0)) +
@@ -461,7 +485,7 @@ for(concession_ in concessions) {
     theme_plot
   
   print(hti_plots[[concession_]])
-  ggsave(hti_plots[[concession_]], file=paste0("D:\\",concession_,"_JRC_AnnualChanges.png"), dpi=300, w=10, h=6,type="cairo-png")
+  ggsave(hti_plots[[concession_]], file=paste0("D:\\",gsub(" ","_",concession_),"_JRC_AnnualChanges.png"), dpi=300, w=10, h=6,type="cairo-png")
 }
 
 # ## filter by supplier
