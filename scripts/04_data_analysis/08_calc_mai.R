@@ -48,6 +48,8 @@ wdir <- "remote"
 harvest_csv <- paste0(wdir, "/01_data/02_out/tables/hti_ws_wood_harvest_yr_age.csv")
 harvest_df <- read.csv2(harvest_csv, sep = ",")
 
+pw_supply_2022 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx')) %>%
+  select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## clean data -------------------------------------
@@ -95,6 +97,7 @@ harvest_year_summary %>%
   
 ## NOTE: based on rotation length plot, set max length for rotation
 max_rotation <- 7
+
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Calculate MAI -------------------------------------
@@ -162,11 +165,34 @@ year_mai %>%
   theme_bw(base_size = 15) + 
   xlab("Harvest year") +
   ylab("Mean annual increment (m3/ha/y)") +
-  ylim(c(0, 32))
+  ylim(c(0, 32)) +
+  geom_smooth(method = "lm")
+
+# No significant improvement in MAI over the 6 years observed
+mod <- lm(year_mai ~ HARVEST_YEAR, data = year_mai)
+summary(mod)
 
 
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Calculate MAI -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Summary of proposed expansions: remote/01_data/01_in/new_capacity/planned_expansions.xlsx"
+oki_exp_mt <- 4.2
+rapp_exp_mt <- 2
+phoenix_exp_mt <- 1.7
+total_exp_mt <- oki_exp_mt + rapp_exp_mt + phoenix_exp_mt
+baseline_cap_mt <- 9.3 ## TODO: Check this with Brian. Doesn't match (mills$PULP_CAP_2019_MTPY %>% sum())
+
+# Line 102: Together, these three projects would increase the country’s pulp capacity by 91% and, once fully operational, would lead to a concomitant XX m3 increase in the country’s annual demand for pulpwood. 
+total_exp_mt
+cap_change <- (total_exp_mt / baseline_cap_mt) %>% print()
 
 # Estimate of land demand from capacity expansions
-new_wood_demand <- 30600000 # m3 / y - taken from Brian's calculations in paper draft
+current_wood_demand <- pw_supply_2022 %>% pull(VOLUME_M3) %>%  sum()
+new_wood_demand <- (current_wood_demand * cap_change) %>% print()
+
+# new_wood_demand <- 30600000 # m3 / y - taken from Brian's calculations in paper draft. Was for original expansion estimates without PT phoenix
 (area_demand <- new_wood_demand / sector_mai) # ha
 
+harvest_df %>% write_csv(paste0(wdir, "/01_data/02_out/tables/hti_mai.csv"))
