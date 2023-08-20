@@ -59,6 +59,9 @@ pulpwood_supply <- read_delim(get_object(object="indonesia/wood_pulp/production/
 pw_supply_2020 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2020_compiled.xlsx')) %>%
   select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
 
+pw_supply_2022 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx')) %>%
+  select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
+
 ## clean data ------------------------------------------------
 
 # pulp area in hti by year
@@ -76,11 +79,20 @@ mill_prod <- pulp_mill_prod %>%
   summarize(pulp_tons = sum(TOTAL_PROD_KG_NET/1000))
 
 # flow of wood supply to mill
+pulpwood_supply <- pulpwood_supply %>%
+  bind_rows(pw_supply_2020)
+
 ws_flow <- pulpwood_supply %>%
-  bind_rows(pw_supply_2020) %>%
   select(year=YEAR,supplier_id=SUPPLIER_ID,mill_id=EXPORTER_ID,volume_m3=VOLUME_M3) %>%
   group_by(year,supplier_id,mill_id) %>%
   summarize(volume_m3 = sum(volume_m3))
+
+## Summarize wood supply ------------------------------------------------
+pulpwood_supply %>% 
+  group_by(YEAR, WOOD_TYPE) %>% 
+  summarize(volume = sum(VOLUME_M3)) %>% 
+  pivot_wider(names_from = YEAR, values_from = volume)
+
 
 ## Calculate mill area demand ------------------------------------------------
 
