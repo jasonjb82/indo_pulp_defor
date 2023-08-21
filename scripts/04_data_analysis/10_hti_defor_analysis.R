@@ -348,7 +348,7 @@ hti_conv <- hti_pulp_conv %>%
     zdc_year = case_when(
       app == 1 ~ 2013,
       app == 0 & april == 1 ~ 2015,
-      april == 0 & app == 0 & marubeni == 1 ~ 2019, # note: marubeni zdc year needs to be confirmed
+      april == 0 & app == 0 & marubeni == 1 ~ 2019, 
       TRUE ~ 0
     )
   ) %>%
@@ -364,13 +364,16 @@ hti_nonhti_conv <- hti_pulp_conv %>%
     zdc_year = case_when(
       app == 1 ~ 2013,
       app == 0 & april == 1 ~ 2015,
-      april == 0 & app == 0 & marubeni == 1 ~ 2019, # note: marubeni zdc year needs to be confirmed
+      april == 0 & app == 0 & marubeni == 1 ~ 2019, 
       TRUE ~ 0
     )
   ) %>%
   mutate(zdc_year = ifelse(zdc_year ==0,NA_real_,zdc_year)) %>%
   arrange(year,supplier_id) %>%
   print()
+
+# write to csv
+write_csv(hti_nonhti_conv,paste0(wdir,"\\01_data\\02_out\\tables\\idn_deforestation_hti_nonhti_gaveau.csv"))
 
 # deforestation timing within concessions - (before/after permit)
 hti_defort <- gaveau_annual_pulp %>%
@@ -395,7 +398,7 @@ hti_defort <- gaveau_annual_pulp %>%
     zdc_year = case_when(
       app == 1 ~ 2013,
       app == 0 & april == 1 ~ 2015,
-      april == 0 & app == 0 & marubeni == 1 ~ 2019, # note: marubeni zdc year needs to be confirmed
+      april == 0 & app == 0 & marubeni == 1 ~ 2019, 
       TRUE ~ 0
     )
   ) %>%
@@ -576,3 +579,34 @@ p3
 #ggsave(p1,file="D:\\hti_annual_defor_type.png",dpi=300, w=8, h=6,type="cairo-png",limitsize = FALSE)
 #ggsave(p1,file=paste0(wdir,"\\01_data\\02_out\\plots\\000_data_exploration\\gaveau_defor\\gav_lu_traj.png"),dpi=300, w=6, h=12,type="cairo-png",limitsize = FALSE)
 
+# Forest areas in 2022
+hti_for_areas <- samples_gfc_margono_peat %>%
+  filter(primary == 100 & sid %in% gaveau_pulp_sids) %>%
+  lazy_dt() %>%
+  left_join(samples_df,by="sid") %>%
+  group_by(supplier_id,supplier,supplier_label,license_year,island) %>%
+  summarize(area_ha = n()) %>%
+  as_tibble()
+
+
+# supplier groups deforestation plot
+ws_groups <- ws %>% 
+  filter(WOOD_TYPE == "PLANTATION") %>%
+  select(supplier_id=SUPPLIER_ID,supplier_group=SUPPLIER_GROUP) %>%
+  distinct() %>%
+  mutate(supplier_id = str_replace(supplier_id,"ID-WOOD-CONCESSION-","H-"))
+
+
+hti_defort_grp <- hti_defort %>%
+  group_by(supplier_id,supplier,supplier_label,license_year,island,defor_time) %>%
+  summarize(area_ha=sum(area_ha)) %>%
+  bind_rows(hti_for_areas) %>%
+  mutate(class = ifelse(is.na(defor_time),"Never deforestated",defor_time)) %>%
+  select(-defor_time) %>%
+  arrange(-desc(supplier_id)) %>%
+  left_join(ws_groups,by="supplier_id") %>%
+  drop_na(supplier_group)
+
+# write table to csv
+write_csv(hti_defort_grp,paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_defort_for_areas.csv"))
+  
