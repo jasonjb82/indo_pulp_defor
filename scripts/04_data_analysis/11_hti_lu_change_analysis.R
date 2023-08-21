@@ -408,7 +408,7 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
 ## filter for plot (by supplier)
 jrc_ac_comb <- jrc_hti_ac %>%
   as_tibble() %>%
-  filter(supplier_id == "H-0464")
+  filter(supplier_id == "H-0536")
 
 jrc_ac_plot <- ggplot(jrc_ac_comb,aes(year,shr_class)) +
   geom_area(aes(fill= as.character(class_desc)), position = position_stack(reverse = T)) +
