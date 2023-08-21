@@ -66,7 +66,7 @@ wdir <- "remote"
 memory.limit(size=60000)
 
 ## load color palette
-source("scripts\\001_misc\001_color_palettes.R")
+source("scripts\\001_misc\\001_color_palettes.R")
 
 ## data lookup table
 lu_table <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\data_lookup_table.csv"))
@@ -76,9 +76,6 @@ lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE
 
 ## supplier groups
 groups <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.csv"))
-
-## HTI and sample IDs
-samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
 
 # hti concessions
 hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
@@ -93,23 +90,20 @@ silk_data <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\WOOD_EXPORTS_SILK_MER
 wood_species <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\SILK_PULP_WOOD_SPECIES.csv"))
 
 # policy timeline
-policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline.csv"))
+##policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline.csv"))
 
 # policy timeline (updated)
 policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline_cats.csv")) %>%
   mutate(year_col = as.Date(year_proper,format="%d/%m/%Y"))
 
-# pulp prices (FRED)
-pulp_prices <- read_csv(paste0(wdir,"\\02_literature\\pulp_prices\\FRED\\WPU0911_yearly.csv"))
+# deforestation within concessions
+hti_nonhti_conv <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\idn_deforestation_hti_nonhti_gaveau.csv"))
 
-# deforestation within concessions (Trase)
-alldefor_conc <- read_csv(paste0(wdir,"\\01_data\\01_in\\jrc\\jrc_def_year_hti.csv"))
+# timber for pulp production (Obidzinski Dermawan)
+timber_for_pulp <- read_csv(paste0(wdir,"\\01_data\\01_in\\obidzinski_dermawan\\plot_data.csv"))
 
-# Indonesia deforestation
-alldefor_idn <- read_csv(paste0(wdir,"\\01_data\\01_in\\jrc\\jrc_def_areas_year_idn.csv"))
-
-# annual pulp capacities
-pulp_cap <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\annual_pulp_cap.csv"))
+# pulp exports (WITS)
+pulp_exports <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\pulp_exports_wits.csv"))
 
 # kabupaten
 kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
@@ -119,155 +113,11 @@ prov_slim <- kab %>% select(prov,prov_code) %>% st_drop_geometry() %>% distinct(
 # mills
 mills <- s3read_using(read_excel, object = "indonesia/wood_pulp/logistics/out/mills/MILLS_EXPORTERS_20200405.xlsx", bucket = bucket)
 
-## JRC
-## Annual changes 
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\jrc\\annual_changes\\"),pattern = "*.csv",full.names= TRUE)
-
-samples_jrc_tmf <- filenames %>%
-  map_dfr(read_csv, .id = "jrc_tmf_ac") %>%
-  janitor::clean_names() %>%
-  select(-system_index,-geo)
-
-## Deforestation year
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\jrc\\deforestation_year\\"),pattern = "*.csv",full.names= TRUE)
-
-samples_jrc_defyr <- filenames %>%
-  map_dfr(read_csv, .id = "jrc_def_yr") %>%
-  janitor::clean_names() %>%
-  select(-system_index,-geo)
-
-## Gaveau data
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),pattern = "*.csv",full.names= TRUE)
-
-samples_gaveau_landuse <- filenames %>%
-  map_dfr(read_csv, .id = "gaveau") %>%
-  janitor::clean_names() %>%
-  select(-system_index,-geo)
 
 ############################################################################
 # Clean / prep data --------------------------------------------------------
 ############################################################################
 
-## clean hti concession names
-hti_concession_names <- hti %>%
-  st_drop_geometry() %>%
-  select(supplier_id=ID,supplier=NAMOBJ) %>%
-  mutate(supplier_label = paste0(supplier," (",supplier_id,")"))
-
-## clean license dates
-hti_dates_clean <- lic_dates_hti %>%
-  mutate(YEAR = year(license_date)) %>%
-  select(supplier_id=HTI_ID,license_year=YEAR)
-
-## clean mill supplier
-mill_supplier <- ws %>%
-  filter(str_detect(SUPPLIER_ID, '^H-')) %>%
-  select(supplier_id=SUPPLIER_ID,EXPORTER) %>%
-  mutate(mill = case_when(EXPORTER == "OKI" ~ "app",
-                          EXPORTER == "INDAH KIAT" ~ "app",
-                          EXPORTER == "APRIL" ~ "april",
-                          TRUE  ~ "marubeni")) %>%
-  select(-EXPORTER) %>%
-  distinct() 
-
-# clean supplier groups
-supplier_groups <- groups %>%
-  select(supplier_id = id,supplier_group=group) %>%
-  mutate(supplier_group = ifelse(is.na(supplier_group),"OTHER",supplier_group))
-
-## first year gaveau assigns as pulp
-gaveau_pulp_styr <- samples_gaveau_landuse %>%
-  lazy_dt() %>%
-  left_join(samples_hti,by="sid") %>%
-  select(supplier_id=ID,gaveau,starts_with("id_")) %>%
-  as.data.table() %>%
-  dt_pivot_longer(cols = c(-supplier_id,-gaveau),
-                  names_to = 'year',
-                  values_to = 'class') %>%
-  as_tibble() %>%
-  filter(class == 4) %>%
-  mutate(year = str_replace(year,"id_", ""),year = as.double(year)) %>% 
-  group_by(supplier_id) %>% 
-  slice(which.min(year)) 
-
-# list of supplying concessions
-mill_supplier_list <- mill_supplier %>%
-  select(supplier_id) %>%
-  pull()
-
-other_concessions <- hti_concession_names %>%
-  filter(supplier_id %in% mill_supplier_list == FALSE) %>%
-  select(supplier_id) %>%
-  mutate(mill="none")
-
-mill_supplier <- mill_supplier %>%
-  rbind(other_concessions) %>%
-  as.data.table()
-
-mill_supplier <- dcast(mill_supplier, formula = supplier_id ~ mill, fun.aggregate = length) 
-mill_supplier$all <- "1" # 1 value for all concessions
-
-## create island mapping
-island_tab <- tibble("island_code" = c(1, 2, 3, 4, 5, 6), "island" = c("balinusa", "kalimantan", "maluku", "papua", "sulawesi", "sumatera"))
-
-## identify pixels that were cleared for pulp at some point in the time series
-# gaveau
-gaveau_pulp <- samples_gaveau_landuse %>%
-  lazy_dt() %>%
-  left_join(samples_hti,by="sid") %>%
-  as_tibble()
-
-# TRUE/FALSE if sample is ever on pulp clearing 
-
-gaveau_pulp$ever_pulp <- (rowSums(gaveau_pulp[,startsWith(names(gaveau_pulp),"id_")]==4) >= 1) # Gaveau class 4 is industrial pulp clearing
-
-# select columns
-# gaveau
-gaveau_pulp <- gaveau_pulp %>% 
-  select(sid,ever_pulp)
-
-## identify pixels that started as forest in 1990
-## NOTE: dataset currently doesn't include any pixels that are not forested at t0
-forest_sids <- samples_jrc_tmf %>% 
-  filter(dec1990 == 1) %>% # 1 = undisturbed tropical moist forest; 2 = degraded tmf
-  pull(sid)
-
-
-# # using gaveau's forest in 2000
-# gaveau_for_2000 <- samples_gaveau_landuse %>%
-#   pivot_longer(cols = starts_with("id_"),
-#                names_to = 'year',
-#                values_to = 'class') %>%
-#   mutate(year = str_replace(year,"id_", ""),year = as.double(year)) %>%
-#   filter(class == 1) %>%
-#   filter(year == 2000)
-# 
-# forest_sids <- gaveau_for_2000 %>% 
-#   pull(sid)
-
-## create pixel-level dataset starting with JRC deforestation year
-## NOTE: 0 means no deforestation observed in 1990-2019
-samples_df <- samples_jrc_defyr %>% 
-  lazy_dt() %>%
-  select(sid, island_code = jrc_def_yr, def_year = deforestation_year) %>%
-  mutate(island_code = as.integer(island_code)) %>% 
-  left_join(island_tab, by = "island_code")
-
-### Join to gaveau, concession, island data, mill supplied, first year pulp
-samples_df <- samples_df %>% 
-  as_tibble()%>%
-  add_column(rand = runif(nrow(.))) %>%
-  lazy_dt() %>%
-  left_join(samples_hti,by="sid") %>%
-  rename(supplier_id = ID) %>% 
-  left_join(hti_dates_clean,by="supplier_id") %>%
-  left_join(hti_concession_names,by="supplier_id") %>% 
-  left_join(gaveau_pulp, by = "sid") %>% 
-  left_join(gaveau_pulp_styr) %>%
-  mutate(def_year = ifelse(def_year == 0 & ever_pulp == 1,year,def_year), # reclassifying def_year to year pulp assigned by Gaveau/MapBiomas if def_year = 0
-         year = ifelse(is.na(year),2999,year)) %>%
-  select(sid, island, supplier_id, def_year, ever_pulp, license_year, start_pulp=year,supplier_label,rand) %>% 
-  mutate(start_for = sid %in% forest_sids)
 
 ###########################################################################
 # Create figures
@@ -282,7 +132,7 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                     axis.line.x = element_line(),
                     axis.ticks.x = element_blank(),
                     axis.ticks.y = element_blank(),
-                    panel.spacing = unit(2, "lines"),
+                    #panel.spacing = unit(2, "lines"),
                     axis.text.x = element_text(size = 8, color = "grey30",angle = 0, face="bold"),
                     axis.text.y = element_text(size = 9, color = "grey30"),
                     axis.title.x = element_text(size = 10, color = "grey30"),
@@ -301,203 +151,26 @@ options(crayon.enabled = FALSE)
 
 # Panel A - Pulp contributions to deforestation through time -----------
 
-# Left axis: Stacked bar plot breaking total Indonesian deforestation (top bar, from vancutsem) into
-# deforestation happening within fiber concessions (middle bar, current trase figure?) and for direct conversion
-# to pulp plantations (bottom bar, gaveau).
-# Right axis: Possibly overlay pulp price curve on right axis if it doesn't get too messy?
-
-# idn deforestation (jrc)
-defor_idn_year <- alldefor_idn %>%
-  pivot_longer(cols=c(-'country'),names_to="year",values_to="area_m2") %>%
-  mutate(year = as.double(year),area_ha = area_m2*0.0001) %>%
-  filter(year >= 2001) %>%
-  select(year,area_ha) %>%
-  mutate(name = "Deforestation in Indonesia")
-
-# hti concession deforestation (JRC)
-defor_hti_year <- samples_jrc_defyr %>%
-  rename(year = deforestation_year) %>%
-  group_by(year) %>%
-  summarize(area_ha = n()) %>%
-  filter(year >= 2001) %>%
-  mutate(name = "Deforestation\nwithin HTI concessions")
-
-# pulp deforestation (Gaveau)
-defor_pulp_year <- samples_df %>%
-  filter(def_year >= 2001 & def_year < 2999 & ever_pulp == TRUE) %>%
-  as_tibble() %>%
-  #group_by(def_year,island) %>%
-  left_join(select(hti,ID),by=c("supplier_id"="ID")) %>%
-  select(-geometry,-supplier_id) %>%
-  rename(year=def_year) %>%
-  group_by(start_for,year) %>%
-  summarize(area_ha = n()) %>%
-  mutate(name = "Deforestation for pulp\nwithin HTI concessions")
-
-# pulp prices
-pulp_prices_clean <- pulp_prices %>%
-  select(DATE,PPI=WPU0911) %>%
-  filter(between(DATE, as.Date("2000-01-01"),as.Date("2019-12-31"))) %>%
-  mutate(year = year(DATE),PPI = as.double(PPI)) %>%
-  select(year,PPI)
-
-# merge deforestation df's and pulp prices
-defor_pp_comb <- defor_idn_year %>%
-  rbind(defor_hti_year) %>%
-  rbind(defor_pulp_year) %>%
-  left_join(pulp_prices_clean,by="year") %>%
-  filter(year < 2020)
-
-
-def_plot_order <- c("Deforestation for pulp\nwithin HTI concessions","Deforestation\nwithin HTI concessions","Deforestation in Indonesia")
-
-# create dual-axis plot
-pa_scale_factor <- 0.01
-defor_pp_plot <- ggplot(data = defor_pp_comb, aes(x = year))+
-  geom_bar(stat="identity",position = "stack",aes(y = area_ha/1000000,fill=factor(name,levels=rev(def_plot_order)))) +
-  geom_line(aes(y = PPI*pa_scale_factor,color="Producer Price Index")) +
-  geom_point(aes(y = PPI*pa_scale_factor,color="Producer Price Index")) +
-  ylab("Area (million ha)\n") +
-  xlab("") +
-  scale_fill_manual(values=c("#c194d4","#a6e1f5","#fcd483"))+ 
-  scale_color_manual(NULL, values = "black") +
-  scale_x_continuous(breaks = seq(from = 2001, to = 2019, by =1),expand=c(0,0)) +
-  scale_y_continuous(sec.axis = sec_axis(~ .*1, labels = number_format(scale=1/pa_scale_factor),
-                                         name="Producer Price Index\n"), 
-                     limits = c(0,2.5),
-                     expand = c(0,0)) +
-  theme_plot 
-
-defor_pp_plot
-
-
-# Modified deforestation plot
-# pulp deforestation (Gaveau)
-defor_pulp_year <- samples_df %>%
-  filter(def_year >= 2001 & def_year < 2999 & ever_pulp == TRUE) %>%
-  as_tibble() %>%
-  #group_by(def_year,island) %>%
-  left_join(select(hti,ID),by=c("supplier_id"="ID")) %>%
-  select(-geometry,-supplier_id) %>%
-  rename(year=def_year) %>%
-  group_by(start_for,year) %>%
-  summarize(area_ha = n()) 
-  
-defor_pulp_year <- defor_pulp_year %>%
-  ungroup() %>%
-  add_row(start_for = c(FALSE,FALSE),year = c(2021,2022), area_ha = c(0,0))
-
-
-defor_plot <- ggplot(data = defor_pulp_year, aes(x = year))+
-  geom_bar(stat="identity",position = "stack",aes(y = area_ha/1000),fill="grey20") +
-  ylab("Area (1000 ha)\n") +
-  xlab("\nDeforestation within HTI concessions") +
-  scale_fill_manual(values=c("#c194d4","#a6e1f5"))+ 
-  scale_color_manual(NULL, values = "black") +
-  scale_x_continuous(breaks = seq(from = 2001, to = 2022, by =1)) +
-  scale_y_continuous(limits = c(0,200),expand = c(0,0)) +
-  theme_plot 
+defor_plot <- hti_nonhti_conv %>%
+  filter(conv_type == 2) %>% 
+  ggplot() +
+  aes(y = area_ha, x = year, fill=as.factor(island),color=as.factor(island)) +
+  geom_col() +
+  xlab("\nYear") +
+  ylab("Area (ha)") + 
+  scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
+  scale_x_continuous(expand=c(0,1),breaks=seq(2001,2022,by=1)) +
+  scale_fill_manual(values=c("#c194d4","orange1","yellowgreen"))+ 
+  scale_color_manual(values=c("#c194d4","orange1","yellowgreen"))+ 
+  guides(fill = guide_legend(nrow = 1,reverse = TRUE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
+  #facet_wrap(~supplier_label,ncol=1,scales="free") +
+  theme_plot
 
 defor_plot
 
-
-# Panel B - Industrial capacity ----------------------------------------
-
-# Left axis: Total planted pulp bar chart. I dropped in a prior figure that shows this by province, 
-# but we'll probably need to simplify for this already complicated figure. Maybe do this by island?
-# Right axis: Total installed mill capacity line chart. We'll probably need to dig up these values for
-# the 2000-2015 period, maybe WWI or Auriga has these numbers?
-
-# mill_caps_ts <- mills %>% select(MILL_ID,START_OPER_YEAR,PULP_CAP_2019_MTPY) %>% 
-#   distinct(MILL_ID,START_OPER_YEAR,PULP_CAP_2019_MTPY) %>%
-#   mutate(YEAR = START_OPER_YEAR) %>% 
-#   complete(MILL_ID,YEAR = seq(min(YEAR), 2020, by = 1)) %>% 
-#   fill(PULP_CAP_2019_MTPY) %>%
-#   mutate(CAP = ifelse(is.na(START_OPER_YEAR),NA,PULP_CAP_2019_MTPY)) %>%
-#   group_by(MILL_ID) %>%
-#   fill(CAP, .direction = "down") %>%
-#   select(MILL_ID,YEAR,CAP) %>%
-#   group_by(YEAR) %>%
-#   summarize(CAP = sum(CAP,na.rm=T))
-
-# cumulative plantation development by island
-gaveau_annual_pulp_supplier <- samples_gaveau_landuse %>%
-  left_join(samples_hti,by="sid") %>%
-  select(supplier_id=ID,gaveau,starts_with("id_")) %>%
-  pivot_longer(cols = starts_with("id_"),
-               names_to = 'year',
-               values_to = 'class') %>%
-  mutate(year = str_replace(year,"id_", ""),year = as.double(year)) %>%
-  mutate(gav_class = ifelse(class == 4,"Pulp","Others")) %>%
-  group_by(supplier_id,year,gav_class) %>%
-  summarize(n = n()) %>%
-  filter(gav_class != "Others")
-
-cum_pulp <- gaveau_annual_pulp_supplier %>%
-  left_join(select(hti,ID,Kode_Prov),by=c("supplier_id"="ID")) %>%
-  select(-geometry,-supplier_id) %>%
-  group_by(year,prov_code=Kode_Prov) %>%
-  summarize(area_ha = sum(n)) %>%
-  left_join(prov_slim,by="prov_code") %>%
-  distinct() %>%
-  mutate(island = str_sub(prov_code, 1, 1)) %>%
-  mutate(
-    island = case_when(
-      island == 1 ~ "Sumatera", island == 2 ~ "Riau Archipelago",
-      island == 3 ~ "Jawa", island == 5 ~ "Balinusa",
-      island == 6 ~ "Kalimantan", island == 7 ~ "Sulawesi",
-      island == 8 ~ "Maluku", island == 9 ~ "Papua"
-    )
-  ) %>%
-  group_by(year,island) %>%
-  summarize(area_ha = sum(area_ha))
-
-cum_pulp <- gaveau_annual_pulp_supplier %>%
-  left_join(select(hti,ID,Kode_Prov),by=c("supplier_id"="ID")) %>%
-  select(-geometry,-supplier_id) %>%
-  group_by(year) %>%
-  summarize(area_ha = sum(n))
-
-# combine mill capacity and planted palm areas
-# mill_caps_pp <- cum_pulp %>%
-#   left_join(mill_caps_ts,by=c("year"="YEAR")) %>%
-#   rename(cap = CAP) %>%
-#   mutate(area_mha = area_ha/1000000) %>%
-#   filter(year <= 2019 & year > 2000)
-
-# combine mill capacity and planted pulp areas
-annual_caps_pp <- cum_pulp %>%
-  left_join(pulp_cap,by="year") %>%
-  rename(cap = capacity_mtpy) %>%
-  mutate(area_mha = area_ha/1000000) %>%
-  filter(year <= 2019 & year > 2000) %>%
-  mutate(name = "indonesia")
-
-# create dual-axis plot
-pb_scale_factor <- 0.25
-mc_pp_plot <- ggplot(data = annual_caps_pp, aes(x = year))+
-  geom_col(aes(y = area_mha,fill=name)) +
-  geom_line(aes(y = cap*pb_scale_factor,color="Pulp production capacity")) +
-  geom_point(aes(y = cap*pb_scale_factor,color="Pulp production capacity")) +
-  ylab("Planted pulp (million ha)\n") +
-  xlab("") +
-  scale_fill_manual(values = "#a89671", label = "Planted pulp") +
-  scale_color_manual(NULL, values = "black") +
-  scale_x_continuous(breaks = seq(from = 2001, to = 2019, by =1),expand=c(0,0)) +
-  scale_y_continuous(sec.axis = sec_axis(~ .*1, labels = number_format(scale=1/pb_scale_factor),
-                                         name="Pulp production capacity (MTPY)\n"), 
-                                         limits = c(0,3.5),
-                                         expand = c(0,0)) +
-  theme_plot 
-
-mc_pp_plot
-
-# Panel C - Wood supply transition -------------------------------------
+# Panel B - Wood supply transition -------------------------------------
 
 # Stacked bar breaking pulpwood volumes into MTH / plantation sources (probably simplify categories from current figure). 
-# We really need to go back to 2001  which I think was a continued issue - for now we can put a 0 placeholder 
-# in for early years; but I'm pretty sure either Auriga or Chris have these numbers in previous reports 
-# which we can discuss during our call
 
 ## clean and summarize ---------------------------------------
 
@@ -640,11 +313,52 @@ yearly_shipments_total <- woodtype_exports_yr %>%
   group_by(YEAR) %>%
   summarize(TONS = sum(TONS))
 
-wt_plot <- ggplot(data=woodtype_exports_yr) +
-  geom_bar(stat="identity",position="stack",aes(x=YEAR,y=TONS/1000000,fill=as.factor(WOODTYPE_GENERAL))) +
+# SILK ratios
+timber_plantation_silk <- woodtype_exports_yr %>%
+  group_by(YEAR,WOODTYPE_GENERAL) %>%
+  summarize(timber_tons = sum(TONS)) %>%
+  select(year=YEAR,woodtype=WOODTYPE_GENERAL,timber_tons) %>%
+  filter(year > 2012) %>%
+  group_by(year) %>%
+  mutate(ratio = timber_tons / sum(timber_tons))
+
+# O-D ratios
+timber_for_pulp_od <- timber_for_pulp %>%
+  pivot_wider(
+    names_from = label,
+    values_from = c(year_digitized,timber_m3)
+  ) %>%
+  mutate(timber_m3_mth = timber_m3_total - timber_m3_plantation) %>%
+  select(year,timber_m3_plantation,timber_m3_mth) %>%
+  pivot_longer(cols = c(-year),
+                  names_to = 'woodtype',
+                  values_to = 'timber_m3') %>%
+  mutate(woodtype = ifelse(woodtype == "timber_m3_plantation","Plantation","Mixed Tropical Hardwoods")) %>%
+  group_by(year) %>%
+  mutate(ratio = timber_m3 / sum(timber_m3)) %>%
+  ungroup()
+
+plantation_mth_ratio <- timber_plantation_silk %>%
+  bind_rows(timber_for_pulp_od) %>%
+  select(year,woodtype,ratio) %>%
+  filter(year > 2000) %>%
+  mutate(ratio = ifelse(is.nan(ratio),0,ratio)) %>%
+  arrange(year) 
+
+# merge ratio and WITS exports
+pulp_ratio <- pulp_exports %>%
+  group_by(year) %>%
+  summarize(vols_tonnes = sum(exports_kg)/1000) %>%
+  right_join(plantation_mth_ratio,by="year") %>%
+  mutate(vols_ton_ratio = vols_tonnes*ratio,
+         vols_ton_ratio = ifelse(is.na(vols_tonnes),0,vols_ton_ratio))
+
+
+wt_plot <- ggplot(data=pulp_ratio) +
+  geom_bar(stat="identity",position="stack",aes(x=year,y=vols_ton_ratio/1000000,fill=as.factor(woodtype))) +
   scale_x_continuous(breaks = seq(from = 2001, to = 2022, by =1)) +
   xlab("") +
-  scale_y_continuous(name="Pulp exports (Million tons)\n",
+  scale_y_continuous(name="Pulp exports (Million tonnes)\n",
                      limits=c(0,6),
                      breaks=seq(0,6, by=1),
                      #labels = d3_format(".3~s"),
@@ -768,7 +482,7 @@ comb_plot <- defor_plot + wt_plot + tl_plot + plot_layout(ncol=1)
 comb_plot
 
 #ggsave(comb_plot,file="D:/comb_plot.png", dpi=400, w=11, h=14,type="cairo-png") 
-ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=11, h=14,type="cairo-png") 
+ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=10, h=13,type="cairo-png") 
 
 
 # merge plot using patchwork
@@ -776,8 +490,6 @@ comb_plot <- defor_pp_plot + mc_pp_plot + wt_plot + tl_plot + plot_layout(ncol=1
 comb_plot
 
 ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure.png"), dpi=400, w=9, h=13,type="cairo-png") 
-
-
 
 # Quick stats for draft paper
 
