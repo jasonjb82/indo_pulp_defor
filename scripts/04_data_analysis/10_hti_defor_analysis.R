@@ -405,6 +405,37 @@ hti_defort <- gaveau_annual_pulp %>%
   mutate(zdc_year = ifelse(zdc_year ==0,NA_real_,zdc_year)) %>%
   print()
 
+# deforestation timing within concessions - (before/after first ZDC)
+hti_zdc_defort <- gaveau_annual_pulp %>%
+  lazy_dt() %>%
+  # as.data.table() %>%
+  arrange(sid,year) %>%
+  group_by(sid) %>%
+  mutate(conv_type = class - lag(class, default = first(class))) %>%
+  ungroup() %>%
+  left_join(samples_df,by="sid") %>%
+  filter(conv_type != 0) %>%
+  drop_na(license_year) %>%
+  arrange(year,supplier_id) %>%
+  as_tibble() %>%
+  left_join(mill_supplier,by="supplier_id") %>%
+  mutate(
+    zdc_year = case_when(
+      app == 1 ~ 2013,
+      app == 0 & april == 1 ~ 2015,
+      april == 0 & app == 0 & marubeni == 1 ~ 2019, 
+      TRUE ~ 0
+    )
+  ) %>%
+  mutate(zdc_year = ifelse(zdc_year ==0,NA_real_,zdc_year)) %>%
+  mutate(
+    defor_time = ifelse(year <= zdc_year,"Deforestation before earliest ZDC of downstream mill",
+                        "Deforestation after earliest ZDC of downstream mill")
+  ) %>%
+  group_by(supplier_id,supplier,supplier_label,license_year,zdc_year,island,defor_time) %>%
+  summarize(area_ha = n()) %>%
+  print()
+
 #########################################################################
 # Plotting --------------------------------------------------------------
 #########################################################################
@@ -597,16 +628,19 @@ ws_groups <- ws %>%
   mutate(supplier_id = str_replace(supplier_id,"ID-WOOD-CONCESSION-","H-"))
 
 
-hti_defort_grp <- hti_defort %>%
-  group_by(supplier_id,supplier,supplier_label,license_year,island,defor_time) %>%
+hti_zdc_defort_grp <- hti_zdc_defort %>%
+  drop_na(defor_time) %>%
+  group_by(supplier_id,supplier,supplier_label,license_year,island,zdc_year,defor_time) %>%
   summarize(area_ha=sum(area_ha)) %>%
   bind_rows(hti_for_areas) %>%
   mutate(class = ifelse(is.na(defor_time),"Never deforestated",defor_time)) %>%
   select(-defor_time) %>%
   arrange(-desc(supplier_id)) %>%
   left_join(ws_groups,by="supplier_id") %>%
-  drop_na(supplier_group)
+  drop_na(supplier_group) %>%
+  group_by(supplier_id) %>% 
+  mutate(zdc_year = zoo::na.locf(zdc_year, na.rm = FALSE))  
 
 # write table to csv
-write_csv(hti_defort_grp,paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_defort_for_areas.csv"))
+write_csv(hti_zdc_defort_grp,paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_zdc_defort_for_areas.csv"))
   
