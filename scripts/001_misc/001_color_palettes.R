@@ -1,7 +1,7 @@
 deft_colors <- c(
   `Never deforested`="#136b3a",
-  `Deforestation pre-permit`="#ed8f8a",
-  `Deforestation post-permit`="#EB4A40",
+  `Deforestation pre-permit`="#EB4A40",
+  `Deforestation post-permit`="#FFBF00",
   `Deforestation post-permit and after first ZDC of downstream mill`="#4b0e82"
   #`Never deforested, not converted to pulp plantation` = "#136b3a",
   #`Deforestation pre-permit and first planting`="#EB4A40",
@@ -55,8 +55,8 @@ add.alpha <- function(col, alpha=1){
 cols = c(deft_cols("Never deforested"),
          deft_cols("Deforestation pre-permit"),
          deft_cols("Deforestation post-permit"),
-         deft_cols("Deforestation post-permit and after first ZDC of downstream mill"),
+         deft_cols("Deforestation post-permit and after first ZDC of downstream mill")
 )
 
-cols_alpha <- add.alpha(cols, alpha=0.75)
+cols_alpha <- add.alpha(cols, alpha=0.70)
 
