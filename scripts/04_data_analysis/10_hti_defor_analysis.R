@@ -30,7 +30,6 @@ library(naniar)
 library(visdat)
 library(tidyverse)
 library(readxl)
-library(tidylog)
 library(data.table)
 library(janitor)
 library(lubridate)
@@ -42,9 +41,7 @@ library(testthat)
 library(d3.format)
 library(tidyfast)
 library(patchwork)
-library(concordance)
 library(rcartocolor)
-library(vistime)
 library(showtext)
 library(khroma) # palettes for color blindness
 
@@ -252,7 +249,7 @@ samples_df <- samples_df %>%
   rename(supplier_id = ID) %>% 
   left_join(hti_dates_clean,by="supplier_id") %>%
   left_join(hti_concession_names,by="supplier_id") %>%
-  left_join(samples_jrc_defyr,by="supplier_id") %>%
+  left_join(samples_jrc_defyr,by="sid") %>%
   mutate(pulp = ifelse(sid %in% gaveau_pulp_sids,"Y","N"))
   
 # gaveau pulp conversion
@@ -375,40 +372,36 @@ hti_nonhti_conv <- hti_pulp_conv %>%
 # write to csv
 write_csv(hti_nonhti_conv,paste0(wdir,"\\01_data\\02_out\\tables\\idn_deforestation_hti_nonhti_gaveau.csv"))
 
-# deforestation timing within concessions - (before/after permit)
+# forest areas in 2022
+hti_for_areas <- samples_gfc_margono_peat %>%
+  filter(primary == 100 & sid %ni% gaveau_pulp_sids) %>%
+  lazy_dt() %>%
+  left_join(samples_df,by="sid") %>% 
+  group_by(supplier_id,supplier,supplier_label,license_year,island) %>%
+  summarize(area_ha = n()) %>%
+  as_tibble()
+
+# defort_df <- samples_df %>% 
+#   left_join(mill_supplier,by="supplier_id") %>%
+#   left_join(supplier_groups,by="supplier_id") %>%
+#   mutate(supplier_group = ifelse(supplier_group == "OTHER" & pulp == "N","OTHER - NO PLANTED PULP",
+#                                  ifelse(supplier_group == "OTHER" & pulp == "Y","OTHER - WITH PLANTED PULP",supplier_group))) %>%
+#   mutate(defor_time = case_when(def_yr >= 2013 & def_yr >= license_year & app == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill",
+#                                 def_yr >= 2015 & def_yr >= license_year & app == 0 & april == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill",
+#                                 def_yr >= 2019 & def_yr >= license_year & app == 0 & april == 0 & marubeni == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill", 
+#                                 def_yr >= license_year ~ "Deforestation post-permit",
+#                                 def_yr < license_year & def_yr != 0 ~ "Deforestation pre-permit",
+#                                 pulp == "N" & def_yr == 0  ~ "Never deforested",
+#                                 TRUE ~ "NA")) %>%
+#   mutate(defor_pulp = ifelse(pulp=="Y", paste0(defor_time, ", converted to pulp plantation"), paste0(defor_time, ", not converted to pulp plantation"))) %>%
+#   print() %>%
+#   as_tibble()
+
+## QA checks
+
+# generate deforestation timing plot  
 hti_defort <- gaveau_annual_pulp %>%
   lazy_dt() %>%
-  # as.data.table() %>%
-  arrange(sid,year) %>%
-  group_by(sid) %>%
-  mutate(conv_type = class - lag(class, default = first(class))) %>%
-  ungroup() %>%
-  left_join(samples_df,by="sid") %>%
-  filter(conv_type != 0) %>%
-  drop_na(license_year) %>%
-  mutate(
-    defor_time = ifelse(year <= license_year,"Deforestation pre-permit","Deforestation post-permit")
-  ) %>%
-  arrange(year,supplier_id) %>%
-  as_tibble() %>%
-  group_by(year,supplier_id,supplier,supplier_label,license_year,island,defor_time) %>%
-  summarize(area_ha = n()) %>%
-  left_join(mill_supplier,by="supplier_id") %>%
-  mutate(
-    zdc_year = case_when(
-      app == 1 ~ 2013,
-      app == 0 & april == 1 ~ 2015,
-      april == 0 & app == 0 & marubeni == 1 ~ 2019, 
-      TRUE ~ 0
-    )
-  ) %>%
-  mutate(zdc_year = ifelse(zdc_year ==0,NA_real_,zdc_year)) %>%
-  print()
-
-# deforestation timing within concessions - (before/after first ZDC)
-hti_zdc_defort <- gaveau_annual_pulp %>%
-  lazy_dt() %>%
-  # as.data.table() %>%
   arrange(sid,year) %>%
   group_by(sid) %>%
   mutate(conv_type = class - lag(class, default = first(class))) %>%
@@ -419,21 +412,29 @@ hti_zdc_defort <- gaveau_annual_pulp %>%
   arrange(year,supplier_id) %>%
   as_tibble() %>%
   left_join(mill_supplier,by="supplier_id") %>%
-  mutate(
-    zdc_year = case_when(
-      app == 1 ~ 2013,
-      app == 0 & april == 1 ~ 2015,
-      april == 0 & app == 0 & marubeni == 1 ~ 2019, 
-      TRUE ~ 0
-    )
-  ) %>%
-  mutate(zdc_year = ifelse(zdc_year ==0,NA_real_,zdc_year)) %>%
-  mutate(
-    defor_time = ifelse(year <= zdc_year,"Deforestation before earliest ZDC of downstream mill",
-                        "Deforestation after earliest ZDC of downstream mill")
-  ) %>%
-  group_by(supplier_id,supplier,supplier_label,license_year,zdc_year,island,defor_time) %>%
+  mutate(defor_time = case_when(year >= 2013 & year >= license_year & app == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill",
+                                year >= 2015 & year >= license_year & app == 0 & april == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill",
+                                year >= 2019 & year >= license_year & app == 0 & april == 0 & marubeni == 1  ~ "Deforestation post-permit and after first ZDC of downstream mill",
+                                year >= license_year ~ "Deforestation post-permit",
+                                year < license_year  ~ "Deforestation pre-permit",
+                                TRUE ~ NA)) %>%
+  group_by(supplier_id,supplier,supplier_label,license_year,island,april,app,marubeni,all,defor_time) %>%
   summarize(area_ha = n()) %>%
+  bind_rows(hti_for_areas) %>%
+  mutate(class = ifelse(is.na(defor_time),"Never deforested",defor_time)) %>%
+  select(-defor_time) %>%
+  arrange(-desc(supplier_id)) %>%
+  left_join(supplier_groups,by="supplier_id") %>%
+  group_by(supplier_id) %>%
+  mutate(app = zoo::na.locf(app, na.rm = FALSE),
+         april = zoo::na.locf(april, na.rm = FALSE),
+         marubeni = zoo::na.locf(marubeni, na.rm = FALSE),
+         app = ifelse(is.na(app),0,app),
+         april = ifelse(is.na(april),0,april),
+         marubeni = ifelse(is.na(marubeni),0,marubeni),
+         supplier_group = ifelse(supplier_group == "UNKNOWN" | is.na(supplier_group),"OTHER",supplier_group)) %>%
+  group_by() %>%
+  mutate(all = ifelse(is.na(all),1,all)) %>%
   print()
 
 #########################################################################
@@ -444,7 +445,7 @@ hti_zdc_defort <- gaveau_annual_pulp %>%
 theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                     panel.background = element_rect(colour=NA,fill=NA),
                     panel.grid.minor = element_blank(),
-                    panel.grid.major.y = element_line(color="grey70",linetype="dashed",size=0.35),
+                    panel.grid.major.y = element_line(color="grey70",linetype="dashed",linewidth=0.35),
                     plot.title = element_text(hjust = 0.5),
                     axis.line.x = element_line(),
                     axis.ticks.x = element_blank(),
@@ -456,7 +457,7 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                     axis.title.y = element_text(size = 10, color = "grey30"),
                     strip.text.x = element_text(size = 12, face = "bold",color="grey30"),
                     strip.background = element_rect(color=NA, fill=NA),
-                    legend.key = element_rect(size = 12, fill = "white", colour = NA),
+                    legend.key = element_rect(linewidth = 12, fill = "white", colour = NA),
                     legend.key.height = unit(10, "pt"),
                     legend.key.width = unit(10, "pt"),
                     legend.text = element_text(size = 8,colour="grey30"),
@@ -589,20 +590,49 @@ p2_island
 ## Deforestation timing plot
 
 # set plot order
-plot_order <- c("Deforestation pre-permit","Deforestation post-permit")
+plot_order <- c("Deforestation pre-permit","Deforestation post-permit",
+                "Deforestation post-permit and after first ZDC of downstream mill","Never deforested")
 
 p3 <- hti_defort %>% 
-  filter(supplier_id == "H-0313") %>%
+  filter(class %in% plot_order) %>%
+  filter(supplier_id == "H-0365") %>%
   #filter(island == "Kalimantan") %>%
   #filter(marubeni == 1) %>%
   ggplot() +
-  aes(y = factor(defor_time,levels=rev(plot_order)), x = area_ha, fill = factor(defor_time,levels=plot_order)) +
+  aes(y = factor(class,levels=rev(plot_order)), x = area_ha, fill = factor(class,levels=plot_order),
+      color = factor(class,levels=plot_order)) +
   geom_bar(position="stack", stat="identity",  width=0.75) +
   theme_plot2 +
   xlab("") + ylab("")+
   scale_x_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0)) +
-  scale_fill_manual(values=c("#EB4A40","#7827c2"))+ 
+  scale_fill_manual(values=c("#EB4A40","#7827c2","#FFBF00","#136b3a"),
+                    breaks =c("Deforestation pre-permit",
+                              "Deforestation post-permit",
+                              "Deforestation post-permit and after first ZDC of downstream mill",
+                              "Never deforested"),
+                    labels =c("Deforestation pre-permit",
+                              "Deforestation post-permit",
+                              "Deforestation post-permit and\nafter first ZDC of downstream mill",
+                              "Never deforested"))+ 
+  scale_y_discrete(breaks =c("Deforestation pre-permit",
+                              "Deforestation post-permit",
+                              "Deforestation post-permit and after first ZDC of downstream mill",
+                              "Never deforested"),
+                    labels =c("Deforestation pre-permit",
+                              "Deforestation post-permit",
+                              "Deforestation post-permit and\nafter first ZDC of downstream mill",
+                              "Never deforested"))+ 
+  scale_color_manual(values=c("#EB4A40","#7827c2","#FFBF00","#136b3a"),
+                     breaks =c("Deforestation pre-permit",
+                               "Deforestation post-permit",
+                               "Deforestation post-permit and after first ZDC of downstream mill",
+                               "Never deforested"),
+                     labels =c("Deforestation pre-permit",
+                               "Deforestation post-permit",
+                               "Deforestation post-permit and\nafter first ZDC of downstream mill",
+                               "Never deforested")) +
   guides(fill = guide_legend(nrow = 4)) +
+  
   theme(legend.position = "none")
 
 p3
@@ -610,37 +640,74 @@ p3
 #ggsave(p1,file="D:\\hti_annual_defor_type.png",dpi=300, w=8, h=6,type="cairo-png",limitsize = FALSE)
 #ggsave(p1,file=paste0(wdir,"\\01_data\\02_out\\plots\\000_data_exploration\\gaveau_defor\\gav_lu_traj.png"),dpi=300, w=6, h=12,type="cairo-png",limitsize = FALSE)
 
-# Forest areas in 2022
-hti_for_areas <- samples_gfc_margono_peat %>%
-  filter(primary == 100 & sid %in% gaveau_pulp_sids) %>%
-  lazy_dt() %>%
-  left_join(samples_df,by="sid") %>%
-  group_by(supplier_id,supplier,supplier_label,license_year,island) %>%
-  summarize(area_ha = n()) %>%
-  as_tibble()
+top_5_hti_deforesters_pp_after_zdc <- hti_defort %>%
+  filter(class == "Deforestation post-permit and after first ZDC of downstream mill") %>%
+  arrange(-area_ha) %>%
+  slice(1:5) %>%
+  print()
 
+## manual reordering
+order <- c("SINAR MAS","ROYAL GOLDEN EAGLE / TANOTO","SUMITOMO",
+           "KORINDO","DJARUM","MARUBENI","GOVERNMENT","ADR","OTHER")
 
-# supplier groups deforestation plot
-ws_groups <- ws %>% 
-  filter(WOOD_TYPE == "PLANTATION") %>%
-  select(supplier_id=SUPPLIER_ID,supplier_group=SUPPLIER_GROUP) %>%
-  distinct() %>%
-  mutate(supplier_id = str_replace(supplier_id,"ID-WOOD-CONCESSION-","H-"))
+## set plot order
+plot_order_deft_pulp <- c(
+  "Never deforested",
+  "Deforestation pre-permit",
+  "Deforestation post-permit",
+  "Deforestation post-permit and after first ZDC of downstream mill")
 
+## Generate frequency table by group
+group_var <- "supplier_group" # Generally either island, supplier_group or supplier_label
+mill_var <- "all" # Generally either april,app,marubeni or all (all concessions)
 
-hti_zdc_defort_grp <- hti_zdc_defort %>%
-  drop_na(defor_time) %>%
-  group_by(supplier_id,supplier,supplier_label,license_year,island,zdc_year,defor_time) %>%
-  summarize(area_ha=sum(area_ha)) %>%
-  bind_rows(hti_for_areas) %>%
-  mutate(class = ifelse(is.na(defor_time),"Never deforestated",defor_time)) %>%
-  select(-defor_time) %>%
-  arrange(-desc(supplier_id)) %>%
-  left_join(ws_groups,by="supplier_id") %>%
-  drop_na(supplier_group) %>%
-  group_by(supplier_id) %>% 
-  mutate(zdc_year = zoo::na.locf(zdc_year, na.rm = FALSE))  
+freq_tab <- hti_defort %>%
+  filter(!!sym(mill_var) == 1) %>%
+  #filter(island == "kalimantan") %>% # filter to island if required
+  group_by(.data[[group_var]],class) %>% 
+  summarize(area_ha = sum(area_ha)) %>% 
+  mutate(freq = area_ha / sum(area_ha)) %>%
+  ungroup()
 
-# write table to csv
-write_csv(hti_zdc_defort_grp,paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_zdc_defort_for_areas.csv"))
-  
+freq_tab
+
+## plot frequencies
+freq_plot <- freq_tab %>% 
+  as_tibble() %>%
+  mutate(label_order = factor(!!sym(group_var),rev(order))) %>%
+  ggplot() +
+  aes(y = label_order, x = area_ha, fill = factor(class,levels=plot_order_deft_pulp)) +
+  geom_bar(stat = "identity",position = position_stack(reverse = TRUE)) +
+  theme_plot2 +
+  xlab("") + ylab("")+
+  scale_x_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0)) +
+  guides(fill = guide_legend(nrow = 2)) +
+  scale_fill_manual(values = cols_alpha,name ="Group",
+                    breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp)
+
+freq_plot
+
+# stacked percent plot
+freq_conv_perc_plot <- freq_tab %>% 
+  as_tibble() %>%
+  filter(class != "Never deforested") %>%
+  mutate(label_order = factor(!!sym(group_var),rev(order))) %>%
+  ggplot() +
+  aes(y = label_order, x = area_ha, fill = factor(class,levels=rev(plot_order_deft_pulp))) +
+  geom_bar(stat = "identity",position = "fill") +
+  theme_plot2 +
+  xlab("") + ylab("")+
+  scale_x_continuous(labels = percent,expand = c(0,0)) +
+  guides(fill = guide_legend(nrow = 4)) +
+  scale_fill_manual(values = cols_alpha,name ="Group",
+                    breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp) +
+  theme(legend.position = "none")
+
+freq_conv_perc_plot
+
+# merging plots
+freq_comb <- (freq_plot + plot_layout(guides = "collect") & theme(legend.position = "bottom")) + (freq_conv_perc_plot + theme(legend.position = "none")) 
+freq_comb
+
+## save plot to png
+ggsave(freq_comb,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot.png"), dpi=400, w=12, h=5,type="cairo-png",limitsize = FALSE)
