@@ -310,23 +310,23 @@ gaveau_annual_pulp <- samples_gaveau_landuse %>%
   filter(gav_class != "Others")
 
 gav_tbl <- gaveau_annual_pulp %>%
-  mutate(dataset = "gaveau",sh_area = shr_gav_lu_areas) %>%
-  select(supplier_id,year,sh_area,dataset) 
+  mutate(dataset = "gaveau",sh_area = shr_gav_lu_areas,pulp_area = n) %>%
+  select(supplier_id,year,sh_area,pulp_area,dataset) 
 
 ## join with downstream mill supplier, license year,concession names and annual change class names
-jrc_hti_ac <- jrc_ac %>%
+hti_jrc_ac <- jrc_ac %>%
   rename(supplier_id=ID) %>%
   left_join(subset(lu_table,dataset =="jrc tmf annual changes"),by="class") %>%
   mutate(class_desc = ifelse(class_desc == "permanent or seasonal water" | class_desc == "other land cover" | is.na(class_desc),"other land cover",class_desc )) %>%
   group_by(supplier_id,class_desc,year,island) %>%
-  summarize(n = sum(n),shr_class=sum(shr_class)) %>%
+  summarize(area_class = sum(n),shr_class=sum(shr_class)) %>%
   left_join(hti_dates_clean,by="supplier_id") %>%
   left_join(mill_supplier,by="supplier_id") %>%
   left_join(hti_concession_names,by="supplier_id") %>%
   mutate(year = str_replace(year,"dec", "")) %>%
   mutate(year = as.double(year)) %>%
   select(-supplier) %>%
-  left_join(select(gaveau_annual_pulp,supplier_id,year,shr_gav_lu_areas,gav_class),by=c("year","supplier_id")) %>%
+  left_join(select(gaveau_annual_pulp,supplier_id,year,shr_gav_lu_areas,gav_lu_areas=n,gav_class),by=c("year","supplier_id")) %>%
   mutate(
     zdc_year = case_when(
       app == 1 ~ 2013,
@@ -382,7 +382,7 @@ jrc_hti_ac <- jrc_ac %>%
 theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                     panel.background = element_rect(colour=NA,fill=NA),
                     panel.grid.minor = element_blank(),
-                    panel.grid.major.y = element_line(color="grey70",linetype="dashed",size=0.35),
+                    panel.grid.major.y = element_line(color="grey70",linetype="dashed",linewidth=0.35),
                     plot.title = element_text(hjust = 0.5),
                     axis.line.x = element_line(),
                     axis.ticks.x = element_blank(),
@@ -406,40 +406,41 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
 
 # Annual land classes plot (TMF + Gaveau pulp areas)
 ## filter for plot (by supplier)
-jrc_ac_comb <- jrc_hti_ac %>%
+hti_jrc_ac_comb <- hti_jrc_ac %>%
   as_tibble() %>%
-  filter(supplier_id == "H-0536")
+  filter(supplier_id == "H-0363")
 
-jrc_ac_plot <- ggplot(jrc_ac_comb,aes(year,shr_class)) +
+hti_jrc_ac_plot <- ggplot(hti_jrc_ac_comb,aes(year,area_class)) +
   geom_area(aes(fill= as.character(class_desc)), position = position_stack(reverse = T)) +
   scale_x_continuous(expand=c(0,0),breaks=seq(1990,2022,by=1)) +
-  scale_y_continuous(labels = d3_format(".2~s",suffix = "%"),expand = c(0,0)) +
-  geom_vline(aes(xintercept=as.numeric(license_year),color="License\nyear"),size=0.5)+
-  geom_vline(aes(xintercept=as.numeric(zdc_year),color="Earliest ZDC year\nof downstream mill"),size=0.5)+
-  geom_point(data=jrc_ac_comb,aes(x=year,y=shr_gav_lu_areas,shape=gav_class),color="black",size=1.5)+
+  scale_y_continuous(labels = d3_format(".2~s",suffix = "ha"),expand = c(0,0)) +
+  geom_vline(aes(xintercept=as.numeric(license_year),color="License\nyear"),linewidth=0.5)+
+  geom_vline(aes(xintercept=as.numeric(zdc_year),color="Earliest ZDC year\nof downstream mill"),linewidth=0.5)+
+  #geom_point(data=jrc_ac_comb,aes(x=year,y=shr_gav_lu_areas,shape=gav_class),color="black",size=1.5)+
+  geom_point(data=hti_jrc_ac_comb,aes(x=year,y=gav_lu_areas,shape=gav_class),color="black",size=1.5)+
   ylab("") +
   xlab("") +
   scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen","#F8F899","seagreen4"),
                    breaks = c("deforested land","degraded tmf","forest regrowth","other land cover","undisturbed tropical moist forest (tmf)"),
                    labels = c("Deforested land","Degraded tropical moist forest","Forest regrowth","Other land cover","Undisturbed tropical moist forest"))+ 
-  scale_shape_manual(values=c(1),labels=c("Pulpwood area (TreeMap)"),na.translate=FALSE)+ 
+  scale_shape_manual(values=c(1),labels=c("Area cleared for pulpwood"),na.translate=FALSE)+ 
   scale_color_manual(values = c("palevioletred4","#064383")) +
   #facet_wrap(~supplier_label,ncol=2,scales="free") +
   guides(fill = guide_legend(nrow = 2),color = guide_legend(nrow=1),shape = guide_legend(nrow=2),keyheight = 10) +
   theme_plot
 
-jrc_ac_plot
+hti_jrc_ac_plot
 
 # Creating plots of individual concessions using a loop
 
-class_descs <- unique(jrc_hti_ac$class_desc)
-years <- unique(jrc_hti_ac$year)
-supplier_ids <- unique(jrc_hti_ac$supplier_id)
+class_descs <- unique(hti_jrc_ac$class_desc)
+years <- unique(hti_jrc_ac$year)
+supplier_ids <- unique(hti_jrc_ac$supplier_id)
 combinations <- expand.grid(year = years, class_desc = class_descs,supplier_id=supplier_ids) %>%
   as_tibble() %>%
   mutate(class_desc = as.character(class_desc),supplier_id = as.character(supplier_id))
 
-jrc_hti_ac_complete <- full_join(jrc_hti_ac,combinations,c("year"="year","class_desc"="class_desc","supplier_id"="supplier_id")) %>%
+hti_jrc_ac_complete <- full_join(hti_jrc_ac,combinations,c("year"="year","class_desc"="class_desc","supplier_id"="supplier_id")) %>%
   drop_na(class_desc) %>%
   complete(year,class_desc,
   fill = list(shr_class = 0, shr_gav_lu_areas=0)) %>%
@@ -456,9 +457,9 @@ jrc_hti_ac_complete <- full_join(jrc_hti_ac,combinations,c("year"="year","class_
 #   group_by(supplier_id) %>%
 #   mutate(zdc_year = min(zdc_year))
 
-concessions <- jrc_hti_ac_complete %>%
-  filter(app == 1 | april == 1 | marubeni == 1) %>%
-  filter(island == 6) %>%
+concessions <- hti_jrc_ac_complete %>%
+  #filter(app == 1 | april == 1 | marubeni == 1) %>%
+  filter(island == 4) %>%
   distinct(supplier_label) %>%
   pull(supplier_label) %>%
   print()
@@ -466,26 +467,26 @@ concessions <- jrc_hti_ac_complete %>%
 hti_plots = list()
 
 for(concession_ in concessions) {
-  hti_plots[[concession_]] = ggplot(jrc_hti_ac_complete1 %>% filter(supplier_label == concession_),aes(year,shr_class)) +
+  hti_plots[[concession_]] = ggplot(hti_jrc_ac_complete %>% filter(supplier_label == concession_),aes(year,area_class)) +
     geom_area(aes(fill= as.character(class_desc)), position = position_stack(reverse = T)) +
     scale_x_continuous(expand=c(0,0),breaks=seq(1990,2022,by=1)) +
-    scale_y_continuous(labels = d3_format(".2~s",suffix = "%"),expand = c(0,0)) +
+    scale_y_continuous(labels = d3_format(".2~s",suffix = "ha"),expand = c(0,0)) +
     geom_vline(aes(xintercept=as.numeric(license_year),color="License\nyear"),size=0.5)+
     geom_vline(aes(xintercept=as.numeric(zdc_year),color="Earliest ZDC year\nof downstream mill"),size=0.5)+
-    geom_point(data=jrc_hti_ac %>% filter(supplier_label == concession_),aes(x=year,y=shr_gav_lu_areas,shape=gav_class),color="black",size=1.5)+
+    geom_point(data=hti_jrc_ac %>% filter(supplier_label == concession_),aes(x=year,y=gav_lu_areas,shape=gav_class),color="black",size=1.5)+
     ylab("") +
     xlab("") +
     ggtitle(paste0(concession_)) +
     scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen","#F8F899","seagreen4"),
                       breaks = c("deforested land","degraded tmf","forest regrowth","other land cover","undisturbed tropical moist forest (tmf)"),
                       labels = c("Deforested land","Degraded tropical moist forest","Forest regrowth","Other land cover","Undisturbed tropical moist forest"))+ 
-    scale_shape_manual(values=1,labels=c("Area cleared\nfor pulp (TreeMap)"),na.translate=FALSE)+ 
+    scale_shape_manual(values=1,labels=c("Area cleared\nfor pulpwood"),na.translate=FALSE)+ 
     scale_color_manual(values = c("palevioletred4","#064383")) +
     guides(fill = guide_legend(nrow = 3),color = guide_legend(nrow=1),shape = guide_legend(nrow=2),keyheight = 10) +
     theme_plot
   
   print(hti_plots[[concession_]])
-  ggsave(hti_plots[[concession_]], file=paste0("D:\\",gsub(" ","_",concession_),"_JRC_AnnualChanges.png"), dpi=300, w=10, h=6,type="cairo-png")
+  ggsave(hti_plots[[concession_]], file=paste0("D:\\",gsub(" ","_",concession_),"_JRC_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
 }
 
 # ## filter by supplier
