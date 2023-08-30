@@ -52,10 +52,10 @@ overall_change <- (conv_2022 - conv_2011) / conv_2011
 overall_change %>% print()
 
 # Line 70: Many of these forests were cleared to make room for industrial acacia and eucalyptus plantations, which expanded by ~1.1 million hectares between 2000 and 2015 
-test <- gaveau_annual_pulp %>%
-  group_by(gav_class, year) %>%
-  summarize(n = sum(n)) %>% 
-  print()
+# test <- gaveau_annual_pulp %>%
+#   group_by(gav_class, year) %>%
+#   summarize(n = sum(n)) %>% 
+#   print()
 
 
 
@@ -86,9 +86,53 @@ current_wood_demand <- pw_supply_2022 %>% pull(VOLUME_M3) %>% sum() %>% print()
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Description of ZDC violations -----------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+conc_defor <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_zdc_defort_for_areas.csv'))
+zdc_exposure <- conc_defor %>% 
+  select(supplier_id, zdc_year) %>% 
+  distinct()
+
+
+hti_pulp_conv <- hti_pulp_conv %>% 
+  left_join(zdc_exposure, by = "supplier_id")
+hti_pulp_conv <- hti_pulp_conv %>% 
+  mutate(violation_area_ha = (year >= zdc_year) * area_ha)
+
+
 # Line 85: Although the impact of these types of voluntary commitments has been called into question in other settings (Garrett et al. 2019), we find that only XX hectares (XX percent) of pulpwood plantations established between 2015 and 2022 violated these no deforestation commitments (SIXX). 
+total_violations <- conc_defor %>% 
+  group_by(class) %>% 
+  summarise(area_ha = sum(area_ha)) %>% 
+  filter(class == "Deforestation after earliest ZDC of downstream mill") %>% 
+  pull(area_ha) %>% 
+  print()
+
+# Area of pulp expansion inside HTI
+pulp_exp_hti <- hti_pulp_conv %>% 
+  filter(year >= 2013, year <= 2022) %>% 
+  pull(area_ha) %>% 
+  sum()
+
+# Area of pulp expansion outside HTI
+pulp_exp_nohti <- pulp_defor_outside_hti %>% 
+  filter(year >= 2013, year <= 2022) %>% 
+  pull(area_ha) %>% 
+  sum()
+
+pulp_expansion <- pulp_exp_hti + pulp_exp_nohti
+violations_shr <- (total_violations / pulp_expansion) %>% print()
+
 
 # Line 88: In addition, we find that XX percent of these violations occurred in concessions controlled by external suppliers, rather than directly within concessions controlled by NDPE-committed pulp producers. 
+indirect_violations <- conc_defor %>% 
+  filter(supplier_group %in% c("SINAR MAS", "MARUBENI", "ROYAL GOLDEN EAGLE / TANOTO")) %>% 
+  group_by(class) %>% 
+  summarise(area_ha = sum(area_ha)) %>% 
+  filter(class == "Deforestation after earliest ZDC of downstream mill") %>% 
+  pull(area_ha) %>% 
+  print()
+
+indirect_shr <- (indirect_violations / total_violations) %>% 
+  print()
 
 # Among the XX pulpwood producers with the largest violations, XX.
 
