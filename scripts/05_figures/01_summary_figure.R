@@ -60,6 +60,12 @@ Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 wdir <- "remote"
 
+
+
+color_a <- "#404788"
+color_b <- "#B0357B"
+color_c <- "#1b9e77"
+
 ## read data -------------------------------------------------
 
 ## increase memory size
@@ -160,8 +166,8 @@ defor_plot <- hti_nonhti_conv %>%
   ylab("Area (ha)") + 
   scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
   scale_x_continuous(expand=c(0,1),breaks=seq(2001,2022,by=1)) +
-  scale_fill_manual(values=c("#c194d4","orange1","yellowgreen"))+ 
-  scale_color_manual(values=c("#c194d4","orange1","yellowgreen"))+ 
+  scale_fill_manual(values=c(color_c, color_b, color_a))+ 
+  scale_color_manual(values=c(color_c, color_b, color_a))+ 
   guides(fill = guide_legend(nrow = 1,reverse = TRUE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
   #facet_wrap(~supplier_label,ncol=1,scales="free") +
   theme_plot
@@ -365,7 +371,7 @@ wt_plot <- ggplot(data=pulp_ratio) +
                      expand = c(0,0)) + 
   theme_plot +
   labs(fill = "\n") +
-  scale_fill_manual(values=c("#66c2a4","#ed8f8a"))+ 
+  scale_fill_manual(values=c(color_b, color_a))+ 
   guides(fill = guide_legend(title.position = "top",nrow=1)) + 
   ggtitle("") 
 
@@ -382,31 +388,31 @@ g.gantt <- gather(policy_tl, "state", "date", 2:3) %>%
 
 range <-  c(as.Date("2001-01-01"), as.Date("2019-01-01"))
 
-tl_plot <- ggplot(g.gantt, aes(date, label, group=label)) +
-  geom_line(arrow = arrow(length=unit(0.5,"cm"), ends="last", type = "open"), size = 2,color="#ed8f8a",alpha=0.85) +
-  geom_text(data = g.gantt[1:5,],
-            aes(label=label,family = "DM Sans"), 
-            x = as.Date("2018-06-01"),size=3,color="grey20",
-            hjust=1, vjust=-1 ) + 
-  labs(x="", y=NULL, title="") +
-  theme_classic() +
-  scale_x_date(date_breaks = "1 year", date_labels = "%Y",limits=range,expand=c(0,1)) +
-  theme(text = element_text(family = "DM Sans",colour="#3A484F"),
-        axis.line.y = element_blank(),
-        panel.grid.major.x = element_line(colour="grey90", size=5),
-        axis.text.x = element_text(size = 9, color = "grey30",angle = 45,hjust=1),
-        plot.margin=unit(c(0.1,1.5,0.1,0.5),"cm"),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank())
-
-tl_plot
+# tl_plot <- ggplot(data = g.gantt, aes(date, label, group=label)) +
+#   geom_line(arrow = arrow(length=unit(0.5,"cm"), ends="last", type = "open"), size = 2,color=color_a,alpha=0.85) +
+#   geom_text(data = g.gantt[1:5,],
+#             aes(label=label,family = "DM Sans"), 
+#             x = as.Date("2018-06-01"),size=3,color="grey20",
+#             hjust=1, vjust=-1 ) + 
+#   labs(x="", y=NULL, title="") +
+#   theme_classic() +
+#   scale_x_date(date_breaks = "1 year", date_labels = "%Y",limits=range,expand=c(0,1)) +
+#   theme(text = element_text(family = "DM Sans",colour="#3A484F"),
+#         axis.line.y = element_blank(),
+#         panel.grid.major.x = element_line(colour="grey90", size=5),
+#         axis.text.x = element_text(size = 9, color = "grey30",angle = 45,hjust=1),
+#         plot.margin=unit(c(0.1,1.5,0.1,0.5),"cm"),
+#         axis.text.y = element_blank(),
+#         axis.ticks = element_blank())
+# 
+# tl_plot
 
 # Modified policy TL
 
 df <- policy_tl[with(policy_tl, order(year)), ]
 
 type_levels <- c("Indonesian government", "Companies","International governments")
-type_colors <- c("#0070C0", "#00B050", "#DE8600")
+type_colors <- c(color_a,color_b,color_c)
 
 df$type <- factor(df$type, levels=type_levels, ordered=TRUE)
 
@@ -478,18 +484,22 @@ tl_plot <- ggplot(tl_df,aes(x=year_col,y=0, col=type, label=type)) +
 tl_plot
 
 # merge plot using patchwork
-comb_plot <- defor_plot + wt_plot + tl_plot + plot_layout(ncol=1)
+comb_plot <- defor_plot / wt_plot / tl_plot
+comb_plot <- comb_plot +
+  plot_annotation(tag_levels="A") & 
+  theme(plot.tag = element_text(face = 'bold', size=12))
 comb_plot
+
 
 #ggsave(comb_plot,file="D:/comb_plot.png", dpi=400, w=11, h=14,type="cairo-png") 
 ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=10, h=13,type="cairo-png") 
 
 
-# merge plot using patchwork
-comb_plot <- defor_pp_plot + mc_pp_plot + wt_plot + tl_plot + plot_layout(ncol=1)
-comb_plot
-
-ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure.png"), dpi=400, w=9, h=13,type="cairo-png") 
+# # merge plot using patchwork
+# comb_plot <- defor_pp_plot + mc_pp_plot + wt_plot + tl_plot + plot_layout(ncol=1)
+# 
+# comb_plot_temp <- defor_plot / wt_plot
+# ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure.png"), dpi=400, w=9, h=13,type="cairo-png") 
 
 # Quick stats for draft paper
 
