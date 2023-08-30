@@ -48,6 +48,12 @@ wdir <- "remote"
 harvest_csv <- paste0(wdir, "/01_data/02_out/tables/hti_ws_wood_harvest_yr_age.csv")
 harvest_df <- read.csv2(harvest_csv, sep = ",")
 
+pw_supply_2020 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2020_compiled.xlsx')) %>%
+  select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
+
+pw_supply_2021 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2021_compiled.xlsx')) %>%
+  select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
+
 pw_supply_2022 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx')) %>%
   select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
 
