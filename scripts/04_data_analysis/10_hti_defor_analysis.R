@@ -146,6 +146,15 @@ samples_gfc_margono_peat <- filenames %>%
   map_dfr(read_csv) %>%
   janitor::clean_names() 
 
+## GFC deforestation (modified by TreeMAp)
+filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_ttm\\"),
+                 pattern = "*.csv",
+                 full.names= TRUE)
+
+samples_gfc_ttm <- filenames %>%
+  map_dfr(read_csv) %>%
+  janitor::clean_names() 
+
 # pulp conversion from forest (indonesia wide)
 pulp_for_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_annual_defor_forest_id.csv")) %>%
   select(-`system:index`,-constant,-.geo)
@@ -249,6 +258,7 @@ samples_df <- samples_df %>%
   rename(supplier_id = ID) %>% 
   left_join(hti_dates_clean,by="supplier_id") %>%
   left_join(hti_concession_names,by="supplier_id") %>%
+  left_join(samples_gfc_ttm,by="id") %>%
   left_join(samples_jrc_defyr,by="sid") %>%
   mutate(pulp = ifelse(sid %in% gaveau_pulp_sids,"Y","N"))
   
@@ -295,7 +305,7 @@ hti_other_conv <- samples_df %>%
 #   as_tibble()
 
 # annual deforestation outside concessions (from forest and non-forest)
-id_pulp_defor_for <- pulp_for_id %>%
+id_pulp_conv_for <- pulp_for_id %>%
   left_join(islands,by="prov_code") %>%
   select(-prov,-kab,-kab_code,-prov_code,-type) %>%
   dt_pivot_longer(cols = -c(island),
@@ -308,7 +318,7 @@ id_pulp_defor_for <- pulp_for_id %>%
   summarize(area_ha = sum(area_ha)) %>%
   mutate(conv_type = "forest") 
 
-id_pulp_defor_nonfor <- pulp_nonfor_id %>%
+id_pulp_conv_nonfor <- pulp_nonfor_id %>%
   left_join(islands,by="prov_code") %>%
   select(-prov,-kab,-kab_code,-prov_code,-type) %>%
   dt_pivot_longer(cols = -c(island),
@@ -321,11 +331,11 @@ id_pulp_defor_nonfor <- pulp_nonfor_id %>%
   summarize(area_ha = sum(area_ha)) %>%
   mutate(conv_type = "non-forest") 
 
-id_pulp_defor_hti <- hti_pulp_conv %>%
+id_pulp_conv_hti <- hti_pulp_conv %>%
   group_by(island,year,conv_type) %>%
   summarize(area_ha = sum(area_ha))
 
-pulp_defor_outside_hti <- id_pulp_defor_for %>%
+pulp_conv_outside_hti <- id_pulp_conv_for %>%
   bind_rows(id_pulp_defor_nonfor) %>%
   mutate(conv_type = ifelse(conv_type == "forest",2,1)) %>%
   left_join(id_pulp_defor_hti,by=c("year","conv_type","island")) %>%
@@ -337,7 +347,7 @@ pulp_defor_outside_hti <- id_pulp_defor_for %>%
   mutate(supplier_id = NA,supplier=NA,supplier_label=NA,license_year=NA) %>%
   select(year,island,supplier_id,supplier,supplier_label,license_year,conv_type,area_ha)
 
-# merge deforestation (hti)
+# merge conversion (hti)
 hti_conv <- hti_pulp_conv %>%
   bind_rows(hti_other_conv) %>% # GFC Hansen / JRC deforestation within concessions
   left_join(mill_supplier,by="supplier_id") %>%
@@ -353,9 +363,9 @@ hti_conv <- hti_pulp_conv %>%
   arrange(year,supplier_id) %>%
   print()
 
-# merge deforestation (hti and non-hti areas)
+# merge conversion (hti and non-hti areas)
 hti_nonhti_conv <- hti_pulp_conv %>%
-  bind_rows(pulp_defor_outside_hti) %>% # deforestation for pulp outside concessions
+  bind_rows(pulp_conv_outside_hti) %>% # deforestation for pulp outside concessions
   left_join(mill_supplier,by="supplier_id") %>%
   mutate(
     zdc_year = case_when(
@@ -370,7 +380,7 @@ hti_nonhti_conv <- hti_pulp_conv %>%
   print()
 
 # write to csv
-write_csv(hti_nonhti_conv,paste0(wdir,"\\01_data\\02_out\\tables\\idn_deforestation_hti_nonhti_gaveau.csv"))
+write_csv(hti_nonhti_conv,paste0(wdir,"\\01_data\\02_out\\tables\\idn_pulp_conversion_hti_nonhti_gaveau.csv"))
 
 # forest areas in 2022
 hti_for_areas <- samples_gfc_margono_peat %>%
@@ -380,6 +390,12 @@ hti_for_areas <- samples_gfc_margono_peat %>%
   group_by(supplier_id,supplier,supplier_label,license_year,island) %>%
   summarize(area_ha = n()) %>%
   as_tibble()
+
+# other conversion
+hti_nonpulp_conv_areas <- hti_other_conv %>%
+  group_by(supplier_id,supplier,supplier_label,license_year,island) %>%
+  summarize(area_ha = sum(area_ha)) %>%
+  print()
 
 # defort_df <- samples_df %>% 
 #   left_join(mill_supplier,by="supplier_id") %>%
@@ -399,8 +415,15 @@ hti_for_areas <- samples_gfc_margono_peat %>%
 
 ## QA checks
 
-# generate deforestation timing plot  
-hti_defort <- gaveau_annual_pulp %>%
+# generate deforestation timing plot
+
+## TODO:
+# work towards te following classes
+## 1) defor not for pulp;
+## 2) defor for pulp (but before zdc);
+## 3) defor for pulp after zdc
+
+hti_conv_timing <- gaveau_annual_pulp %>%
   lazy_dt() %>%
   arrange(sid,year) %>%
   group_by(sid) %>%
@@ -412,17 +435,23 @@ hti_defort <- gaveau_annual_pulp %>%
   arrange(year,supplier_id) %>%
   as_tibble() %>%
   left_join(mill_supplier,by="supplier_id") %>%
-  mutate(defor_time = case_when(year >= 2013 & year >= license_year & app == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill",
-                                year >= 2015 & year >= license_year & app == 0 & april == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill",
-                                year >= 2019 & year >= license_year & app == 0 & april == 0 & marubeni == 1  ~ "Deforestation post-permit and after first ZDC of downstream mill",
-                                year >= license_year ~ "Deforestation post-permit",
-                                year < license_year  ~ "Deforestation pre-permit",
-                                TRUE ~ NA)) %>%
-  group_by(supplier_id,supplier,supplier_label,license_year,island,april,app,marubeni,all,defor_time) %>%
+  #mutate(defor_time = case_when(year >= 2013 & year >= license_year & app == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill",
+  #                              year >= 2015 & year >= license_year & app == 0 & april == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill",
+  #                              year >= 2019 & year >= license_year & app == 0 & april == 0 & marubeni == 1  ~ "Deforestation post-permit and after first ZDC of downstream mill",
+  #                              year >= license_year ~ "Deforestation post-permit",
+  #                              year < license_year  ~ "Deforestation pre-permit",
+  #                              TRUE ~ NA)) %>%
+  mutate(conv_time = case_when(year >= 2013 & app == 1 ~ "Deforestation for pulp after first ZDC of downstream mill",
+                                year >= 2015 & app == 0 & april == 1 ~ "Deforestation for pulp after first ZDC of downstream mill",
+                                year >= 2019 & app == 0 & april == 0 & marubeni == 1  ~ "Deforestation for pulp after first ZDC of downstream mill",
+                                TRUE ~ "Deforestation for pulp before first ZDC of downstream mill")) %>%
+  group_by(supplier_id,supplier,supplier_label,license_year,island,april,app,marubeni,all,conv_type,conv_time) %>%
   summarize(area_ha = n()) %>%
   bind_rows(hti_for_areas) %>%
-  mutate(class = ifelse(is.na(defor_time),"Never deforested",defor_time)) %>%
-  select(-defor_time) %>%
+  mutate(class = ifelse(is.na(conv_time),"Never deforested",conv_time)) %>%
+  select(-conv_time) %>%
+  bind_rows(hti_nonpulp_conv_areas) %>%
+  mutate(class = ifelse(is.na(class),"Deforestation not for pulp",class)) %>%
   arrange(-desc(supplier_id)) %>%
   left_join(supplier_groups,by="supplier_id") %>%
   group_by(supplier_id) %>%
@@ -506,10 +535,10 @@ p1 <- hti_conv %>%
   ylab("Area (ha)") + 
   scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
   scale_x_continuous(expand=c(0,0),breaks=seq(2000,2022,by=1)) +
-  scale_fill_manual(values=c("#c194d4","orange1","yellowgreen"),
+  scale_fill_manual(values=c("#CC79A7","#E69F00","#009E73"),
                     breaks = c(3,1,2),
                     labels = c("Other deforestation\nwithin concessions","Non forest to pulp","Forest to pulp"))+ 
-  scale_color_manual(values=c("#c194d4","orange1","yellowgreen"),
+  scale_color_manual(values=c("#CC79A7","#E69F00","#009E73"),
                      breaks = c(3,1,2),
                      labels = c("Other deforestation\nwithin concessions","Non forest to pulp","Forest to pulp"))+ 
   guides(fill = guide_legend(nrow = 1,reverse = TRUE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
@@ -517,7 +546,6 @@ p1 <- hti_conv %>%
   theme_plot
 
 p1
-
 
 p1_island <- hti_conv %>%
   mutate(conv_type = factor(conv_type,levels=c(3,1,2))) %>%
@@ -531,8 +559,8 @@ p1_island <- hti_conv %>%
   ylab("Area (ha)") + 
   scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
   scale_x_continuous(expand=c(0,0),breaks=seq(2000,2022,by=1)) +
-  scale_fill_manual(values=c("#c194d4","orange1","yellowgreen"))+ 
-  scale_color_manual(values=c("#c194d4","orange1","yellowgreen"))+ 
+  scale_fill_manual(values=c("#CC79A7","#E69F00","#009E73"))+ 
+  scale_color_manual(values=c("#CC79A7","#E69F00","#009E73"))+ 
   guides(fill = guide_legend(nrow = 1,reverse = TRUE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
   #facet_wrap(~supplier_label,ncol=1,scales="free") +
   theme_plot
@@ -555,10 +583,10 @@ p2 <- hti_nonhti_conv %>%
   ylab("Area (ha)") + 
   scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
   scale_x_continuous(expand=c(0,0),breaks=seq(2000,2022,by=1)) +
-  scale_fill_manual(values=c("orange1","yellowgreen"),
+  scale_fill_manual(values=c("#E69F00","#009E73"),
                     breaks = c(1,2),
                     labels = c("Non forest to pulp","Forest to pulp"))+ 
-  scale_color_manual(values=c("orange1","yellowgreen"),
+  scale_color_manual(values=c("#E69F00","#009E73"),
                      breaks = c(1,2),
                      labels = c("Non forest to pulp","Forest to pulp"))+ 
   guides(fill = guide_legend(nrow = 1,reverse = TRUE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
@@ -579,8 +607,8 @@ p2_island <- hti_nonhti_conv %>%
   ylab("Area (ha)") + 
   scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
   scale_x_continuous(expand=c(0,0),breaks=seq(2000,2022,by=1)) +
-  scale_fill_manual(values=c("#c194d4","orange1","yellowgreen"))+ 
-  scale_color_manual(values=c("#c194d4","orange1","yellowgreen"))+ 
+  scale_fill_manual(values=c("#CC79A7","#E69F00","#009E73"))+ 
+  scale_color_manual(values=c("#CC79A7","#E69F00","#009E73"))+ 
   guides(fill = guide_legend(nrow = 1,reverse = TRUE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
   #facet_wrap(~supplier_label,ncol=1,scales="free") +
   theme_plot
@@ -589,59 +617,8 @@ p2_island
 
 ## Deforestation timing plot
 
-# set plot order
-plot_order <- c("Deforestation pre-permit","Deforestation post-permit",
-                "Deforestation post-permit and after first ZDC of downstream mill","Never deforested")
-
-p3 <- hti_defort %>% 
-  filter(class %in% plot_order) %>%
-  filter(supplier_id == "H-0365") %>%
-  #filter(island == "Kalimantan") %>%
-  #filter(marubeni == 1) %>%
-  ggplot() +
-  aes(y = factor(class,levels=rev(plot_order)), x = area_ha, fill = factor(class,levels=plot_order),
-      color = factor(class,levels=plot_order)) +
-  geom_bar(position="stack", stat="identity",  width=0.75) +
-  theme_plot2 +
-  xlab("") + ylab("")+
-  scale_x_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0)) +
-  scale_fill_manual(values=c("#EB4A40","#7827c2","#FFBF00","#136b3a"),
-                    breaks =c("Deforestation pre-permit",
-                              "Deforestation post-permit",
-                              "Deforestation post-permit and after first ZDC of downstream mill",
-                              "Never deforested"),
-                    labels =c("Deforestation pre-permit",
-                              "Deforestation post-permit",
-                              "Deforestation post-permit and\nafter first ZDC of downstream mill",
-                              "Never deforested"))+ 
-  scale_y_discrete(breaks =c("Deforestation pre-permit",
-                              "Deforestation post-permit",
-                              "Deforestation post-permit and after first ZDC of downstream mill",
-                              "Never deforested"),
-                    labels =c("Deforestation pre-permit",
-                              "Deforestation post-permit",
-                              "Deforestation post-permit and\nafter first ZDC of downstream mill",
-                              "Never deforested"))+ 
-  scale_color_manual(values=c("#EB4A40","#7827c2","#FFBF00","#136b3a"),
-                     breaks =c("Deforestation pre-permit",
-                               "Deforestation post-permit",
-                               "Deforestation post-permit and after first ZDC of downstream mill",
-                               "Never deforested"),
-                     labels =c("Deforestation pre-permit",
-                               "Deforestation post-permit",
-                               "Deforestation post-permit and\nafter first ZDC of downstream mill",
-                               "Never deforested")) +
-  guides(fill = guide_legend(nrow = 4)) +
-  
-  theme(legend.position = "none")
-
-p3
-
-#ggsave(p1,file="D:\\hti_annual_defor_type.png",dpi=300, w=8, h=6,type="cairo-png",limitsize = FALSE)
-#ggsave(p1,file=paste0(wdir,"\\01_data\\02_out\\plots\\000_data_exploration\\gaveau_defor\\gav_lu_traj.png"),dpi=300, w=6, h=12,type="cairo-png",limitsize = FALSE)
-
-top_5_hti_deforesters_pp_after_zdc <- hti_defort %>%
-  filter(class == "Deforestation post-permit and after first ZDC of downstream mill") %>%
+top_5_hti_deforesters_pp_after_zdc <- hti_conv_timing %>%
+  filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>%
   arrange(-area_ha) %>%
   slice(1:5) %>%
   print()
@@ -653,16 +630,17 @@ order <- c("SINAR MAS","ROYAL GOLDEN EAGLE / TANOTO","SUMITOMO",
 ## set plot order
 plot_order_deft_pulp <- c(
   "Never deforested",
-  "Deforestation pre-permit",
-  "Deforestation post-permit",
-  "Deforestation post-permit and after first ZDC of downstream mill")
+  "Deforestation not for pulp",
+  "Deforestation for pulp before first ZDC of downstream mill",
+  "Deforestation for pulp after first ZDC of downstream mill")
 
 ## Generate frequency table by group
 group_var <- "supplier_group" # Generally either island, supplier_group or supplier_label
 mill_var <- "all" # Generally either april,app,marubeni or all (all concessions)
 
-freq_tab <- hti_defort %>%
+freq_tab <- hti_conv_timing %>%
   filter(!!sym(mill_var) == 1) %>%
+  filter(conv_type == 2 | is.na(conv_type)) %>%
   #filter(island == "kalimantan") %>% # filter to island if required
   group_by(.data[[group_var]],class) %>% 
   summarize(area_ha = sum(area_ha)) %>% 
@@ -682,7 +660,7 @@ freq_plot <- freq_tab %>%
   xlab("") + ylab("")+
   scale_x_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0)) +
   guides(fill = guide_legend(nrow = 2)) +
-  scale_fill_manual(values = cols_alpha,name ="Group",
+  scale_fill_manual(values = cols,name ="Group",
                     breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp)
 
 freq_plot
@@ -699,7 +677,7 @@ freq_conv_perc_plot <- freq_tab %>%
   xlab("") + ylab("")+
   scale_x_continuous(labels = percent,expand = c(0,0)) +
   guides(fill = guide_legend(nrow = 4)) +
-  scale_fill_manual(values = cols_alpha,name ="Group",
+  scale_fill_manual(values = cols,name ="Group",
                     breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp) +
   theme(legend.position = "none")
 
