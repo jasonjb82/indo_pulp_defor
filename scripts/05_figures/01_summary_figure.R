@@ -57,14 +57,13 @@ bucket <- "trase-storage"
 Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 ## set working directory -------------------------------------
-
 wdir <- "remote"
+#color_a <- "#e78ac3"
+#color_b <- "#8da0cb"
+#color_c <- "#1b9e77"
 
-
-
-color_a <- "#404788"
-color_b <- "#B0357B"
-color_c <- "#1b9e77"
+colorBlind8  <- c("#999999", "#E69F00", "#56B4E9", "#009E73", 
+                       "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
 ## read data -------------------------------------------------
 
@@ -166,8 +165,8 @@ defor_plot <- hti_nonhti_conv %>%
   ylab("Area (ha)") + 
   scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
   scale_x_continuous(expand=c(0,1),breaks=seq(2001,2022,by=1)) +
-  scale_fill_manual(values=c(color_c, color_b, color_a))+ 
-  scale_color_manual(values=c(color_c, color_b, color_a))+ 
+  scale_fill_manual(values=c(colorBlind8[3],colorBlind8[5],colorBlind8[7]))+ 
+  scale_color_manual(values=c(colorBlind8[3],colorBlind8[5],colorBlind8[7]))+ 
   guides(fill = guide_legend(nrow = 1,reverse = TRUE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
   #facet_wrap(~supplier_label,ncol=1,scales="free") +
   theme_plot
@@ -371,7 +370,7 @@ wt_plot <- ggplot(data=pulp_ratio) +
                      expand = c(0,0)) + 
   theme_plot +
   labs(fill = "\n") +
-  scale_fill_manual(values=c(color_b, color_a))+ 
+  scale_fill_manual(values=c(colorBlind8[4],colorBlind8[2]))+ 
   guides(fill = guide_legend(title.position = "top",nrow=1)) + 
   ggtitle("") 
 
@@ -382,37 +381,15 @@ wt_plot
 # We can discuss what all we'd like to include during our call next week, but here are a few ideas to seed the figure
 # https://www.dropbox.com/s/fzy0s7eg62h2r8a/policy_timeline.xlsx?dl=0
 
-
-g.gantt <- gather(policy_tl, "state", "date", 2:3) %>% 
-  mutate(date = as.Date(date, "%d/%m/%Y"))
-
-range <-  c(as.Date("2001-01-01"), as.Date("2019-01-01"))
-
-# tl_plot <- ggplot(data = g.gantt, aes(date, label, group=label)) +
-#   geom_line(arrow = arrow(length=unit(0.5,"cm"), ends="last", type = "open"), size = 2,color=color_a,alpha=0.85) +
-#   geom_text(data = g.gantt[1:5,],
-#             aes(label=label,family = "DM Sans"), 
-#             x = as.Date("2018-06-01"),size=3,color="grey20",
-#             hjust=1, vjust=-1 ) + 
-#   labs(x="", y=NULL, title="") +
-#   theme_classic() +
-#   scale_x_date(date_breaks = "1 year", date_labels = "%Y",limits=range,expand=c(0,1)) +
-#   theme(text = element_text(family = "DM Sans",colour="#3A484F"),
-#         axis.line.y = element_blank(),
-#         panel.grid.major.x = element_line(colour="grey90", size=5),
-#         axis.text.x = element_text(size = 9, color = "grey30",angle = 45,hjust=1),
-#         plot.margin=unit(c(0.1,1.5,0.1,0.5),"cm"),
-#         axis.text.y = element_blank(),
-#         axis.ticks = element_blank())
-# 
-# tl_plot
-
-# Modified policy TL
-
 df <- policy_tl[with(policy_tl, order(year)), ]
 
 type_levels <- c("Indonesian government", "Companies","International governments")
-type_colors <- c(color_a,color_b,color_c)
+#type_colors <- c("#0070C0", "#00B050", "#DE8600")
+#type_fill <- c("#0070C0", "#00B050", "#DE8600")
+
+type_colors <- c(colorBlind8[4],colorBlind8[6],colorBlind8[8])
+type_fill <- c(colorBlind8[4],colorBlind8[6],colorBlind8[8])
+type_shape <- c(21,16)
 
 df$type <- factor(df$type, levels=type_levels, ordered=TRUE)
 
@@ -420,7 +397,8 @@ df$type <- factor(df$type, levels=type_levels, ordered=TRUE)
 #directions <- c(1, -1)
 
 positions <- c(0.5)
-directions <- c(1,-1)
+#directions <- c(1,-1)
+directions <- unique(df$direction)
 
 line_pos <- data.frame(
   "year"=unique(df$year),
@@ -433,7 +411,7 @@ df <- df[with(df, order(year, type)), ]
 
 text_offset <- 0.1
 df$year_count <- ave(df$year==df$year, df$year, FUN=cumsum)
-df$text_position <- (df$year_count * text_offset * df$direction) + df$position
+df$text_position <- df$type_cat
 head(df)
 
 
@@ -450,38 +428,55 @@ year_df <- data.frame(year_date_range, year_format)
 #### PLOT ####
 
 tl_df <- subset(df,!is.na(event)) %>%
-  as_tibble()
+  as_tibble() %>%
+  mutate(direction = as.factor(direction.x),
+         text_position_mod = case_when(
+           event == "Omnibus Law for Job Creation" ~ 0.1,
+           event == "PT Phoenix mill proposed" ~ 1.6,
+           event == "Norway REDD+ restart" ~ 2.6,
+           TRUE ~ text_position
+         )) 
 
-range <-  c(as.Date("2001-01-01"), as.Date("2022-01-01"))
+range <-  c(as.Date("2001-01-01"), as.Date("2023-01-01"))
 
-tl_plot <- ggplot(tl_df,aes(x=year_col,y=0, col=type, label=type)) + 
+tl_plot <- ggplot(tl_df,aes(x=year_col,y=0, col=type,label=type,shape=direction)) + 
+  geom_segment(data=tl_df[tl_df$type_cat == 1,], aes(y=text_position,yend=1,x=min(year_col)+75,xend=max(year_col)-75,group=1), 
+               alpha=0.2,size=1.75,linetype='solid',color=c(colorBlind8[4])) +
+  geom_segment(data=tl_df[tl_df$type_cat == 2,], aes(y=text_position,yend=2,x=min(year_col)+75,xend=max(year_col)-75,group=1), 
+               alpha=0.2,size=1.75,linetype='solid',color=c(colorBlind8[6])) +
+  geom_segment(data=tl_df[tl_df$type_cat == 3,], aes(y=text_position,yend=3,x=min(year_col)+75,xend=max(year_col)-75,group=1), 
+               alpha=0.2,size=1.75,linetype='solid',color=c(colorBlind8[8])) +
   scale_color_manual(values=type_colors, labels=type_levels, drop = FALSE,guide = "legend",name="") + 
+  scale_fill_manual(values=type_fill, labels=type_levels, drop = FALSE,guide = "legend",name="") + 
+  scale_shape_manual(values=type_shape, labels=type_levels, drop = TRUE,guide = FALSE,name="") +
+  scale_y_discrete(expand=c(0,1))+
   theme_classic() + 
-  scale_x_continuous(breaks = seq(from = 2001, to = 2022, by =1)) +
-  #scale_x_date(date_breaks = "1 year", date_labels = "%Y",limits= range) +
-  geom_hline(yintercept=0,color = "black", size=0.3) + # Plot horizontal black line for timeline
-  geom_segment(data=tl_df[tl_df$year_count == 1,], aes(y=0.8,yend=0,xend=year_col), 
-               color='grey70', alpha=0.5,size=0.85,linetype='dotted') +
-  geom_point(aes(y=0), size=2,color="black") + # scatter points 
-  geom_point(aes(y=text_position), size=2,alpha=0.75) + # scatter points 
-  geom_text(aes(y=text_position + 0.03,x=year_col-35,label=stringr::str_wrap(event,15)),size=2.75,hjust =1, family= "DM Sans",
-            fontface = "bold",show.legend = FALSE) +
-  geom_text(data=year_df, aes(x=year_date_range,y=-0.03,label=year_format, fontface="bold"),size=2.75, color='black', family = "DM Sans") +
+  #scale_x_continuous(breaks = seq(from = 2001, to = 2023, by =1)) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y",limits= range,expand=c(0.0075,0.5)) +
+  #geom_hline(yintercept=0,color = "black", size=0.3) + # Plot horizontal black line for timeline
+  #geom_point(aes(y=0), size=2,color="black", shape=16) + # scatter points 
+  geom_point(aes(y=text_position), size=4.5,alpha=0.75) + # scatter points 
+  geom_point(data=tl_df[tl_df$direction.x == 0,],aes(y=text_position), size=4.5,alpha=1,fill="white") + # scatter points 
+  ggrepel::geom_text_repel(aes(y=text_position_mod+0.05,x=year_col-50,label=stringr::str_wrap(event,25)),size=2.75,hjust =0,vjust=-1.25, family= "DM Sans",
+                           fontface = "bold",show.legend = FALSE,min.segment.length = 2.5) +
+  #geom_text(data=year_df, aes(x=year_date_range,y=-0.1,label=year_format, fontface="bold"),size=2.75, color='black', family = "DM Sans") +
   theme(text = element_text(family = "DM Sans"),
-        #panel.grid.major.x = element_line(colour="grey95", size=6),
+        panel.grid.major.x = element_line(colour="grey95", size=10),
         axis.line.y=element_blank(),
         axis.text.y=element_blank(),
         axis.title.x=element_blank(),
         axis.title.y=element_blank(),
         axis.ticks.y=element_blank(),
-        axis.text.x =element_blank(),
+        axis.text.x =element_text(vjust=5,color = "grey30",angle = 0, face="bold"),
         axis.ticks.x =element_blank(),
         axis.line.x = element_blank(),
         legend.title = element_blank(),
         legend.position = "bottom") 
 
 
-tl_plot
+tl_plot 
+
+ggsave(tl_plot,file="D:\\tl_plot.png", dpi=400, w=12, h=6,type="cairo-png") 
 
 # merge plot using patchwork
 comb_plot <- defor_plot / wt_plot / tl_plot
@@ -490,10 +485,9 @@ comb_plot <- comb_plot +
   theme(plot.tag = element_text(face = 'bold', size=12))
 comb_plot
 
-
 #ggsave(comb_plot,file="D:/comb_plot.png", dpi=400, w=11, h=14,type="cairo-png") 
-ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=10, h=13,type="cairo-png") 
-
+ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=13, h=13,type="cairo-png") 
+ggsave(comb_plot,file="D:\\comb_plot.png", dpi=400, w=12, h=15,type="cairo-png") 
 
 # # merge plot using patchwork
 # comb_plot <- defor_pp_plot + mc_pp_plot + wt_plot + tl_plot + plot_layout(ncol=1)
@@ -501,9 +495,3 @@ ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X
 # comb_plot_temp <- defor_plot / wt_plot
 # ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure.png"), dpi=400, w=9, h=13,type="cairo-png") 
 
-# Quick stats for draft paper
-
-# Many of these forests were cleared to make room for industrial acacia and eucalyptus plantations, 
-# which expanded by XX hectares between 2000 and 2015
-
-cum_pulp[16,2] - cum_pulp[1,2]
