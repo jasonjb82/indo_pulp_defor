@@ -146,7 +146,7 @@ samples_gfc_margono_peat <- filenames %>%
   map_dfr(read_csv) %>%
   janitor::clean_names() 
 
-## GFC deforestation (modified by TreeMAp)
+## GFC deforestation (modified by TreeMap)
 filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_ttm\\"),
                  pattern = "*.csv",
                  full.names= TRUE)
@@ -296,6 +296,22 @@ hti_other_conv <- samples_df %>%
   summarize(area_ha = n()) %>%
   as_tibble()
 
+# Other deforestation using TTM's modified GFC layer
+# conversion from forest (incl. peat forests)
+# 101-1xx = Annual forest on mineral soil loss. The last two digit represent the year of loss.
+# 601-6xx = Peat swamp forest loss. The last two digit represent the year of loss.
+hti_other_conv <- samples_df %>%
+  filter(pulp == "N" & start_for == "Y" & gfc_ttm > 100 & gfc_ttm <= 122 | 
+         pulp == "N" & start_for == "Y" & gfc_ttm > 600 & gfc_ttm <= 622) %>%
+  as_tibble() %>%
+  mutate(gfc_ttm = as.character(gfc_ttm),
+         gfc_ttm = str_sub(gfc_ttm,2, -1),
+         year = as.double(gfc_ttm) + 2000,
+         conv_type = 3) %>%
+  group_by(year,supplier_id,supplier,supplier_label,license_year,island,conv_type) %>%
+  summarize(area_ha = n()) %>%
+  as_tibble()
+
 # # other deforestation (JRC) # conversion type = 3
 # hti_other_conv <- samples_df %>%
 #   filter(pulp == "N" & start_for == "Y" & def_yr >= 2001) %>%
@@ -349,7 +365,7 @@ pulp_conv_outside_hti <- id_pulp_conv_for %>%
 
 # merge conversion (hti)
 hti_conv <- hti_pulp_conv %>%
-  bind_rows(hti_other_conv) %>% # GFC Hansen / JRC deforestation within concessions
+  bind_rows(hti_other_conv) %>% # GFC Hansen / JRC deforestation within concessions / TTM GFC modified data
   left_join(mill_supplier,by="supplier_id") %>%
   mutate(
     zdc_year = case_when(
@@ -416,13 +432,6 @@ hti_nonpulp_conv_areas <- hti_other_conv %>%
 ## QA checks
 
 # generate deforestation timing plot
-
-## TODO:
-# work towards te following classes
-## 1) defor not for pulp;
-## 2) defor for pulp (but before zdc);
-## 3) defor for pulp after zdc
-
 hti_conv_timing <- gaveau_annual_pulp %>%
   lazy_dt() %>%
   arrange(sid,year) %>%
@@ -657,7 +666,8 @@ freq_plot <- freq_tab %>%
   aes(y = label_order, x = area_ha, fill = factor(class,levels=plot_order_deft_pulp)) +
   geom_bar(stat = "identity",position = position_stack(reverse = TRUE)) +
   theme_plot2 +
-  xlab("") + ylab("")+
+  xlab("") + ylab("") +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 10)) +
   scale_x_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0)) +
   guides(fill = guide_legend(nrow = 2)) +
   scale_fill_manual(values = cols,name ="Group",
@@ -676,6 +686,7 @@ freq_conv_perc_plot <- freq_tab %>%
   theme_plot2 +
   xlab("") + ylab("")+
   scale_x_continuous(labels = percent,expand = c(0,0)) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 10)) +
   guides(fill = guide_legend(nrow = 4)) +
   scale_fill_manual(values = cols,name ="Group",
                     breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp) +
@@ -688,4 +699,4 @@ freq_comb <- (freq_plot + plot_layout(guides = "collect") & theme(legend.positio
 freq_comb
 
 ## save plot to png
-ggsave(freq_comb,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot.png"), dpi=400, w=12, h=5,type="cairo-png",limitsize = FALSE)
+ggsave(freq_comb,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot.png"), dpi=400, w=10, h=5,type="cairo-png",limitsize = FALSE)
