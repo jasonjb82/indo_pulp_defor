@@ -486,8 +486,7 @@ comb_plot <- comb_plot +
 comb_plot
 
 #ggsave(comb_plot,file="D:/comb_plot.png", dpi=400, w=11, h=14,type="cairo-png") 
-ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=13, h=13,type="cairo-png") 
-ggsave(comb_plot,file="D:\\comb_plot.png", dpi=400, w=12, h=15,type="cairo-png") 
+ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=12, h=15,type="cairo-png") 
 
 # # merge plot using patchwork
 # comb_plot <- defor_pp_plot + mc_pp_plot + wt_plot + tl_plot + plot_layout(ncol=1)
