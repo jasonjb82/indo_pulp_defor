@@ -58,12 +58,6 @@ Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 ## set working directory -------------------------------------
 wdir <- "remote"
-#color_a <- "#e78ac3"
-#color_b <- "#8da0cb"
-#color_c <- "#1b9e77"
-
-colorBlind8  <- c("#999999", "#E69F00", "#56B4E9", "#009E73", 
-                       "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
 ## read data -------------------------------------------------
 
@@ -72,6 +66,8 @@ memory.limit(size=60000)
 
 ## load color palette
 source("scripts\\001_misc\\001_color_palettes.R")
+colorBlind8  <- c("#999999", "#E69F00", "#56B4E9", "#009E73", 
+                  "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
 ## data lookup table
 lu_table <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\data_lookup_table.csv"))
