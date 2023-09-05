@@ -299,9 +299,11 @@ hti_other_conv <- samples_df %>%
 # Other deforestation using TTM's modified GFC layer
 # conversion from forest (incl. peat forests)
 # 101-1xx = Annual forest on mineral soil loss. The last two digit represent the year of loss.
+# 401-4xx Mangrove forest loss, where xx is the year when the mangrove forest loss happen.
 # 601-6xx = Peat swamp forest loss. The last two digit represent the year of loss.
 hti_other_conv <- samples_df %>%
-  filter(pulp == "N" & start_for == "Y" & gfc_ttm > 100 & gfc_ttm <= 122 | 
+  filter(pulp == "N" & start_for == "Y" & gfc_ttm > 100 & gfc_ttm <= 122 |
+         pulp == "N" & start_for == "Y" & gfc_ttm > 400 & gfc_ttm <= 422 |
          pulp == "N" & start_for == "Y" & gfc_ttm > 600 & gfc_ttm <= 622) %>%
   as_tibble() %>%
   mutate(gfc_ttm = as.character(gfc_ttm),
@@ -413,24 +415,6 @@ hti_nonpulp_conv_areas <- hti_other_conv %>%
   summarize(area_ha = sum(area_ha)) %>%
   print()
 
-# defort_df <- samples_df %>% 
-#   left_join(mill_supplier,by="supplier_id") %>%
-#   left_join(supplier_groups,by="supplier_id") %>%
-#   mutate(supplier_group = ifelse(supplier_group == "OTHER" & pulp == "N","OTHER - NO PLANTED PULP",
-#                                  ifelse(supplier_group == "OTHER" & pulp == "Y","OTHER - WITH PLANTED PULP",supplier_group))) %>%
-#   mutate(defor_time = case_when(def_yr >= 2013 & def_yr >= license_year & app == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill",
-#                                 def_yr >= 2015 & def_yr >= license_year & app == 0 & april == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill",
-#                                 def_yr >= 2019 & def_yr >= license_year & app == 0 & april == 0 & marubeni == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill", 
-#                                 def_yr >= license_year ~ "Deforestation post-permit",
-#                                 def_yr < license_year & def_yr != 0 ~ "Deforestation pre-permit",
-#                                 pulp == "N" & def_yr == 0  ~ "Never deforested",
-#                                 TRUE ~ "NA")) %>%
-#   mutate(defor_pulp = ifelse(pulp=="Y", paste0(defor_time, ", converted to pulp plantation"), paste0(defor_time, ", not converted to pulp plantation"))) %>%
-#   print() %>%
-#   as_tibble()
-
-## QA checks
-
 # generate deforestation timing plot
 hti_conv_timing <- gaveau_annual_pulp %>%
   lazy_dt() %>%
@@ -474,6 +458,9 @@ hti_conv_timing <- gaveau_annual_pulp %>%
   group_by() %>%
   mutate(all = ifelse(is.na(all),1,all)) %>%
   print()
+
+# write to csv
+write_csv(hti_conv_timing,paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_zdc_pulp_conv_areas.csv"))
 
 #########################################################################
 # Plotting --------------------------------------------------------------
@@ -627,7 +614,7 @@ p2_island
 ## Deforestation timing plot
 
 top_5_hti_deforesters_pp_after_zdc <- hti_conv_timing %>%
-  filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>%
+  filter(class == "Deforestation for pulp after first ZDC of downstream mill" & conv_type == 2) %>%
   arrange(-area_ha) %>%
   slice(1:5) %>%
   print()
