@@ -1,51 +1,102 @@
+## ---------------------------------------------------------
+## 
+## Project: Indonesia pulp deforestation
+##
+## Purpose of script: Calculate statistics for paper
+##
+## Author: Robert Heilmayr and Jason Jon Benedict
+##
+## Date Created: 2023-09-01
+## 
+## ---------------------------------------------------------
+##
+## Notes: 
+##
+##
+##
+## ---------------------------------------------------------
 
+options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
+## ---------------------------------------------------------
 
+### Load packages
+library(stringr)
+library(data.table)
+library(naniar)
+library(visdat)
+library(tidyverse)
+library(readxl)
+library(data.table)
+library(janitor)
+library(lubridate)
+library(sf)
+library(scales)
+library(aws.s3)
+library(dtplyr)
+library(testthat)
+library(d3.format)
+library(tidyfast)
+library(patchwork)
+library(rcartocolor)
+library(showtext)
+library(khroma) # palettes for color blindness
 
+## credentials ----------------------------------------------
+
+aws.signature::use_credentials()
+bucket <- "trase-storage"
+Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
+
+## set working directory -------------------------------------
+
+wdir <- "remote"
+
+## read data -------------------------------------------------
+'%ni%' <- Negate('%in%') # filter out function
+
+# pulpwood supply in 2022 
 pw_supply_2022 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx')) %>%
   select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
 
+# pulpwood conversion from forest and non-forest within and outside hti concessions
+hti_nonhti_conv <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\idn_pulp_conversion_hti_nonhti_gaveau.csv"))
+
+# temporary areas converted to pulp
+annual_conv <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="PULPWOOD EXPANSION",skip=90) %>% clean_names() %>%
+  select(year,area_ha=area_of_forest_converted_to_pulpwood_pw_each_year_ha) %>%
+  mutate(year=year+2000) %>%
+  drop_na(year)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Overarching trends in pulp expansion, deforestation, peat conversion -------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## Note: stats don't perfectly match David's numbers reported here: https://nusantara-atlas.org/pulp-and-paper-driven-deforestation-in-indonesia-accelerates-in-2022/
-annual_conv_hti <- hti_pulp_conv %>% 
-  filter(conv_type == 2) %>% 
-  group_by(year) %>% 
-  summarise(area_hti = sum(area_ha))
 
-annual_conv_nohti <- pulp_defor_outside_hti %>% 
-  filter(conv_type == 2) %>% 
-  group_by(year) %>% 
-  summarise(area_nohti = sum(area_ha))
-
-annual_conv <- annual_conv_hti %>% 
-  left_join(annual_conv_nohti, by = "year") %>% 
-  mutate(area = area_nohti + area_hti)  
-
+annual_conv <- hti_nonhti_conv %>%
+  group_by(year,conv_type) %>%
+  summarize(area_ha = sum(area_ha)) %>%
+  filter(conv_type == 2)
+ 
 annual_conv %>% 
-  ggplot(aes(x = year, y = area)) +
+  ggplot(aes(x = year, y = area_ha)) +
   geom_bar(stat = "identity")
-
 
 # Line 23: Between 2001 and 2011, 735,000 hectares of rainforest were directly converted to pulp plantations, contributing 15% of all of Indonesia’s primary forest loss over the same period 
 annual_conv %>% 
   filter(year < 2012) %>% 
-  pull(area) %>% 
+  pull(area_ha) %>% 
   sum()
 
 # Line 93: Although pulp-driven deforestation declined by XX% between XX and XX, recent economic trends and policy debates highlight the fragility of this progress. 
-conv_2011 = annual_conv %>% filter(year == 2011) %>% pull(area)
-conv_2017 = annual_conv %>% filter(year==2017) %>% pull(area)
+conv_2011 = annual_conv %>% filter(year == 2011) %>% pull(area_ha)
+conv_2017 = annual_conv %>% filter(year==2017) %>% pull(area_ha)
 early_change <- (conv_2017 - conv_2011) / conv_2011
 early_change %>% print()
 
 # Line 94: Between 2017 and 2022, the annual rate of conversion of primary forests to pulp plantations increased 370%, while pulp-driven conversion of peatlands increased XX%. 
-conv_2022 = annual_conv %>% filter(year==2022) %>% pull(area)
+conv_2022 = annual_conv %>% filter(year==2022) %>% pull(area_ha)
 late_change <- (conv_2022 - conv_2017) / conv_2017
 late_change %>% print()
-
 
 # Although deforestation rates in 2022 were still XX% lower than during the 2011 peak, major economic, ecological and policy changes call into question whether the sector will ever be able to achieve its desired end to deforestation 
 overall_change <- (conv_2022 - conv_2011) / conv_2011
@@ -57,14 +108,10 @@ overall_change %>% print()
 #   summarize(n = sum(n)) %>% 
 #   print()
 
-
-
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Emissions -----------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Line 28: In addition, the combination of land use conversion, burning, and peat subsidence released an estimated XX million tons of carbon to the atmosphere 
-
-
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -86,34 +133,21 @@ current_wood_demand <- pw_supply_2022 %>% pull(VOLUME_M3) %>% sum() %>% print()
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Description of ZDC violations -----------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-conc_defor <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_zdc_defort_for_areas.csv'))
-zdc_exposure <- conc_defor %>% 
-  select(supplier_id, zdc_year) %>% 
-  distinct()
 
-
-hti_pulp_conv <- hti_pulp_conv %>% 
-  left_join(zdc_exposure, by = "supplier_id")
-hti_pulp_conv <- hti_pulp_conv %>% 
-  mutate(violation_area_ha = (year >= zdc_year) * area_ha)
-
+zdc_hti_conv <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_zdc_pulp_conv_areas.csv'))
 
 # Line 85: Although the impact of these types of voluntary commitments has been called into question in other settings (Garrett et al. 2019), we find that only XX hectares (XX percent) of pulpwood plantations established between 2015 and 2022 violated these no deforestation commitments (SIXX). 
-total_violations <- conc_defor %>% 
+total_violations <- zdc_hti_conv %>% 
+  filter(conv_type == 2) %>% # only forest to pulp conversion
   group_by(class) %>% 
   summarise(area_ha = sum(area_ha)) %>% 
-  filter(class == "Deforestation after earliest ZDC of downstream mill") %>% 
+  filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>% 
   pull(area_ha) %>% 
   print()
 
-# Area of pulp expansion inside HTI
-pulp_exp_hti <- hti_pulp_conv %>% 
-  filter(year >= 2013, year <= 2022) %>% 
-  pull(area_ha) %>% 
-  sum()
-
-# Area of pulp expansion outside HTI
-pulp_exp_nohti <- pulp_defor_outside_hti %>% 
+# Area of pulp expansion 
+pulp_expansion <- hti_nonhti_conv %>%
+  filter(conv_type == 2) %>%
   filter(year >= 2013, year <= 2022) %>% 
   pull(area_ha) %>% 
   sum()
@@ -121,13 +155,13 @@ pulp_exp_nohti <- pulp_defor_outside_hti %>%
 pulp_expansion <- pulp_exp_hti + pulp_exp_nohti
 violations_shr <- (total_violations / pulp_expansion) %>% print()
 
-
 # Line 88: In addition, we find that XX percent of these violations occurred in concessions controlled by external suppliers, rather than directly within concessions controlled by NDPE-committed pulp producers. 
-indirect_violations <- conc_defor %>% 
+indirect_violations <- zdc_hti_conv %>%
+  filter(conv_type == 2) %>%
   filter(supplier_group %in% c("SINAR MAS", "MARUBENI", "ROYAL GOLDEN EAGLE / TANOTO")) %>% 
   group_by(class) %>% 
   summarise(area_ha = sum(area_ha)) %>% 
-  filter(class == "Deforestation after earliest ZDC of downstream mill") %>% 
+  filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>% 
   pull(area_ha) %>% 
   print()
 
@@ -135,7 +169,6 @@ indirect_shr <- (indirect_violations / total_violations) %>%
   print()
 
 # Among the XX pulpwood producers with the largest violations, XX.
-
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Capacity expansions -----------------------------------------------
@@ -161,36 +194,15 @@ new_wood_demand <- (current_wood_demand * cap_change) %>% print()
 # new_wood_demand <- 30600000 # m3 / y - taken from Brian's calculations in paper draft. Was for original expansion estimates without PT phoenix
 (area_demand <- new_wood_demand / sector_mai) # ha
 
-
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Remaining forests in plantations ---------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # We find that XX hectares of primary forests, and XX hectares of undrained peatlands, still exist within Indonesia’s assigned industrial forest concessions 
 
-
-
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Other ideas? -----------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Total area of post-permit deforestation
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # deforestation for pulp (1 - non-forest to pulp,2 - forest to pulp)
 nodefor_pulp_sids <- gaveau_annual_pulp %>% 
@@ -198,12 +210,10 @@ nodefor_pulp_sids <- gaveau_annual_pulp %>%
          class == 1) %>% 
   pull(sid)
 
-
 samples_df %>%
   filter(start_for == "Y" & !is.na(lossyear) & (sid %in% nodefor_pulp_sids)) %>% 
   pull(lossyear) %>% 
   hist()
-
 
 test <- hti_conv %>% filter(year > 2015, conv_type == 3) %>% arrange(desc(area_ha))
 test <- hti_conv %>%
@@ -212,6 +222,7 @@ test <- hti_conv %>%
   group_by(supplier) %>% 
   summarise(area_ha = sum(area_ha)) %>% 
   arrange(desc(area_ha))
+
 test$area_ha %>% sum()
 
 
