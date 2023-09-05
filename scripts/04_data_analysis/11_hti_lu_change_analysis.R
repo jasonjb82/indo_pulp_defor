@@ -63,6 +63,9 @@ wdir <- "remote"
 ## load color palette
 source("scripts\\001_misc\\001_color_palettes.R")
 
+colorBlind8  <- c("#999999", "#E69F00", "#56B4E9", "#009E73", 
+                  "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
 ## data lookup table
 lu_table <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\data_lookup_table.csv"))
 
@@ -420,11 +423,11 @@ hti_jrc_ac_plot <- ggplot(hti_jrc_ac_comb,aes(year,area_class)) +
   geom_point(data=hti_jrc_ac_comb,aes(x=year,y=gav_lu_areas,shape=gav_class),color="black",size=1.5)+
   ylab("") +
   xlab("") +
-  scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen","#F8F899","seagreen4"),
+  scale_fill_manual(values=c("#CC79A7", "#E69F00", "#F0E442","#999999","#009E73"),
                    breaks = c("deforested land","degraded tmf","forest regrowth","other land cover","undisturbed tropical moist forest (tmf)"),
                    labels = c("Deforested land","Degraded tropical moist forest","Forest regrowth","Other land cover","Undisturbed tropical moist forest"))+ 
   scale_shape_manual(values=c(1),labels=c("Area cleared for pulpwood"),na.translate=FALSE)+ 
-  scale_color_manual(values = c("palevioletred4","#064383")) +
+  scale_color_manual(values = c("#000000","#0072B2")) +
   #facet_wrap(~supplier_label,ncol=2,scales="free") +
   guides(fill = guide_legend(nrow = 2),color = guide_legend(nrow=1),shape = guide_legend(nrow=2),keyheight = 10) +
   theme_plot
@@ -477,11 +480,11 @@ for(concession_ in concessions) {
     ylab("") +
     xlab("") +
     ggtitle(paste0(concession_)) +
-    scale_fill_manual(values=c("lightpink", "orange3", "yellowgreen","#F8F899","seagreen4"),
+    scale_fill_manual(values=c("#CC79A7", "#E69F00", "#F0E442","#999999","#009E73"),
                       breaks = c("deforested land","degraded tmf","forest regrowth","other land cover","undisturbed tropical moist forest (tmf)"),
                       labels = c("Deforested land","Degraded tropical moist forest","Forest regrowth","Other land cover","Undisturbed tropical moist forest"))+ 
-    scale_shape_manual(values=1,labels=c("Area cleared\nfor pulpwood"),na.translate=FALSE)+ 
-    scale_color_manual(values = c("palevioletred4","#064383")) +
+    scale_shape_manual(values=c(1),labels=c("Area cleared for pulpwood"),na.translate=FALSE)+ 
+    scale_color_manual(values = c("#000000","#0072B2")) +
     guides(fill = guide_legend(nrow = 3),color = guide_legend(nrow=1),shape = guide_legend(nrow=2),keyheight = 10) +
     theme_plot
   
