@@ -354,9 +354,9 @@ id_pulp_conv_hti <- hti_pulp_conv %>%
   summarize(area_ha = sum(area_ha))
 
 pulp_conv_outside_hti <- id_pulp_conv_for %>%
-  bind_rows(id_pulp_defor_nonfor) %>%
+  bind_rows(id_pulp_conv_nonfor) %>%
   mutate(conv_type = ifelse(conv_type == "forest",2,1)) %>%
-  left_join(id_pulp_defor_hti,by=c("year","conv_type","island")) %>%
+  left_join(id_pulp_conv_hti,by=c("year","conv_type","island")) %>%
   mutate(area_ha.y = ifelse(is.na(area_ha.y),0,area_ha.y),
          area_ha = area_ha.x - area_ha.y,
          area_ha = ifelse(area_ha < 50,0,area_ha)) %>% # remove minor differences due to area and sample based calculations
@@ -635,6 +635,7 @@ group_var <- "supplier_group" # Generally either island, supplier_group or suppl
 mill_var <- "all" # Generally either april,app,marubeni or all (all concessions)
 
 freq_tab <- hti_conv_timing %>%
+  filter(supplier_id != "H-0657" & supplier_id != "H-0656") %>% # remove 2 IPKs (Non HTI suppliers)
   filter(!!sym(mill_var) == 1) %>%
   filter(conv_type == 2 | is.na(conv_type)) %>%
   #filter(island == "kalimantan") %>% # filter to island if required
