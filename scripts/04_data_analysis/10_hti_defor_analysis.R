@@ -74,7 +74,7 @@ groups <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.c
 samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
 
 # hti concessions
-hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_20230314_proj.shp"))
+hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_TRASE_20230314_proj.shp"))
 
 # wood supply
 ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2022.csv", bucket), delim = ",")
@@ -401,8 +401,8 @@ hti_nonhti_conv <- hti_pulp_conv %>%
 write_csv(hti_nonhti_conv,paste0(wdir,"\\01_data\\02_out\\tables\\idn_pulp_conversion_hti_nonhti_gaveau.csv"))
 
 # forest areas in 2022
-hti_for_areas <- samples_gfc_margono_peat %>%
-  filter(primary == 100 & sid %ni% gaveau_pulp_sids) %>%
+hti_for_areas <- samples_gfc_ttm %>%
+  filter(gfc_ttm == 100 | gfc_ttm == 400 | gfc_ttm == 600) %>%
   lazy_dt() %>%
   left_join(samples_df,by="sid") %>% 
   group_by(supplier_id,supplier,supplier_label,license_year,island) %>%
