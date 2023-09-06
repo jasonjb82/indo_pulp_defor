@@ -68,10 +68,37 @@ annual_conv <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 l
   mutate(year=year+2000) %>%
   drop_na(year)
 
+# hti pulp conversion with timing information
+zdc_hti_conv <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_zdc_pulp_conv_areas.csv'))
+
+# Gaveau data (Probably should be pre-generated in script 11_hti_lu_change_analysis)
+filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),pattern = "*gaveau_classes.csv",full.names= TRUE)
+samples_gaveau_landuse <- filenames %>%
+  map_dfr(read_csv) %>%
+  janitor::clean_names()
+samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
+# annual pulp planted areas - gaveau
+gaveau_annual_pulp <- samples_gaveau_landuse %>%
+  lazy_dt() %>%
+  left_join(samples_hti,by="sid") %>%
+  select(supplier_id=ID,starts_with("timberdeforestation_")) %>%
+  as.data.table() %>%
+  dt_pivot_longer(cols = c(-supplier_id),
+                  names_to = 'year',
+                  values_to = 'class') %>%
+  as_tibble() %>%
+  mutate(year = str_replace(year,"timberdeforestation_", ""),year = as.double(year)) %>%
+  mutate(gav_class = ifelse(class == 3,"Pulp","Others")) %>%
+  group_by(supplier_id,year,gav_class) %>%
+  summarize(n = n()) %>%
+  group_by(supplier_id,year) %>%
+  mutate(shr_gav_lu_areas = prop.table(n)*100) %>%
+  filter(gav_class != "Others")
+
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Overarching trends in pulp expansion, deforestation, peat conversion -------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 annual_conv <- hti_nonhti_conv %>%
   group_by(year,conv_type) %>%
   summarize(area_ha = sum(area_ha)) %>%
@@ -81,19 +108,24 @@ annual_conv %>%
   ggplot(aes(x = year, y = area_ha)) +
   geom_bar(stat = "identity")
 
-# Line 23: Between 2001 and 2011, 735,000 hectares of rainforest were directly converted to pulp plantations, contributing 15% of all of Indonesia’s primary forest loss over the same period 
+# Line 11/23: Between 2001 and 2011, 735,000 hectares of rainforest were directly converted to pulp plantations, ...
 annual_conv %>% 
   filter(year < 2012) %>% 
   pull(area_ha) %>% 
   sum()
+  
+# Line 24: ...contributing 15% of all of Indonesia’s primary forest loss over the same period 
+## TODO: Jason, could you help get the denominator for this stat? Is David's forest basemap primary forest? If so, we'd want to take that, combine it with Hansen through 2011, to calculate total primary forest clearing in the same years
+  
 
-# Line 93: Although pulp-driven deforestation declined by XX% between XX and XX, recent economic trends and policy debates highlight the fragility of this progress. 
+# Line 14 / 100: Over the following six years, pulp-driven deforestation declined by 95% 
 conv_2011 = annual_conv %>% filter(year == 2011) %>% pull(area_ha)
 conv_2017 = annual_conv %>% filter(year==2017) %>% pull(area_ha)
 early_change <- (conv_2017 - conv_2011) / conv_2011
 early_change %>% print()
 
-# Line 94: Between 2017 and 2022, the annual rate of conversion of primary forests to pulp plantations increased 370%, while pulp-driven conversion of peatlands increased XX%. 
+# Line 16 / 101: Indonesia has since seen ... a 372% increase in pulp-driven deforestation... 
+# Between 2017 and 2022, the annual rate of conversion of primary forests to pulp plantations increased 372%
 conv_2022 = annual_conv %>% filter(year==2022) %>% pull(area_ha)
 late_change <- (conv_2022 - conv_2017) / conv_2017
 late_change %>% print()
@@ -102,21 +134,29 @@ late_change %>% print()
 overall_change <- (conv_2022 - conv_2011) / conv_2011
 overall_change %>% print()
 
-# Line 70: Many of these forests were cleared to make room for industrial acacia and eucalyptus plantations, which expanded by ~1.1 million hectares between 2000 and 2015 
-# test <- gaveau_annual_pulp %>%
-#   group_by(gav_class, year) %>%
-#   summarize(n = sum(n)) %>% 
-#   print()
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Emissions -----------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Line 28: In addition, the combination of land use conversion, burning, and peat subsidence released an estimated XX million tons of carbon to the atmosphere 
+# Line 27: In addition, the combination of land use conversion, burning, and peat subsidence released an estimated XX million tons of carbon to the atmosphere 
+## TODO: Work with Vivian and Carina to fill this in.
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Plantation yield changes -----------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Line 67: Many of these forests were cleared to make room for industrial acacia and eucalyptus plantations, which expanded by ~1.5 million hectares between 2000 and 2015 
+annual_pulp <- gaveau_annual_pulp %>%
+  group_by(gav_class, year) %>%
+  summarize(n = sum(n)) %>%
+  print()
+pulp_2001 = annual_pulp %>% filter(year == 2000) %>% pull(n)
+pulp_2015 = annual_pulp %>% filter(year==2015) %>% pull(n)
+pulp_change <- (pulp_2015 - pulp_2001) %>% 
+  print()
+
+
 # Line 73: In addition, improvements in plantation management have led to an XX% increase in plantation yields 
 
 
@@ -133,9 +173,6 @@ current_wood_demand <- pw_supply_2022 %>% pull(VOLUME_M3) %>% sum() %>% print()
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Description of ZDC violations -----------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-zdc_hti_conv <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_zdc_pulp_conv_areas.csv'))
-
 # Line 85: Although the impact of these types of voluntary commitments has been called into question in other settings (Garrett et al. 2019), we find that only XX hectares (XX percent) of pulpwood plantations established between 2015 and 2022 violated these no deforestation commitments (SIXX). 
 total_violations <- zdc_hti_conv %>% 
   filter(conv_type == 2) %>% # only forest to pulp conversion
@@ -147,12 +184,15 @@ total_violations <- zdc_hti_conv %>%
 
 # Area of pulp expansion 
 pulp_expansion <- hti_nonhti_conv %>%
-  filter(conv_type == 2) %>%
+  # filter(conv_type == 2) %>%
   filter(year >= 2013, year <= 2022) %>% 
   pull(area_ha) %>% 
   sum()
 
-pulp_expansion <- pulp_exp_hti + pulp_exp_nohti
+pulp_2013 = annual_pulp %>% filter(year==2013) %>% pull(n)
+pulp_2022 = annual_pulp %>% filter(year==2022) %>% pull(n)
+pulp_expansion_2 <- pulp_2022- pulp_2013  ## TODO: Jason - why don't these two measures of pulp expansion match up better?
+
 violations_shr <- (total_violations / pulp_expansion) %>% print()
 
 # Line 88: In addition, we find that XX percent of these violations occurred in concessions controlled by external suppliers, rather than directly within concessions controlled by NDPE-committed pulp producers. 
@@ -169,6 +209,33 @@ indirect_shr <- (indirect_violations / total_violations) %>%
   print()
 
 # Among the XX pulpwood producers with the largest violations, XX.
+group_data <- zdc_hti_conv %>% 
+  select(supplier_id, supplier, supplier_group) %>% 
+  distinct()
+
+violations_df <- zdc_hti_conv %>% 
+  filter(conv_type == 2) %>% # only forest to pulp conversion
+  filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>% 
+  group_by(supplier_id) %>% 
+  summarise(violations_ha = sum(area_ha)) %>% 
+  arrange(desc(violations_ha)) %>% 
+  ungroup() %>% 
+  left_join(group_data, by = "supplier_id") %>% 
+  print()
+
+
+n = 5
+top_violations <- violations_df %>% 
+  top_n(n, violations_ha) %>% 
+  pull(violations_ha) %>% 
+  sum()
+
+top_violations / total_violations
+
+
+## QUESTION: Should we break these group stats into those that are officially declared as subsidiaries, and those that have been inferred (e.g. http://awsassets.panda.org/downloads/removing_the_corporate_mask_app_assessment_2018.pdf)
+
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Capacity expansions -----------------------------------------------
@@ -198,6 +265,9 @@ new_wood_demand <- (current_wood_demand * cap_change) %>% print()
 # Remaining forests in plantations ---------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # We find that XX hectares of primary forests, and XX hectares of undrained peatlands, still exist within Indonesia’s assigned industrial forest concessions 
+## TODO: Jason - do you have these data from WWI to be able to explore these results? Might also be a good visual for another supplementary figure?
+
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Other ideas? -----------------------------------------------
