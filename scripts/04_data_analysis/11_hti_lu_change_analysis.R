@@ -341,41 +341,41 @@ hti_jrc_ac <- jrc_ac %>%
   as_tibble() %>%
   mutate(zdc_year = ifelse(zdc_year ==0,NA_real_,zdc_year))
 
-# # Gaveau annual LU classes
-# # annual landuse
-# gaveau_annual_lulc <- samples_gaveau_landuse %>%
-#   lazy_dt() %>%
-#   as.data.table() %>%
-#   dt_pivot_longer(cols = c(-sid),
-#                   names_to = 'year',
-#                   values_to = 'class') %>%
-#   as_tibble() %>%
-#   mutate(year = str_replace(year,"timberdeforestation_", ""),year = as.double(year))
-# 
-# gav_hti_ac <- gaveau_annual_lulc %>%
-#   lazy_dt() %>%
-#   left_join(samples_df,by="sid") %>%
-#   mutate(
-#     class_type = case_when(
-#       class == 0 ~ "Other land cover",
-#       class == 1 ~ "Forest",
-#       class == 2 ~ "Non-forest",
-#       class == 3 ~ "Planted pulp"
-#     )
-#   ) %>%
-#   group_by(year,supplier_id,supplier,supplier_label,island,license_year,class_type) %>%
-#   summarize(n = n()) %>%
-#   left_join(mill_supplier,by="supplier_id") %>%
-#   group_by(year,supplier_id) %>%
-#   mutate(shr_class = prop.table(n)*100,
-#              zdc_year = case_when(
-#              app == 1 ~ 2013,
-#              app == 0 & april == 1 ~ 2015,
-#              april == 0 & app == 0 & marubeni == 1 ~ 2019,
-#              TRUE ~ 0
-#            )
-#          ) %>%
-#   as_tibble()
+# Gaveau annual LU classes
+# annual landuse
+gaveau_annual_lulc <- samples_gaveau_landuse %>%
+  lazy_dt() %>%
+  as.data.table() %>%
+  dt_pivot_longer(cols = c(-sid),
+                  names_to = 'year',
+                  values_to = 'class') %>%
+  as_tibble() %>%
+  mutate(year = str_replace(year,"timberdeforestation_", ""),year = as.double(year))
+
+gav_hti_ac <- gaveau_annual_lulc %>%
+  lazy_dt() %>%
+  left_join(samples_df,by="sid") %>%
+  mutate(
+    class_type = case_when(
+      class == 0 ~ "Other land cover",
+      class == 1 ~ "Forest",
+      class == 2 ~ "Non-forest",
+      class == 3 ~ "Planted pulp"
+    )
+  ) %>%
+  group_by(year,supplier_id,supplier,supplier_label,island,license_year,class_type) %>%
+  summarize(n = n()) %>%
+  left_join(mill_supplier,by="supplier_id") %>%
+  group_by(year,supplier_id) %>%
+  mutate(shr_class = prop.table(n)*100,
+             zdc_year = case_when(
+             app == 1 ~ 2013,
+             app == 0 & april == 1 ~ 2015,
+             april == 0 & app == 0 & marubeni == 1 ~ 2019,
+             TRUE ~ 0
+           )
+         ) %>%
+  as_tibble()
 
 #########################################################################
 # Plotting --------------------------------------------------------------
@@ -492,32 +492,32 @@ for(concession_ in concessions) {
   ggsave(hti_plots[[concession_]], file=paste0("D:\\",gsub(" ","_",concession_),"_JRC_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
 }
 
-# ## filter by supplier
-# gav_ac_comb <- gav_hti_ac %>%
-#   filter(supplier_id == "H-0428") %>%
-#   filter(class_type != "Other land cover") %>%
-#   complete(year,class_type,
-#            fill = list(shr_class = 0, n=0)) %>%
-#   fill(supplier_id,supplier,supplier_label,island,license_year,zdc_year, .direction = "down") %>%
-#   mutate(zdc_year = ifelse(zdc_year == 0,NA,zdc_year),
-#          class_type = factor(class_type,levels=c("Forest","Non-forest","Planted pulp","Other land cover")))
-# 
-# gav_ac_plot <- ggplot(gav_ac_comb,aes(year,shr_class)) +
-#   geom_area(aes(fill= as.factor(class_type))) +
-#   scale_x_continuous(expand=c(0.01,0),breaks=seq(2000,2022,by=1),limits=c(2000,2022)) +
-#   scale_y_continuous(labels = d3_format(".2~s",suffix = "%"),expand = c(0,0)) +
-#   geom_vline(aes(xintercept=as.numeric(license_year),color="License\nyear"),size=0.5)+
-#   #geom_vline(aes(xintercept=as.numeric(zdc_year),color="Earliest ZDC year\nof downstream mill"),size=0.5)+
-#   ylab("") +
-#   xlab("") +
-#   scale_fill_manual(values=c("yellowgreen","#F8F899","lightpink","grey90"),
-#                     breaks = c("Forest","Non-forest","Planted pulp","Other land cover"),
-#                     labels = c("Forest","Non-forest","Planted pulp","Other land cover"))+ 
-#   scale_shape_manual(values=c(1),labels=c("Pulpwood area (TreeMap)"),na.translate=FALSE)+ 
-#   scale_color_manual(values = c("palevioletred4","#064383")) +
-#   #facet_wrap(~supplier_label,ncol=2,scales="free") +
-#   guides(fill = guide_legend(nrow = 1),color = guide_legend(nrow=1),shape = guide_legend(nrow=2),keyheight = 10) +
-#   theme_plot
-# 
-# gav_ac_plot
+## filter by supplier
+gav_ac_comb <- gav_hti_ac %>%
+  filter(supplier_id == "H-0428") %>%
+  filter(class_type != "Other land cover") %>%
+  complete(year,class_type,
+           fill = list(shr_class = 0, n=0)) %>%
+  fill(supplier_id,supplier,supplier_label,island,license_year,zdc_year, .direction = "down") %>%
+  mutate(zdc_year = ifelse(zdc_year == 0,NA,zdc_year),
+         class_type = factor(class_type,levels=c("Forest","Non-forest","Planted pulp","Other land cover")))
+
+gav_ac_plot <- ggplot(gav_ac_comb,aes(year,shr_class)) +
+  geom_area(aes(fill= as.factor(class_type))) +
+  scale_x_continuous(expand=c(0.01,0),breaks=seq(2000,2022,by=1),limits=c(2000,2022)) +
+  scale_y_continuous(labels = d3_format(".2~s",suffix = "%"),expand = c(0,0)) +
+  geom_vline(aes(xintercept=as.numeric(license_year),color="License\nyear"),size=0.5)+
+  #geom_vline(aes(xintercept=as.numeric(zdc_year),color="Earliest ZDC year\nof downstream mill"),size=0.5)+
+  ylab("") +
+  xlab("") +
+  scale_fill_manual(values=c("#009E73","#F0E442","#E69F00","#999999"),
+                    breaks = c("Forest","Non-forest","Planted pulp","Other land cover"),
+                    labels = c("Forest","Non-forest","Planted pulp","Other land cover"))+
+  scale_shape_manual(values=c(1),labels=c("Pulpwood area (TreeMap)"),na.translate=FALSE)+
+  scale_color_manual(values = c("#000000","#0072B2")) +
+  #facet_wrap(~supplier_label,ncol=2,scales="free") +
+  guides(fill = guide_legend(nrow = 1),color = guide_legend(nrow=1),shape = guide_legend(nrow=2),keyheight = 10) +
+  theme_plot
+
+gav_ac_plot
 
