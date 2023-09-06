@@ -1,10 +1,3 @@
-deft_colors_old <- c(
-  `Never deforested`="#009E73",
-  `Deforestation pre-permit`="#CC79A7",
-  `Deforestation post-permit`="#E69F00",
-  `Deforestation post-permit and after first ZDC of downstream mill`=
-  )
-
 
 deft_colors <- c(
   `Never deforested`="#009E73",
