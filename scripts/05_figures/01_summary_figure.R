@@ -160,7 +160,7 @@ defor_plot <- hti_nonhti_conv %>%
   xlab("\nYear") +
   ylab("Area (ha)") + 
   scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
-  scale_x_continuous(expand=c(0,1),breaks=seq(2001,2022,by=1)) +
+  scale_x_continuous(expand=c(0,1),breaks=seq(2001,2023,by=1)) +
   scale_fill_manual(values=c(colorBlind8[3],colorBlind8[5],colorBlind8[7]))+ 
   scale_color_manual(values=c(colorBlind8[3],colorBlind8[5],colorBlind8[7]))+ 
   guides(fill = guide_legend(nrow = 1,reverse = TRUE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
@@ -357,7 +357,7 @@ pulp_ratio <- pulp_exports %>%
 
 wt_plot <- ggplot(data=pulp_ratio) +
   geom_bar(stat="identity",position="stack",aes(x=year,y=vols_ton_ratio/1000000,fill=as.factor(woodtype))) +
-  scale_x_continuous(breaks = seq(from = 2001, to = 2022, by =1)) +
+  scale_x_continuous(breaks = seq(from = 2001, to = 2023, by =1)) +
   xlab("") +
   scale_y_continuous(name="Pulp exports (Million tonnes)\n",
                      limits=c(0,6),
@@ -410,58 +410,57 @@ df$year_count <- ave(df$year==df$year, df$year, FUN=cumsum)
 df$text_position <- df$type_cat
 head(df)
 
-
-year_date_range <- seq(min(df$year_col) , max(df$year_col), by='year')
-year_date_range <- as.Date(
-  intersect(
-    ceiling_date(year_date_range, unit="year"),
-    floor_date(year_date_range, unit="year")
-  ),  origin = "1970-01-01"
-)
-year_format <- format(year_date_range, '%Y')
-year_df <- data.frame(year_date_range, year_format)
-
 #### PLOT ####
 
-tl_df <- subset(df,!is.na(event)) %>%
-  as_tibble() %>%
+tl_df <- df %>%
   mutate(direction = as.factor(direction.x),
          text_position_mod = case_when(
            event == "Omnibus Law for Job Creation" ~ 0.1,
            event == "PT Phoenix mill proposed" ~ 1.6,
-           event == "Norway REDD+ restart" ~ 2.6,
+           event == "Norway REDD+" ~ 3.5,
+           event == "Indonesia withdraws from Norway REDD+" ~ 3.5,
+           event == "Norway REDD+ restart" ~ 3.5,
            TRUE ~ text_position
-         )) 
+         ),
+         text_position = ifelse(row_cat == 32,3.5,text_position)
+  )
 
-range <-  c(as.Date("2001-01-01"), as.Date("2023-01-01"))
-
-tl_plot <- ggplot(tl_df,aes(x=year_col,y=0, col=type,label=type,shape=direction)) + 
-  geom_segment(data=tl_df[tl_df$type_cat == 1,], aes(y=text_position,yend=1,x=min(year_col)+75,xend=max(year_col)-75,group=1), 
-               alpha=0.2,size=1.75,linetype='solid',color=c(colorBlind8[4])) +
-  geom_segment(data=tl_df[tl_df$type_cat == 2,], aes(y=text_position,yend=2,x=min(year_col)+75,xend=max(year_col)-75,group=1), 
-               alpha=0.2,size=1.75,linetype='solid',color=c(colorBlind8[6])) +
-  geom_segment(data=tl_df[tl_df$type_cat == 3,], aes(y=text_position,yend=3,x=min(year_col)+75,xend=max(year_col)-75,group=1), 
-               alpha=0.2,size=1.75,linetype='solid',color=c(colorBlind8[8])) +
-  scale_color_manual(values=type_colors, labels=type_levels, drop = FALSE,guide = "legend",name="") + 
-  scale_fill_manual(values=type_fill, labels=type_levels, drop = FALSE,guide = "legend",name="") + 
-  scale_shape_manual(values=type_shape, labels=type_levels, drop = TRUE,guide = FALSE,name="") +
-  scale_y_discrete(expand=c(0,1))+
+tl_plot <- ggplot(tl_df,aes(x=year,y=0, col=type, label=type,shape=direction)) + 
+  geom_segment(data=subset(tl_df,type_cat==1), aes(y=text_position,yend=1,x=min(year),xend=max(year),group=1), 
+               alpha=0.2,linewidth=1.75,linetype='solid',color=c(colorBlind8[4])) +
+  geom_segment(data=subset(tl_df,type_cat==2), aes(y=text_position,yend=2,x=min(year),xend=max(year),group=1), 
+               alpha=0.2,linewidth=1.75,linetype='solid',color=c(colorBlind8[6])) +
+  geom_segment(data=subset(tl_df,row_cat==31), aes(y=text_position,yend=3,x=min(year),xend=max(year),group=1), 
+               alpha=0.2,linewidth=1.75,linetype='solid',color=c(colorBlind8[8])) +
+  geom_segment(data=subset(tl_df,row_cat==32), aes(y=text_position,yend=3.5,x=min(year),xend=max(year),group=1), 
+               alpha=0.2,linewidth=1.75,linetype='solid',color=c(colorBlind8[8])
+  ) +
+  ylab("\n")+
+  scale_color_manual(values=type_colors, labels=type_levels, drop = FALSE,guide = "legend",name="",na.translate=FALSE) + 
+  scale_fill_manual(values=type_fill, labels=type_levels, drop = FALSE,guide = "legend",name="",na.translate=FALSE) + 
+  scale_shape_manual(values=type_shape, labels=type_levels, drop = TRUE,guide = FALSE,name="",na.translate=FALSE) +
   theme_classic() + 
-  #scale_x_continuous(breaks = seq(from = 2001, to = 2023, by =1)) +
-  scale_x_date(date_breaks = "1 year", date_labels = "%Y",limits= range,expand=c(0.0075,0.5)) +
-  #geom_hline(yintercept=0,color = "black", size=0.3) + # Plot horizontal black line for timeline
-  #geom_point(aes(y=0), size=2,color="black", shape=16) + # scatter points 
+  scale_x_continuous(expand=c(0,0.5),breaks=seq(2001,2023,by=1)) +
+  scale_y_discrete(expand=c(0,0.2))+
   geom_point(aes(y=text_position), size=4.5,alpha=0.75) + # scatter points 
   geom_point(data=tl_df[tl_df$direction.x == 0,],aes(y=text_position), size=4.5,alpha=1,fill="white") + # scatter points 
-  ggrepel::geom_text_repel(aes(y=text_position_mod+0.05,x=year_col-50,label=stringr::str_wrap(event,25)),size=2.75,hjust =0,vjust=-1.25, family= "DM Sans",
+  #scale_x_date(date_breaks = "1 year", date_labels = "%Y",limits= range) +
+  #geom_hline(yintercept=0,color = "black", size=0.3) + # Plot horizontal black line for timeline
+  #geom_segment(data=tl_df[tl_df$year_count == 1,], aes(y=0.8,yend=0,xend=year), 
+  #             color='grey70', alpha=0.5,size=0.85,linetype='dotted') +
+  #geom_point(aes(y=0), size=2,color="black") + # scatter points 
+  #geom_point(aes(y=text_position), size=2,alpha=0.75) + # scatter points 
+  #geom_text(aes(y=text_position + 0.03,x=year,label=stringr::str_wrap(event,15)),size=2.75,hjust =1, family= "DM Sans",
+  #          fontface = "bold",show.legend = FALSE) +
+  ggrepel::geom_text_repel(aes(y=text_position_mod+0.05,x=year,label=stringr::str_wrap(event,25)),size=2.75,hjust =0,vjust=-1.25, family= "DM Sans",
                            fontface = "bold",show.legend = FALSE,min.segment.length = 2.5) +
-  #geom_text(data=year_df, aes(x=year_date_range,y=-0.1,label=year_format, fontface="bold"),size=2.75, color='black', family = "DM Sans") +
+  #geom_text(data=year_df, aes(x=as.double(year_format),y=-0.03,label=year_format, fontface="bold"),size=2.75, color='black', family = "DM Sans") +
   theme(text = element_text(family = "DM Sans"),
-        panel.grid.major.x = element_line(colour="grey95", size=10),
+        panel.grid.major.x = element_line(colour="grey95", size=6),
         axis.line.y=element_blank(),
         axis.text.y=element_blank(),
         axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
+        #axis.title.y=element_blank(),
         axis.ticks.y=element_blank(),
         axis.text.x =element_text(vjust=5,color = "grey30",angle = 0, face="bold"),
         axis.ticks.x =element_blank(),
@@ -470,9 +469,9 @@ tl_plot <- ggplot(tl_df,aes(x=year_col,y=0, col=type,label=type,shape=direction)
         legend.position = "bottom") 
 
 
-tl_plot 
+tl_plot
 
-ggsave(tl_plot,file="D:\\tl_plot.png", dpi=400, w=12, h=6,type="cairo-png") 
+##ggsave(tl_plot,file="D:\\tl_plot.png", dpi=400, w=12, h=6,type="cairo-png") 
 
 # merge plot using patchwork
 comb_plot <- defor_plot / wt_plot / tl_plot
@@ -481,12 +480,5 @@ comb_plot <- comb_plot +
   theme(plot.tag = element_text(face = 'bold', size=12))
 comb_plot
 
-#ggsave(comb_plot,file="D:/comb_plot.png", dpi=400, w=11, h=14,type="cairo-png") 
+##ggsave(comb_plot,file="D:/comb_plot.png", dpi=400, w=11, h=14,type="cairo-png") 
 ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=12, h=15,type="cairo-png") 
-
-# # merge plot using patchwork
-# comb_plot <- defor_pp_plot + mc_pp_plot + wt_plot + tl_plot + plot_layout(ncol=1)
-# 
-# comb_plot_temp <- defor_plot / wt_plot
-# ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure.png"), dpi=400, w=9, h=13,type="cairo-png") 
-
