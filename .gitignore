@@ -3,3 +3,4 @@ remote
 .Rproj.user
 *.Rproj
 *.Rproj
+.Rhistory
