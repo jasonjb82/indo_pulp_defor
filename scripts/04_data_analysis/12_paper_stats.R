@@ -71,29 +71,8 @@ annual_conv <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 l
 # hti pulp conversion with timing information
 zdc_hti_conv <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_zdc_pulp_conv_areas.csv'))
 
-# Gaveau data (Probably should be pre-generated in script 11_hti_lu_change_analysis)
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),pattern = "*gaveau_classes.csv",full.names= TRUE)
-samples_gaveau_landuse <- filenames %>%
-  map_dfr(read_csv) %>%
-  janitor::clean_names()
-samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
-# annual pulp planted areas - gaveau
-gaveau_annual_pulp <- samples_gaveau_landuse %>%
-  lazy_dt() %>%
-  left_join(samples_hti,by="sid") %>%
-  select(supplier_id=ID,starts_with("timberdeforestation_")) %>%
-  as.data.table() %>%
-  dt_pivot_longer(cols = c(-supplier_id),
-                  names_to = 'year',
-                  values_to = 'class') %>%
-  as_tibble() %>%
-  mutate(year = str_replace(year,"timberdeforestation_", ""),year = as.double(year)) %>%
-  mutate(gav_class = ifelse(class == 3,"Pulp","Others")) %>%
-  group_by(supplier_id,year,gav_class) %>%
-  summarize(n = n()) %>%
-  group_by(supplier_id,year) %>%
-  mutate(shr_gav_lu_areas = prop.table(n)*100) %>%
-  filter(gav_class != "Others")
+# Gaveau annual pulp areas
+gaveau_annual_pulp <- read_csv(paste0(wdir, '/01_data/02_out/tables/gaveau_annual_pulp_areas.csv'))
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -116,7 +95,6 @@ annual_conv %>%
   
 # Line 24: ...contributing 15% of all of Indonesia’s primary forest loss over the same period 
 ## TODO: Jason, could you help get the denominator for this stat? Is David's forest basemap primary forest? If so, we'd want to take that, combine it with Hansen through 2011, to calculate total primary forest clearing in the same years
-  
 
 # Line 14 / 100: Over the following six years, pulp-driven deforestation declined by 95% 
 conv_2011 = annual_conv %>% filter(year == 2011) %>% pull(area_ha)
@@ -133,7 +111,6 @@ late_change %>% print()
 # Although deforestation rates in 2022 were still XX% lower than during the 2011 peak, major economic, ecological and policy changes call into question whether the sector will ever be able to achieve its desired end to deforestation 
 overall_change <- (conv_2022 - conv_2011) / conv_2011
 overall_change %>% print()
-
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
