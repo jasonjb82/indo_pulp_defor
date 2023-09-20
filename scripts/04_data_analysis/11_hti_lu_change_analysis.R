@@ -43,8 +43,8 @@ library(patchwork)
 library(concordance)
 library(rcartocolor)
 library(vistime)
+library(extrafont)
 library(showtext)
-library(ggsankey)
 library(khroma) # palettes for color blindness
 
 ## credentials ----------------------------------------------
@@ -410,7 +410,7 @@ gaveau_annual_lc <- gaveau_annual_forest %>%
               values_to = 'area_ha') %>%
   filter(class != "conc_area_ha") %>%
   mutate(class_desc = case_when(
-    class == "pulp_area_ha" ~ "Planted pulp",
+    class == "pulp_area_ha" ~ "Cleared for pulp", # pulp planted area (need to check)
     class == "rem_forest_area_ha" ~ "Forest",
     class == "other_land_ha" ~ "Non-forest")) %>%
   select(year,supplier_id,island,class_desc,area_ha) %>%
@@ -435,7 +435,7 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                     panel.background = element_rect(colour=NA,fill=NA),
                     panel.grid.minor = element_blank(),
                     panel.grid.major.y = element_line(color="grey70",linetype="dashed",linewidth=0.35),
-                    plot.title = element_text(hjust = 0.5),
+                    plot.title = element_text(hjust = 0.5, face="bold"),
                     axis.line.x = element_line(),
                     axis.ticks.x = element_blank(),
                     axis.ticks.y = element_blank(),
@@ -547,6 +547,7 @@ gav_ac_comb <- gaveau_annual_lc %>%
   mutate(area_ha = ifelse(is.na(area_ha),0,area_ha)) %>%
   filter(supplier_id == "H-0313")
 
+gav_ac_comb$class_desc <- factor(gav_ac_comb$class_desc, levels = c("Forest", "Non-forest", "Cleared for pulp"))
 
 gav_ac_plot <- gav_ac_comb %>%
   ggplot(aes(year,area_ha)) +
@@ -559,8 +560,8 @@ gav_ac_plot <- gav_ac_comb %>%
   ylab("") +
   xlab("") +
   scale_fill_manual(values=c("#009E73","#F0E442","#CC79A7"),
-                    breaks = c("Forest","Non-forest","Planted pulp"),
-                    labels = c("Forest","Non-forest","Planted pulp"))+
+                    breaks = c("Forest","Non-forest","Cleared for pulp"),
+                    labels = c("Forest","Non-forest","Cleared for pulp"))+
   scale_shape_manual(values=c(1),labels=c("Pulpwood area (TreeMap)"),na.translate=FALSE)+
   scale_color_manual(values = c("#000000","#0072B2")) +
   #facet_wrap(~supplier_label,ncol=2,scales="free") +
@@ -578,7 +579,8 @@ hti_gav_annual_lc <- gaveau_annual_lc %>%
   left_join(hti_concession_names,by="supplier_id") 
 
 concessions <- hti_gav_annual_lc %>%
-  filter(app == 0 & april == 0 & marubeni == 1) %>%
+  #filter(app == 0 & april == 0 & marubeni == 1) %>%
+  filter(all == 1) %>%
   #filter(island == 4) %>%
   distinct(supplier_label) %>%
   pull(supplier_label) %>%
@@ -598,8 +600,8 @@ for(concession_ in concessions) {
     xlab("") +
     ggtitle(paste0(concession_)) +
     scale_fill_manual(values=c("#009E73","#F0E442","#CC79A7"),
-                      breaks = c("Forest","Non-forest","Planted pulp"),
-                      labels = c("Forest","Non-forest","Planted pulp"))+
+                      breaks = c("Forest","Non-forest","Cleared for pulp"),
+                      labels = c("Forest","Non-forest","Cleared for pulp"))+
     #scale_shape_manual(values=c(1),labels=c("Pulpwood area (TreeMap)"),na.translate=FALSE)+
     scale_color_manual(values = c("#000000","#0072B2")) +
     guides(fill = guide_legend(nrow = 1),color = guide_legend(nrow=1),shape = guide_legend(nrow=2),keyheight = 10) +
