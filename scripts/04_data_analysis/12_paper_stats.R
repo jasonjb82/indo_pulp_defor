@@ -74,6 +74,8 @@ zdc_hti_conv <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_zdc_pulp_
 # Gaveau annual pulp areas
 gaveau_annual_pulp <- read_csv(paste0(wdir, '/01_data/02_out/tables/gaveau_annual_pulp_areas.csv'))
 
+# Expansion on soil type (Gaveau)
+pulp_ttm_soil_type <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\idn_pulp_annual_expansion_peat_mineral_soils.csv"))
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Overarching trends in pulp expansion, deforestation, peat conversion -------------------
@@ -112,6 +114,22 @@ late_change %>% print()
 overall_change <- (conv_2022 - conv_2011) / conv_2011
 overall_change %>% print()
 
+# Conversion of pulp between 2017 and 2022
+annual_pulp_conv <- pulp_ttm_soil_type %>%
+  select(-`system:index`,-constant,-kab,-kab_code,-prov_code,-.geo,-type) %>%
+  pivot_longer(cols = -c(prov),
+               names_to = 'year',
+               values_to = 'area_ha') %>%
+  mutate(class = str_extract(year, "[^_]+"),
+         year = as.numeric(gsub("[^0-9]", "", year))) %>%
+  ungroup() %>%
+  group_by(year,class) %>%
+  summarize(area_ha = sum(area_ha))
+
+pulp_conv_2017 = annual_pulp_conv %>% filter(class == "peat" & year==2017) %>% pull(area_ha)
+pulp_conv_2022 = annual_pulp_conv %>% filter(class == "peat" & year==2022) %>% pull(area_ha)
+overall_pulp_change <- (pulp_conv_2022 - pulp_conv_2017) / pulp_conv_2017
+overall_pulp_change %>% print()
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Emissions -----------------------------------------------
