@@ -106,6 +106,9 @@ timber_for_pulp <- read_csv(paste0(wdir,"\\01_data\\01_in\\obidzinski_dermawan\\
 # pulp exports (WITS)
 pulp_exports <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\pulp_exports_wits.csv"))
 
+# pulp production data (MoEF)
+pulp_production <- read_excel(paste0(wdir,"\\01_data\\01_in\\tables\\annual_pulp_shr_prod.xlsx"))
+
 # kabupaten
 kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
 prov_slim <- kab %>% select(prov,prov_code) %>% st_drop_geometry() %>% distinct() %>%
@@ -354,14 +357,31 @@ pulp_ratio <- pulp_exports %>%
   mutate(vols_ton_ratio = vols_tonnes*ratio,
          vols_ton_ratio = ifelse(is.na(vols_tonnes),0,vols_ton_ratio))
 
+# clean pulp ratio (temporary fix using O-D and SILK data ratios)
+pulp_ratio_clean <- pulp_ratio %>%
+  drop_na(vols_tonnes) %>%
+  select(year,woodtype,ratio) %>%
+  add_row(year = c(2020,2021,2022),woodtype=c("Plantation","Plantation","Plantation"),ratio=c(1,1,1)) %>%
+  group_by() %>% tidyr::complete(year = min(year):2022, woodtype) %>%
+  mutate(ratio = ifelse(is.na(ratio) & year > 2016,0,ratio)) %>%
+  group_by(woodtype) %>%
+  fill(ratio, .direction = c("down")) %>%
+  print()
 
-wt_plot <- ggplot(data=pulp_ratio) +
-  geom_bar(stat="identity",position="stack",aes(x=year,y=vols_ton_ratio/1000000,fill=as.factor(woodtype))) +
+# modified pulp production
+pulp_prod_modified <- pulp_ratio_clean %>%
+  left_join(pulp_production,by="year") %>%
+  mutate(prod_woodtype = ratio*annual_prod_mtpy) %>%
+  select(year,woodtype,ratio,annual_prod_mtpy,prod_woodtype)
+
+
+wt_plot <- ggplot(pulp_prod_modified) +
+  geom_bar(stat="identity",position="stack",aes(x=year,y=prod_woodtype,fill=as.factor(woodtype))) +
   scale_x_continuous(breaks = seq(from = 2001, to = 2023, by =1)) +
   xlab("") +
-  scale_y_continuous(name="Pulp exports (Million tonnes)\n",
-                     limits=c(0,6),
-                     breaks=seq(0,6, by=1),
+  scale_y_continuous(name="Pulp (Million tonnes)\n",
+                     limits=c(0,9),
+                     breaks=seq(0,9, by=1),
                      #labels = d3_format(".3~s"),
                      expand = c(0,0)) + 
   theme_plot +
