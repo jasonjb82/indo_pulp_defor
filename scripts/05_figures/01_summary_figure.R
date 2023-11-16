@@ -161,7 +161,7 @@ defor_plot <- hti_nonhti_conv %>%
   aes(y = area_ha, x = year, fill=as.factor(island),color=as.factor(island)) +
   geom_col() +
   xlab("\nYear") +
-  ylab("Area (ha)") + 
+  ylab("Pulp-driven deforestation (ha)") + 
   scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
   scale_x_continuous(expand=c(0,1),breaks=seq(2001,2023,by=1)) +
   scale_fill_manual(values=c(colorBlind8[3],colorBlind8[5],colorBlind8[7]))+ 
@@ -379,7 +379,7 @@ wt_plot <- ggplot(pulp_prod_modified) +
   geom_bar(stat="identity",position="stack",aes(x=year,y=prod_woodtype,fill=as.factor(woodtype))) +
   scale_x_continuous(breaks = seq(from = 2001, to = 2023, by =1)) +
   xlab("") +
-  scale_y_continuous(name="Pulp (Million tonnes)\n",
+  scale_y_continuous(name="Pulp production (Million tonnes)\n",
                      limits=c(0,9),
                      breaks=seq(0,9, by=1),
                      #labels = d3_format(".3~s"),
