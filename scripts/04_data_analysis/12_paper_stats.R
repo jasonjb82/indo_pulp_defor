@@ -77,6 +77,15 @@ gaveau_annual_pulp <- read_csv(paste0(wdir, '/01_data/02_out/tables/gaveau_annua
 # Expansion on soil type (Gaveau)
 pulp_ttm_soil_type <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\idn_pulp_annual_expansion_peat_mineral_soils.csv"))
 
+## GFC deforestation (modified by TreeMap)
+filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_ttm\\"),
+                 pattern = "*.csv",
+                 full.names= TRUE)
+
+samples_gfc_ttm <- filenames %>%
+  map_dfr(read_csv) %>%
+  janitor::clean_names() 
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Overarching trends in pulp expansion, deforestation, peat conversion -------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -162,6 +171,13 @@ current_wood_demand <- pw_supply_2022 %>% pull(VOLUME_M3) %>% sum() %>% print()
 # Line 109: we find little evidence that plantation yields have increased over the past XX years 
 
 
+# Line 151: We find that 2.8 million hectares of primary forests, XX% of which are on peat soils,
+# still exist within Indonesia’s assigned industrial forest concessions
+undrained_peat_areas_hti <- samples_gfc_ttm %>%
+  filter(gfc_ttm == 600) %>%
+  group_by() %>%
+  summarize(area = n()) %>%
+  print()
 
 # Can we differentiate yields in euc and acacia plantations?
 
