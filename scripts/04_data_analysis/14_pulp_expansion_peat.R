@@ -61,6 +61,42 @@ wdir <- "remote"
 ## load color palette
 source("scripts\\001_misc\\001_color_palettes.R")
 
+## HTI and sample IDs
+samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
+
+## hti license dates
+lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
+
+## clean license dates
+hti_dates_clean <- lic_dates_hti %>%
+  mutate(YEAR = year(license_date)) %>%
+  select(supplier_id=HTI_ID,license_year=YEAR)
+
+## GFC deforestation (modified by TreeMap)
+filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_ttm\\"),
+                 pattern = "*.csv",
+                 full.names= TRUE)
+
+samples_gfc_ttm <- filenames %>%
+  map_dfr(read_csv) %>%
+  janitor::clean_names() 
+
+## GFC deforestation, peat and Margono primary forest
+filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_peat\\"),
+                 pattern = "*.csv",
+                 full.names= TRUE)
+
+samples_gfc_margono_peat <- filenames %>%
+  map_dfr(read_csv) %>%
+  janitor::clean_names() 
+
+## Gaveau data
+filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),pattern = "*gaveau_classes.csv",full.names= TRUE)
+
+samples_gaveau_landuse <- filenames %>%
+  map_dfr(read_csv) %>%
+  janitor::clean_names() 
+
 # expansion on soil type (Gaveau)
 pulp_ttm_soil_type <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\idn_pulp_annual_expansion_peat_mineral_soils.csv"))
 
@@ -69,8 +105,49 @@ pulp_peat_moa <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gfc_peat\\idn_pul
 
 ## clean data ------------------------------------------------
 
-# TreeMap peat forest vs mineral soil pulp expansion
+## identify pixels that eventually become pulp
+gaveau_pulp_sids <- samples_gaveau_landuse %>%
+  select(sid,timberdeforestation_2022) %>%
+  lazy_dt() %>%
+  as.data.table() %>%
+  dt_pivot_longer(cols = c(-sid),
+                  names_to = 'year',
+                  values_to = 'class') %>%
+  as_tibble() %>%
+  filter(class == "3") %>%
+  distinct() %>%
+  pull(sid)
 
+# create pixel level dataset starting from primary forest detected by Treemap Margono mask
+samples_df <- samples_gfc_margono_peat %>%
+  lazy_dt() %>%
+  select(sid, primary,lossyear) %>%
+  mutate(start_for = ifelse(primary == 100 & !is.na(primary),"Y","N")) %>% 
+  left_join(samples_hti, by = "sid") %>%
+  drop_na(sid) %>%
+  mutate(island_name = case_when(
+    island == 1 ~ "Balinusa",
+    island == 2 ~ "Kalimantan",
+    island == 3 ~ "Maluku",
+    island == 4 ~ "Papua",
+    island == 5 ~ "Sulawesi",
+    island == 6 ~ "Sumatera",
+    TRUE ~ NA
+  )) %>%
+  select(-island) %>%
+  rename(island = island_name) %>%
+  as_tibble()
+
+### Join to gaveau, concession, jrc & gfc year of deforestation
+samples_df <- samples_df %>% 
+  as_tibble() %>%
+  add_column(rand = runif(nrow(.))) %>%
+  lazy_dt() %>%
+  rename(supplier_id = ID) %>% 
+  left_join(hti_dates_clean,by="supplier_id") %>%
+  mutate(pulp = ifelse(sid %in% gaveau_pulp_sids,"Y","N"))
+
+# TreeMap peat forest vs mineral soil pulp expansion
 pulp_ttm_st_long <- pulp_ttm_soil_type %>%
   select(-`system:index`,-constant,-kab,-kab_code,-prov_code,-.geo,-type) %>%
   pivot_longer(cols = -c(prov),
@@ -126,6 +203,7 @@ defor_on_peat_ttm <- samples_gfc_ttm %>%
   print()
 
 defor_on_peat <- samples_df %>%
+  left_join(samples_gfc_ttm,by="sid") %>%
   mutate(class = case_when(
     gfc_ttm >= 600 & gfc_ttm < 699 ~ "Peat",
     gfc_ttm >= 100 & gfc_ttm < 199 ~ "Mineral",
@@ -138,6 +216,11 @@ defor_on_peat <- samples_df %>%
   summarize(area_ha = n()) %>%
   print()
 
+undrained_peat_areas_hti <- samples_gfc_ttm %>%
+  filter(gfc_ttm == 600) %>%
+  group_by() %>%
+  summarize(area = n()) %>%
+  print()
 
 ## plotting -------------------------------------------------
 
