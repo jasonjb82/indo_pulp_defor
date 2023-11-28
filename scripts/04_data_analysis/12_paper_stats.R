@@ -171,13 +171,17 @@ current_wood_demand <- pw_supply_2022 %>% pull(VOLUME_M3) %>% sum() %>% print()
 # Line 109: we find little evidence that plantation yields have increased over the past XX years 
 
 
-# Line 151: We find that 2.8 million hectares of primary forests, XX% of which are on peat soils,
+# Line 151: We find that 3 million hectares of primary forests, XX% of which are on peat soils,
 # still exist within Indonesia’s assigned industrial forest concessions
 undrained_peat_areas_hti <- samples_gfc_ttm %>%
-  filter(gfc_ttm == 600) %>%
+  filter(gfc_ttm == 600 | gfc_ttm == 400 | gfc_ttm == 100) %>%
+  group_by(gfc_ttm) %>%
+  summarize(area_ha = n()) %>%
+  ungroup() %>%
   group_by() %>%
-  summarize(area = n()) %>%
+  mutate(shr_class = prop.table(area_ha)*100) %>%
   print()
+
 
 # Can we differentiate yields in euc and acacia plantations?
 
