@@ -182,6 +182,7 @@ indirect_violations <- zdc_hti_conv %>%
   pull(area_ha) %>% 
   print()
 
+
 indirect_shr <- (indirect_violations / total_violations) %>% 
   print()
 
@@ -212,6 +213,30 @@ top_violations / total_violations
 
 ## QUESTION: Should we break these group stats into those that are officially declared as subsidiaries, and those that have been inferred (e.g. http://awsassets.panda.org/downloads/removing_the_corporate_mask_app_assessment_2018.pdf)
 
+## Create supplier list for Brian to fill in indirect control
+defor_by_supplier <- zdc_hti_conv %>%
+  filter(conv_type == 2) %>%
+  # filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>% 
+  group_by(supplier_id) %>% 
+  summarise(pulp_defor_ha = sum(area_ha))
+
+supplier_index = zdc_hti_conv %>% 
+  select(supplier_id, supplier, supplier_group, island) %>% 
+  unique()
+
+defor_by_supplier <- supplier_index %>% 
+  left_join(defor_by_supplier, by = "supplier_id")
+
+defor_by_supplier <- defor_by_supplier %>% 
+  arrange(desc(pulp_defor_ha))
+
+defor_by_supplier <- defor_by_supplier %>% 
+  drop_na()
+# %>% 
+#   filter(!(supplier_group %in% c("SINAR MAS", "ROYAL GOLDEN EAGLE / TANOTO")))
+
+defor_by_supplier %>% 
+  write_csv(paste0(wdir, '/01_data/02_out/tables/supplier_defor_list.csv'))
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
