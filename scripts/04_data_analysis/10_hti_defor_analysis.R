@@ -258,7 +258,7 @@ samples_df <- samples_df %>%
   rename(supplier_id = ID) %>% 
   left_join(hti_dates_clean,by="supplier_id") %>%
   left_join(hti_concession_names,by="supplier_id") %>%
-  left_join(samples_gfc_ttm,by="id") %>%
+  left_join(samples_gfc_ttm,by="sid") %>%
   left_join(samples_jrc_defyr,by="sid") %>%
   mutate(pulp = ifelse(sid %in% gaveau_pulp_sids,"Y","N"))
   

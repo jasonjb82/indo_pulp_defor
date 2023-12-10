@@ -242,6 +242,7 @@ samples_df <- samples_gfc_margono_peat %>%
   select(sid, primary,lossyear) %>%
   mutate(start_for = ifelse(primary == 100 & !is.na(primary),"Y","N")) %>% 
   left_join(samples_hti, by = "sid") %>%
+  drop_na(sid) %>%
   mutate(island_name = case_when(
     island == 1 ~ "Balinusa",
     island == 2 ~ "Kalimantan",
