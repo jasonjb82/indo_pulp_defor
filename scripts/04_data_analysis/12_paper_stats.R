@@ -200,6 +200,14 @@ total_violations <- zdc_hti_conv %>%
   pull(area_ha) %>% 
   print()
 
+# Area of pulp-driven deforestation since APRIL's ZDC 
+pulp_defor_after_zdc <- hti_nonhti_conv %>%
+  filter(conv_type == 2) %>%
+  filter(year >= 2015, year <= 2022) %>% 
+  pull(area_ha) %>% 
+  sum()
+
+
 # Area of pulp expansion 
 pulp_expansion <- hti_nonhti_conv %>%
   # filter(conv_type == 2) %>%
