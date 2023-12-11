@@ -117,7 +117,6 @@ prov_slim <- kab %>% select(prov,prov_code) %>% st_drop_geometry() %>% distinct(
 # mills
 mills <- s3read_using(read_excel, object = "indonesia/wood_pulp/logistics/out/mills/MILLS_EXPORTERS_20200405.xlsx", bucket = bucket)
 
-
 ############################################################################
 # Clean / prep data --------------------------------------------------------
 ############################################################################
@@ -188,143 +187,143 @@ defor_plot
 ### 011159654092001 - PT. LONTAR PAPYRUS PULP & PAPER INDUSTRY
 ### 032034811312001 - PT. OKI PULP & PAPER MILLS
 
-npwp_pulp_mills <- mills %>%
-  select(EXPORTER_ID) %>%
-  distinct() %>%
-  pull(EXPORTER_ID) %>%
-  print()
-
-silk_pulp <- silk_data %>%
-  filter((HS_NUMBER %like% "470329" | HS_NUMBER  %like% "4702")  & !str_detect(DESKRIPSI, 'SAMPLE') & 
-           NPWP %in% npwp_pulp_mills & BERAT_BERSIH_KG > 150) %>%
-  mutate(YEAR = year(TGL_INVOICE),
-         YEAR = ifelse(is.na(YEAR),year(TGL_TTD),YEAR),
-         HS_NUMBER = ifelse(HS_NUMBER %like% 4702,470200,470329)) %>%
-  filter(YEAR >= 2013) %>%
-  left_join(select(mills,EXPORTER_ID,MILL_GROUP,MILL_NAME),by=c("NPWP"="EXPORTER_ID"))
-
-
-silk_pulp_clean <- silk_pulp %>%
-  separate_rows(SCIENTIFIC_NAMES,sep=";") %>%
-  group_by(NPWP,NAMA_EKSPORTIR,PROPINSI,KABUPATEN_KOTA,NO_ETPIK,NAMA_IMPORTIR,NEGARA_IMPORTIR,PELABUHAN_MUAT,PELABUHAN_BONGKAR,
-           NEGARA_TUJUAN,NO_INVOICE,SKEMA_KERJASAMA,NO_V_LEGAL,TRANSPORTASI,TGL_INVOICE,KETERANGAN,PEJABAT_TTD,TEMPAT_TTD,
-           DIGITAL_SIGN,LOKASI_STUFFING,NO,HS_NUMBER,HS_PRINTED,DESKRIPSI,NUMBER_OF_UNIT,HARVEST_COUNTRY,ID,YEAR,CURRENCY,
-           VOLUME_M3,BERAT_BERSIH_KG,VALUE) %>%
-  mutate(PROP_BERAT_BERSIH = prop.table(BERAT_BERSIH_KG),PROP_VALUE=prop.table(VALUE)) %>%
-  ungroup()%>%
-  mutate(PROP_BERAT_BERSIH_KG = PROP_BERAT_BERSIH*BERAT_BERSIH_KG, PROP_VALUE_UNIT = PROP_VALUE*VALUE) %>%
-  mutate(SCIENTIFIC_NAMES = str_trim(SCIENTIFIC_NAMES,side="both")) %>%
-  left_join(wood_species,by="SCIENTIFIC_NAMES") %>%
-  mutate(MAJOR_WOOD_SPECIES = ifelse(SPECIES_GENERIC != "ACACIA" & SPECIES_GENERIC != "EUCALYPTUS", "OTHERS", SPECIES_GENERIC))
-
-# get annual exports by HS codes
-silk_annual_pulp_exports_hs <- silk_pulp_clean %>%
-  filter(YEAR >= 2015) %>%
-  group_by(YEAR,HS_NUMBER) %>%
-  summarize(PULP_EXPORTS = sum(PROP_BERAT_BERSIH_KG/1000)) %>%
-  print()
-
-# get annual exports by mill
-silk_annual_pulp_exports_mill <- silk_pulp_clean %>%
-  filter(YEAR >= 2015) %>%
-  group_by(YEAR,MILL_NAME) %>%
-  summarize(PULP_EXPORTS = sum(PROP_BERAT_BERSIH_KG/1000)) %>%
-  arrange(-desc(MILL_NAME)) %>%
-  print()
-
-# check that totals are same after splitting rows for wood species
-s1 <- silk_pulp %>% filter(YEAR == 2018) %>%
-  group_by() %>%
-  summarize(VOLUME = sum(BERAT_BERSIH_KG/1000,na.rm = TRUE)) %>%
-  print()
-
-s2 <- silk_pulp_clean %>% filter(YEAR == 2018) %>%
-  group_by() %>%
-  summarize(VOLUME = sum(PROP_BERAT_BERSIH_KG/1000,na.rm = TRUE)) %>%
-  print()
-
-expect_equal(s1$VOLUME,s2$VOLUME)
-
-# get rank of species by year
-pulp_species_year <- silk_pulp_clean %>%
-  group_by(YEAR,SPECIES_GENERIC) %>%
-  summarize(TOTAL_VOLUME_TONNES = sum(PROP_BERAT_BERSIH_KG/1000)) %>%
-  arrange(YEAR,-TOTAL_VOLUME_TONNES)
-
-# get total exports by year
-exports_year <- silk_pulp %>%
-  group_by(YEAR) %>%
-  summarize(EXPORT_TONS = sum(BERAT_BERSIH_KG/1000)) %>%
-  print()
-
-# plot by general wood species
-silk_pulp_species <- silk_pulp_clean %>%
-  select(YEAR,PROP_BERAT_BERSIH_KG,ID,MAJOR_WOOD_SPECIES,MILL_NAME,SPECIES_CLEAN) %>% 
-  mutate(
-    SPECIES_GENERAL = case_when(
-      SPECIES_CLEAN == "ACACIA MANGIUM" ~ "ACACIA MANGIUM",
-      SPECIES_CLEAN == "ACACIA CRASSICARPA" ~ "ACACIA CRASSICARPA",
-      SPECIES_CLEAN == "EUCALYPTUS PELLITA" ~ "EUCALYPTUS PELLITA",
-      MAJOR_WOOD_SPECIES == "ACACIA" & (SPECIES_CLEAN != "ACACIA MANGIUM" | SPECIES_CLEAN != "ACACIA CRASSICARPA") ~ "ACACIA (OTHERS)",
-      MAJOR_WOOD_SPECIES == "EUCALYPTUS" & SPECIES_CLEAN != "EUCALYPTUS PELLITA" ~ "EUCALYPTUS (OTHERS)",
-      TRUE ~ MAJOR_WOOD_SPECIES
-    )
-  )
-
-## checking shipments and composition of species
-f <- function(x)setNames(wood_species$GENERAL_CLASS, wood_species$SCIENTIFIC_NAMES)[x] 
-vars_to_process=c("TYPE1","TYPE2","TYPE3","TYPE4","TYPE5","TYPE6")
-
-silk_species_shipments <- silk_pulp %>%
-  mutate(MIXED = ifelse(str_detect(SCIENTIFIC_NAMES,";"),"Y","N")) %>%
-  group_by(NPWP,NAMA_EKSPORTIR,PROPINSI,KABUPATEN_KOTA,NO_ETPIK,NAMA_IMPORTIR,NEGARA_IMPORTIR,PELABUHAN_MUAT,PELABUHAN_BONGKAR,
-           NEGARA_TUJUAN,NO_INVOICE,SKEMA_KERJASAMA,NO_V_LEGAL,TRANSPORTASI,TGL_INVOICE,KETERANGAN,PEJABAT_TTD,TEMPAT_TTD,
-           DIGITAL_SIGN,LOKASI_STUFFING,NO,HS_NUMBER,HS_PRINTED,DESKRIPSI,NUMBER_OF_UNIT,HARVEST_COUNTRY,ID,YEAR,CURRENCY,
-           VOLUME_M3,BERAT_BERSIH_KG,VALUE,MIXED) %>%
-  ungroup() %>%
-  mutate(SCIENTIFIC_NAMES = str_trim(SCIENTIFIC_NAMES,side="both")) %>%
-  separate(SCIENTIFIC_NAMES,c("TYPE1","TYPE2","TYPE3","TYPE4","TYPE5","TYPE6"),";") %>%
-  mutate_at(.vars=vars_to_process,funs(f)) %>%
-  mutate(WOODTYPE_EXPORT=pmap_chr(list(TYPE1,TYPE2,TYPE3,TYPE4,TYPE5,TYPE6), ~paste(sort(c(...)), collapse = ","))) %>%
-  separate_rows(WOODTYPE_EXPORT, sep = ",") %>%
-  group_by(NPWP,NAMA_EKSPORTIR,PROPINSI,KABUPATEN_KOTA,NO_ETPIK,NAMA_IMPORTIR,NEGARA_IMPORTIR,PELABUHAN_MUAT,PELABUHAN_BONGKAR,
-           NEGARA_TUJUAN,NO_INVOICE,SKEMA_KERJASAMA,NO_V_LEGAL,TRANSPORTASI,TGL_INVOICE,KETERANGAN,PEJABAT_TTD,TEMPAT_TTD,
-           DIGITAL_SIGN,LOKASI_STUFFING,NO,HS_NUMBER,HS_PRINTED,DESKRIPSI,NUMBER_OF_UNIT,HARVEST_COUNTRY,ID,YEAR,CURRENCY,
-           VOLUME_M3,BERAT_BERSIH_KG,VALUE,MIXED) %>%
-  summarise(WOODTYPE_EXPORT = paste(unique(WOODTYPE_EXPORT), collapse = ","))
-
-# create species shipments by year
-woodtype_exports_yr <- silk_species_shipments %>%
-  select(YEAR,BERAT_BERSIH_KG,ID,WOODTYPE_EXPORT,MIXED) %>%
-  group_by(YEAR,ID,WOODTYPE_EXPORT,MIXED) %>%
-  summarize(TONS = sum(BERAT_BERSIH_KG/1000)) %>%
-  group_by(YEAR,ID,MIXED) %>%
-  group_by(YEAR,WOODTYPE_EXPORT) %>%
-  summarize(NO_SHIPMENTS=n(),TONS=sum(TONS)) %>%
-  group_by(YEAR) %>%
-  mutate(PERC_SHIPMENT = prop.table(NO_SHIPMENTS)*100, PERC_VOLUME = prop.table(TONS)*100) %>%
-  mutate(WOODTYPE_GENERAL = case_when(grepl("ACACIA", WOODTYPE_EXPORT) ~ "Plantation",
-                                      grepl("EUCALYPTUS", WOODTYPE_EXPORT) ~ "Plantation",
-                                      grepl("MIXED TROPICAL HARDWOODS", WOODTYPE_EXPORT, ignore.case = TRUE) ~"Mixed Tropical Hardwoods")) %>%
-  #complete(YEAR = seq(2001, 2012, by = 1)) %>%
-  ungroup() %>%
-  add_row(YEAR = seq(2001,2012,by=1), TONS=0) %>% # temporary fix
-  add_row(YEAR = c(2020,2022), TONS = 0) %>% # temporary fix
-  mutate(TONS = ifelse(is.na(TONS),0,TONS), WOODTYPE_GENERAL = ifelse(is.na(WOODTYPE_GENERAL),"Plantation",WOODTYPE_GENERAL))
-
-# check yearly shipments
-yearly_shipments_total <- woodtype_exports_yr %>%
-  group_by(YEAR) %>%
-  summarize(TONS = sum(TONS))
-
-# SILK ratios
-timber_plantation_silk <- woodtype_exports_yr %>%
-  group_by(YEAR,WOODTYPE_GENERAL) %>%
-  summarize(timber_tons = sum(TONS)) %>%
-  select(year=YEAR,woodtype=WOODTYPE_GENERAL,timber_tons) %>%
-  filter(year > 2012) %>%
-  group_by(year) %>%
-  mutate(ratio = timber_tons / sum(timber_tons))
+# npwp_pulp_mills <- mills %>%
+#   select(EXPORTER_ID) %>%
+#   distinct() %>%
+#   pull(EXPORTER_ID) %>%
+#   print()
+# 
+# silk_pulp <- silk_data %>%
+#   filter((HS_NUMBER %like% "470329" | HS_NUMBER  %like% "4702")  & !str_detect(DESKRIPSI, 'SAMPLE') & 
+#            NPWP %in% npwp_pulp_mills & BERAT_BERSIH_KG > 150) %>%
+#   mutate(YEAR = year(TGL_INVOICE),
+#          YEAR = ifelse(is.na(YEAR),year(TGL_TTD),YEAR),
+#          HS_NUMBER = ifelse(HS_NUMBER %like% 4702,470200,470329)) %>%
+#   filter(YEAR >= 2013) %>%
+#   left_join(select(mills,EXPORTER_ID,MILL_GROUP,MILL_NAME),by=c("NPWP"="EXPORTER_ID"))
+# 
+# 
+# silk_pulp_clean <- silk_pulp %>%
+#   separate_rows(SCIENTIFIC_NAMES,sep=";") %>%
+#   group_by(NPWP,NAMA_EKSPORTIR,PROPINSI,KABUPATEN_KOTA,NO_ETPIK,NAMA_IMPORTIR,NEGARA_IMPORTIR,PELABUHAN_MUAT,PELABUHAN_BONGKAR,
+#            NEGARA_TUJUAN,NO_INVOICE,SKEMA_KERJASAMA,NO_V_LEGAL,TRANSPORTASI,TGL_INVOICE,KETERANGAN,PEJABAT_TTD,TEMPAT_TTD,
+#            DIGITAL_SIGN,LOKASI_STUFFING,NO,HS_NUMBER,HS_PRINTED,DESKRIPSI,NUMBER_OF_UNIT,HARVEST_COUNTRY,ID,YEAR,CURRENCY,
+#            VOLUME_M3,BERAT_BERSIH_KG,VALUE) %>%
+#   mutate(PROP_BERAT_BERSIH = prop.table(BERAT_BERSIH_KG),PROP_VALUE=prop.table(VALUE)) %>%
+#   ungroup()%>%
+#   mutate(PROP_BERAT_BERSIH_KG = PROP_BERAT_BERSIH*BERAT_BERSIH_KG, PROP_VALUE_UNIT = PROP_VALUE*VALUE) %>%
+#   mutate(SCIENTIFIC_NAMES = str_trim(SCIENTIFIC_NAMES,side="both")) %>%
+#   left_join(wood_species,by="SCIENTIFIC_NAMES") %>%
+#   mutate(MAJOR_WOOD_SPECIES = ifelse(SPECIES_GENERIC != "ACACIA" & SPECIES_GENERIC != "EUCALYPTUS", "OTHERS", SPECIES_GENERIC))
+# 
+# # get annual exports by HS codes
+# silk_annual_pulp_exports_hs <- silk_pulp_clean %>%
+#   filter(YEAR >= 2015) %>%
+#   group_by(YEAR,HS_NUMBER) %>%
+#   summarize(PULP_EXPORTS = sum(PROP_BERAT_BERSIH_KG/1000)) %>%
+#   print()
+# 
+# # get annual exports by mill
+# silk_annual_pulp_exports_mill <- silk_pulp_clean %>%
+#   filter(YEAR >= 2015) %>%
+#   group_by(YEAR,MILL_NAME) %>%
+#   summarize(PULP_EXPORTS = sum(PROP_BERAT_BERSIH_KG/1000)) %>%
+#   arrange(-desc(MILL_NAME)) %>%
+#   print()
+# 
+# # check that totals are same after splitting rows for wood species
+# s1 <- silk_pulp %>% filter(YEAR == 2018) %>%
+#   group_by() %>%
+#   summarize(VOLUME = sum(BERAT_BERSIH_KG/1000,na.rm = TRUE)) %>%
+#   print()
+# 
+# s2 <- silk_pulp_clean %>% filter(YEAR == 2018) %>%
+#   group_by() %>%
+#   summarize(VOLUME = sum(PROP_BERAT_BERSIH_KG/1000,na.rm = TRUE)) %>%
+#   print()
+# 
+# expect_equal(s1$VOLUME,s2$VOLUME)
+# 
+# # get rank of species by year
+# pulp_species_year <- silk_pulp_clean %>%
+#   group_by(YEAR,SPECIES_GENERIC) %>%
+#   summarize(TOTAL_VOLUME_TONNES = sum(PROP_BERAT_BERSIH_KG/1000)) %>%
+#   arrange(YEAR,-TOTAL_VOLUME_TONNES)
+# 
+# # get total exports by year
+# exports_year <- silk_pulp %>%
+#   group_by(YEAR) %>%
+#   summarize(EXPORT_TONS = sum(BERAT_BERSIH_KG/1000)) %>%
+#   print()
+# 
+# # plot by general wood species
+# silk_pulp_species <- silk_pulp_clean %>%
+#   select(YEAR,PROP_BERAT_BERSIH_KG,ID,MAJOR_WOOD_SPECIES,MILL_NAME,SPECIES_CLEAN) %>% 
+#   mutate(
+#     SPECIES_GENERAL = case_when(
+#       SPECIES_CLEAN == "ACACIA MANGIUM" ~ "ACACIA MANGIUM",
+#       SPECIES_CLEAN == "ACACIA CRASSICARPA" ~ "ACACIA CRASSICARPA",
+#       SPECIES_CLEAN == "EUCALYPTUS PELLITA" ~ "EUCALYPTUS PELLITA",
+#       MAJOR_WOOD_SPECIES == "ACACIA" & (SPECIES_CLEAN != "ACACIA MANGIUM" | SPECIES_CLEAN != "ACACIA CRASSICARPA") ~ "ACACIA (OTHERS)",
+#       MAJOR_WOOD_SPECIES == "EUCALYPTUS" & SPECIES_CLEAN != "EUCALYPTUS PELLITA" ~ "EUCALYPTUS (OTHERS)",
+#       TRUE ~ MAJOR_WOOD_SPECIES
+#     )
+#   )
+# 
+# ## checking shipments and composition of species
+# f <- function(x)setNames(wood_species$GENERAL_CLASS, wood_species$SCIENTIFIC_NAMES)[x] 
+# vars_to_process=c("TYPE1","TYPE2","TYPE3","TYPE4","TYPE5","TYPE6")
+# 
+# silk_species_shipments <- silk_pulp %>%
+#   mutate(MIXED = ifelse(str_detect(SCIENTIFIC_NAMES,";"),"Y","N")) %>%
+#   group_by(NPWP,NAMA_EKSPORTIR,PROPINSI,KABUPATEN_KOTA,NO_ETPIK,NAMA_IMPORTIR,NEGARA_IMPORTIR,PELABUHAN_MUAT,PELABUHAN_BONGKAR,
+#            NEGARA_TUJUAN,NO_INVOICE,SKEMA_KERJASAMA,NO_V_LEGAL,TRANSPORTASI,TGL_INVOICE,KETERANGAN,PEJABAT_TTD,TEMPAT_TTD,
+#            DIGITAL_SIGN,LOKASI_STUFFING,NO,HS_NUMBER,HS_PRINTED,DESKRIPSI,NUMBER_OF_UNIT,HARVEST_COUNTRY,ID,YEAR,CURRENCY,
+#            VOLUME_M3,BERAT_BERSIH_KG,VALUE,MIXED) %>%
+#   ungroup() %>%
+#   mutate(SCIENTIFIC_NAMES = str_trim(SCIENTIFIC_NAMES,side="both")) %>%
+#   separate(SCIENTIFIC_NAMES,c("TYPE1","TYPE2","TYPE3","TYPE4","TYPE5","TYPE6"),";") %>%
+#   mutate_at(.vars=vars_to_process,funs(f)) %>%
+#   mutate(WOODTYPE_EXPORT=pmap_chr(list(TYPE1,TYPE2,TYPE3,TYPE4,TYPE5,TYPE6), ~paste(sort(c(...)), collapse = ","))) %>%
+#   separate_rows(WOODTYPE_EXPORT, sep = ",") %>%
+#   group_by(NPWP,NAMA_EKSPORTIR,PROPINSI,KABUPATEN_KOTA,NO_ETPIK,NAMA_IMPORTIR,NEGARA_IMPORTIR,PELABUHAN_MUAT,PELABUHAN_BONGKAR,
+#            NEGARA_TUJUAN,NO_INVOICE,SKEMA_KERJASAMA,NO_V_LEGAL,TRANSPORTASI,TGL_INVOICE,KETERANGAN,PEJABAT_TTD,TEMPAT_TTD,
+#            DIGITAL_SIGN,LOKASI_STUFFING,NO,HS_NUMBER,HS_PRINTED,DESKRIPSI,NUMBER_OF_UNIT,HARVEST_COUNTRY,ID,YEAR,CURRENCY,
+#            VOLUME_M3,BERAT_BERSIH_KG,VALUE,MIXED) %>%
+#   summarise(WOODTYPE_EXPORT = paste(unique(WOODTYPE_EXPORT), collapse = ","))
+# 
+# # create species shipments by year
+# woodtype_exports_yr <- silk_species_shipments %>%
+#   select(YEAR,BERAT_BERSIH_KG,ID,WOODTYPE_EXPORT,MIXED) %>%
+#   group_by(YEAR,ID,WOODTYPE_EXPORT,MIXED) %>%
+#   summarize(TONS = sum(BERAT_BERSIH_KG/1000)) %>%
+#   group_by(YEAR,ID,MIXED) %>%
+#   group_by(YEAR,WOODTYPE_EXPORT) %>%
+#   summarize(NO_SHIPMENTS=n(),TONS=sum(TONS)) %>%
+#   group_by(YEAR) %>%
+#   mutate(PERC_SHIPMENT = prop.table(NO_SHIPMENTS)*100, PERC_VOLUME = prop.table(TONS)*100) %>%
+#   mutate(WOODTYPE_GENERAL = case_when(grepl("ACACIA", WOODTYPE_EXPORT) ~ "Plantation",
+#                                       grepl("EUCALYPTUS", WOODTYPE_EXPORT) ~ "Plantation",
+#                                       grepl("MIXED TROPICAL HARDWOODS", WOODTYPE_EXPORT, ignore.case = TRUE) ~"Mixed Tropical Hardwoods")) %>%
+#   #complete(YEAR = seq(2001, 2012, by = 1)) %>%
+#   ungroup() %>%
+#   add_row(YEAR = seq(2001,2012,by=1), TONS=0) %>% # temporary fix
+#   add_row(YEAR = c(2020,2022), TONS = 0) %>% # temporary fix
+#   mutate(TONS = ifelse(is.na(TONS),0,TONS), WOODTYPE_GENERAL = ifelse(is.na(WOODTYPE_GENERAL),"Plantation",WOODTYPE_GENERAL))
+# 
+# # check yearly shipments
+# yearly_shipments_total <- woodtype_exports_yr %>%
+#   group_by(YEAR) %>%
+#   summarize(TONS = sum(TONS))
+# 
+# # SILK ratios
+# timber_plantation_silk <- woodtype_exports_yr %>%
+#   group_by(YEAR,WOODTYPE_GENERAL) %>%
+#   summarize(timber_tons = sum(TONS)) %>%
+#   select(year=YEAR,woodtype=WOODTYPE_GENERAL,timber_tons) %>%
+#   filter(year > 2012) %>%
+#   group_by(year) %>%
+#   mutate(ratio = timber_tons / sum(timber_tons))
 
 # O-D ratios
 timber_for_pulp_od <- timber_for_pulp %>%
@@ -336,47 +335,67 @@ timber_for_pulp_od <- timber_for_pulp %>%
   select(year,timber_m3_plantation,timber_m3_mth) %>%
   pivot_longer(cols = c(-year),
                   names_to = 'woodtype',
-                  values_to = 'timber_m3') %>%
+                  values_to = 'annual_prod_mtpy') %>%
   mutate(woodtype = ifelse(woodtype == "timber_m3_plantation","Plantation","Mixed Tropical Hardwoods")) %>%
   group_by(year) %>%
-  mutate(ratio = timber_m3 / sum(timber_m3)) %>%
-  ungroup()
+  mutate(ratio = annual_prod_mtpy / sum(annual_prod_mtpy)) %>%
+  ungroup() %>%
+  select(year,woodtype,ratio)
 
-plantation_mth_ratio <- timber_plantation_silk %>%
-  bind_rows(timber_for_pulp_od) %>%
-  select(year,woodtype,ratio) %>%
+# plantation_mth_ratio <- timber_plantation_silk %>%
+#   bind_rows(timber_for_pulp_od) %>%
+#   select(year,woodtype,ratio) %>%
+#   filter(year > 2000) %>%
+#   mutate(ratio = ifelse(is.nan(ratio),0,ratio)) %>%
+#   arrange(year) 
+
+# # merge ratio and WITS exports
+# pulp_ratio <- pulp_exports %>%
+#   group_by(year) %>%
+#   summarize(vols_tonnes = sum(exports_kg)/1000) %>%
+#   right_join(plantation_mth_ratio,by="year") %>%
+#   mutate(vols_ton_ratio = vols_tonnes*ratio,
+#          vols_ton_ratio = ifelse(is.na(vols_tonnes),0,vols_ton_ratio))
+
+# # clean pulp ratio (temporary fix using O-D and SILK data ratios)
+# pulp_ratio_clean <- pulp_ratio %>%
+#   drop_na(vols_tonnes) %>%
+#   select(year,woodtype,ratio) %>%
+#   add_row(year = c(2020,2021,2022),woodtype=c("Plantation","Plantation","Plantation"),ratio=c(1,1,1)) %>%
+#   group_by() %>% tidyr::complete(year = min(year):2022, woodtype) %>%
+#   mutate(ratio = ifelse(is.na(ratio) & year > 2016,0,ratio)) %>%
+#   group_by(woodtype) %>%
+#   fill(ratio, .direction = c("down")) %>%
+#  print()
+
+# # modified pulp production
+# pulp_prod_modified <- pulp_ratio_clean %>%
+#   left_join(pulp_production,by="year") %>%
+#   mutate(prod_woodtype = ratio*annual_prod_mtpy) %>%
+#   select(year,woodtype,ratio,annual_prod_mtpy,prod_woodtype)
+
+# pulp production with ratios
+pulp_prod_modified <- pulp_production %>%
+  select(year,annual_prod_mtpy,total_pulp_mth,total_pulp_plantation) %>%
+  pivot_longer(cols = c(-year,-annual_prod_mtpy),
+               names_to = 'woodtype',
+               values_to = 'ratio') %>%
+  mutate(prod_woodtype = ratio*annual_prod_mtpy,
+         woodtype = ifelse(woodtype == "total_pulp_plantation","Plantation","Mixed Tropical Hardwoods"),
+         ratio = ifelse(is.na(ratio),0,ratio))
+
+# merge OD data and KLHK data
+pulp_prod_ratio_merged <- timber_for_pulp_od %>%
+  full_join(pulp_prod_modified,by=c("year","woodtype")) %>%
   filter(year > 2000) %>%
-  mutate(ratio = ifelse(is.nan(ratio),0,ratio)) %>%
-  arrange(year) 
-
-# merge ratio and WITS exports
-pulp_ratio <- pulp_exports %>%
-  group_by(year) %>%
-  summarize(vols_tonnes = sum(exports_kg)/1000) %>%
-  right_join(plantation_mth_ratio,by="year") %>%
-  mutate(vols_ton_ratio = vols_tonnes*ratio,
-         vols_ton_ratio = ifelse(is.na(vols_tonnes),0,vols_ton_ratio))
-
-# clean pulp ratio (temporary fix using O-D and SILK data ratios)
-pulp_ratio_clean <- pulp_ratio %>%
-  drop_na(vols_tonnes) %>%
-  select(year,woodtype,ratio) %>%
-  add_row(year = c(2020,2021,2022),woodtype=c("Plantation","Plantation","Plantation"),ratio=c(1,1,1)) %>%
-  group_by() %>% tidyr::complete(year = min(year):2022, woodtype) %>%
-  mutate(ratio = ifelse(is.na(ratio) & year > 2016,0,ratio)) %>%
-  group_by(woodtype) %>%
-  fill(ratio, .direction = c("down")) %>%
+  mutate(ratio = ifelse(!is.na(ratio.x),ratio.x,ratio.y),
+         annual_prod_mtpy = ratio*annual_prod_mtpy) %>%
+  select(year,woodtype,annual_prod_mtpy,ratio) %>%
   print()
 
-# modified pulp production
-pulp_prod_modified <- pulp_ratio_clean %>%
-  left_join(pulp_production,by="year") %>%
-  mutate(prod_woodtype = ratio*annual_prod_mtpy) %>%
-  select(year,woodtype,ratio,annual_prod_mtpy,prod_woodtype)
 
-
-wt_plot <- ggplot(pulp_prod_modified) +
-  geom_bar(stat="identity",position="stack",aes(x=year,y=prod_woodtype,fill=as.factor(woodtype))) +
+wt_plot <- ggplot(pulp_prod_ratio_merged) +
+  geom_bar(stat="identity",position="stack",aes(x=year,y=annual_prod_mtpy,fill=as.factor(woodtype))) +
   scale_x_continuous(breaks = seq(from = 2001, to = 2023, by =1)) +
   xlab("") +
   scale_y_continuous(name="Pulp production (Million tonnes)\n",
