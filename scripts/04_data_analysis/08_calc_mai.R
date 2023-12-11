@@ -20,6 +20,9 @@
 ## Load packages
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 library(tidyverse)
+library(fixest)
+library(marginaleffects)
+
 options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
 # library(stringr)
@@ -126,9 +129,16 @@ harvest_df <- harvest_df %>%
 harvest_df <- harvest_df %>% 
   mutate(mai = VOLUME_M3 / grow_ha_y)
 
-
-## Calculate MAI for entire sector
+## Calculate MAI for entire sector: Note, it's reassuring that this is virtually unchanged if run before or after filtering
 sector_mai <- sum(harvest_df$VOLUME_M3) / sum(harvest_df$grow_ha_y) # m3 / ha / y 
+
+
+## Filter unreasonable MAIs
+# From Hardiyanto et al., 2023: The best treatment 227 (comprising low impact harvesting, removal of only merchantable stem wood, conservation of 228 organic matter, planting with improved germplasm, weed control and application of P at 229 planting), yielded an MAI of 52.5 m3 ha-1 y-1, one of the highest growth rates reported for 230 tropical plantations (Nambiar, 2008).
+max_mai <- 52.5
+min_mai <- 0
+harvest_df <- harvest_df %>% filter(mai > min_mai, mai < max_mai)
+
 
 ## Calculate annual MAI across sector
 year_mai <- harvest_df %>% 
@@ -141,7 +151,6 @@ year_mai <- harvest_df %>%
 
 ## MAI plots
 harvest_df %>% 
-  filter(mai < 60) %>% 
   ggplot(aes(x = mai)) +
   geom_histogram(bins = 20) +
   geom_vline(xintercept = sector_mai, linetype = "longdash") +
@@ -174,10 +183,15 @@ year_mai %>%
   ylim(c(0, 32)) +
   geom_smooth(method = "lm")
 
-# No significant improvement in MAI over the 6 years observed
+# Improvement in MAI over the 6 years observed
 mod <- lm(year_mai ~ HARVEST_YEAR, data = year_mai)
 summary(mod)
 
+harvest_df <- harvest_df %>% 
+  mutate(ln_mai = log(mai))
+
+mod <- feols(ln_mai ~ HARVEST_YEAR | SUPPLIER_ID, data = harvest_df)
+summary(mod)
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
