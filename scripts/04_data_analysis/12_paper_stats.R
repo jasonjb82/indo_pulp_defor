@@ -80,6 +80,9 @@ gaveau_annual_pulp <- read_csv(paste0(wdir, '/01_data/02_out/tables/gaveau_annua
 # Expansion on soil type (Gaveau)
 pulp_ttm_soil_type <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\idn_pulp_annual_expansion_peat_mineral_soils.csv"))
 
+# pulp production data (MoEF)
+pulp_production <- read_excel(paste0(wdir,"\\01_data\\01_in\\tables\\annual_pulp_shr_prod.xlsx"))
+
 ## GFC deforestation (modified by TreeMap)
 filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_ttm\\"),
                  pattern = "*.csv",
@@ -223,6 +226,7 @@ indirect_violations <- zdc_hti_conv %>%
   pull(area_ha) %>% 
   print()
 
+
 indirect_shr <- (indirect_violations / total_violations) %>% 
   print()
 
@@ -268,6 +272,30 @@ ownership_defor <- hti_nonhti_conv %>%
   
 ## QUESTION: Should we break these group stats into those that are officially declared as subsidiaries, and those that have been inferred (e.g. http://awsassets.panda.org/downloads/removing_the_corporate_mask_app_assessment_2018.pdf)
 
+## Create supplier list for Brian to fill in indirect control
+defor_by_supplier <- zdc_hti_conv %>%
+  filter(conv_type == 2) %>%
+  # filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>% 
+  group_by(supplier_id) %>% 
+  summarise(pulp_defor_ha = sum(area_ha))
+
+supplier_index = zdc_hti_conv %>% 
+  select(supplier_id, supplier, supplier_group, island) %>% 
+  unique()
+
+defor_by_supplier <- supplier_index %>% 
+  left_join(defor_by_supplier, by = "supplier_id")
+
+defor_by_supplier <- defor_by_supplier %>% 
+  arrange(desc(pulp_defor_ha))
+
+defor_by_supplier <- defor_by_supplier %>% 
+  drop_na()
+# %>% 
+#   filter(!(supplier_group %in% c("SINAR MAS", "ROYAL GOLDEN EAGLE / TANOTO")))
+
+defor_by_supplier %>% 
+  write_csv(paste0(wdir, '/01_data/02_out/tables/supplier_defor_list.csv'))
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -281,18 +309,38 @@ oki_exp_mt <- 4.2
 rapp_exp_mt <- 2
 phoenix_exp_mt <- 1.7
 total_exp_mt <- oki_exp_mt + rapp_exp_mt + phoenix_exp_mt
-baseline_cap_mt <- 9.3 ## TODO: Check this with Brian. Doesn't match (mills$PULP_CAP_2019_MTPY %>% sum())
+baseline_production <- pulp_production %>% filter(year == 2022) %>% pull(annual_prod_mtpy)
+baseline_cap_mt <- 11.8 ## TODO: Check this with Brian. Doesn't match (mills$PULP_CAP_2019_MTPY %>% sum()); Hardiyanto et al 2023 say it was 11.8M in 2021
+baseline_usage_shr <- baseline_production / baseline_cap_mt
+
+## Calculate the prior industry average conversion rate: m3 per tonne of pulp
+wood_pulp_conv <- (current_wood_demand / 1000000) / baseline_production
+
+## Set assumed conversion rate for new semi-chemical pulp mill (pt phoenix). Source: https://unece.org/forestry-timber/documents/2022/01/informal-documents/supporting-tables-forest-products-conversion
+chem_wood_pulp_conv <- 2.75
 
 ## Line 102: Together, these three projects would increase the country’s pulp capacity by 91% and, once fully operational, would lead to a concomitant 40 million m3 increase in the country’s annual demand for pulpwood. 
 total_exp_mt
 cap_change <- (total_exp_mt / baseline_cap_mt) %>% print()
 
-# Estimate of land demand from capacity expansions
-new_wood_demand <- (current_wood_demand * cap_change) %>% print()
+## Double check calculations on current production
+test_wood_demand <- baseline_cap_mt * baseline_usage_shr * wood_pulp_conv
+(current_wood_demand / 1000000) == test_wood_demand
 
-# Line 103: At current levels of plantation productivity, an additional 1.82 million hectares of plantations would be needed to meet this potential boom in pulpwood demand
+# Estimate of land demand from capacity expansions
+new_wood_demand <- ((oki_exp_mt + rapp_exp_mt) * baseline_usage_shr * wood_pulp_conv) + (phoenix_exp_mt * baseline_usage_shr * chem_wood_pulp_conv)
+
+# Line 103: At current levels of plantation productivity, an additional 1.63 million hectares of plantations would be needed to meet this potential boom in pulpwood demand
 # new_wood_demand <- 30600000 # m3 / y - taken from Brian's calculations in paper draft. Was for original expansion estimates without PT phoenix
 (area_demand <- new_wood_demand / sector_mai) # ha
+
+new_wood_demand / (current_wood_demand / 1000000)
+
+## Explore scenario with continued yield improvements for five years. We've seen ~5% increase per year (script 08_calc_mai.R)
+high_yield_mai <- (1.049^5) * sector_mai
+assumed_area_plantations <- 3050000
+extra_production <- (high_yield_mai - sector_mai) * assumed_area_plantations
+extra_production / 35500000
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Remaining forests in plantations ---------------------------------------
