@@ -68,6 +68,9 @@ annual_conv <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 l
   mutate(year=year+2000) %>%
   drop_na(year)
 
+# reclasses ownership groups
+groups_reclass_hti <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\ALIGNED_NAMES_GROUP_HTI_reclassed.csv"))
+
 # hti pulp conversion with timing information
 zdc_hti_conv <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_zdc_pulp_conv_areas.csv'))
 
@@ -259,7 +262,22 @@ top_violations <- violations_df %>%
 
 top_violations / total_violations
 
+# Line 95 to 98
+# While the three major pulp-producing conglomerates publicly claim ownership of concessions
+# with relatively few deforestation events (XX ha), prior NGO investigations indicate they are affiliated
+# with concessions responsible for XX% of all deforestation in the pulp sector during this period
 
+ownership_defor <- hti_nonhti_conv %>%
+  left_join(groups_reclass_hti,by=c("supplier_id"="id")) %>%
+  filter((app == 1 | april == 1 | marubeni == 1) & conv_type == 2 & year > 2012) %>%
+  #filter(year > 2012 & conv_type == 2) %>%
+  drop_na(supplier_id) %>%
+  group_by(group_reclassed) %>%
+  summarize(area_ha = sum(area_ha)) %>%
+  group_by() %>%
+  mutate(share = prop.table(area_ha)*100) %>%
+  print()
+  
 ## QUESTION: Should we break these group stats into those that are officially declared as subsidiaries, and those that have been inferred (e.g. http://awsassets.panda.org/downloads/removing_the_corporate_mask_app_assessment_2018.pdf)
 
 ## Create supplier list for Brian to fill in indirect control
