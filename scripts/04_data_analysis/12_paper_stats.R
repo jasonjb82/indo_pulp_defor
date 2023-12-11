@@ -203,6 +203,14 @@ total_violations <- zdc_hti_conv %>%
   pull(area_ha) %>% 
   print()
 
+# Area of pulp-driven deforestation since APRIL's ZDC 
+pulp_defor_after_zdc <- hti_nonhti_conv %>%
+  filter(conv_type == 2) %>%
+  filter(year >= 2015, year <= 2022) %>% 
+  pull(area_ha) %>% 
+  sum()
+
+
 # Area of pulp expansion 
 pulp_expansion <- hti_nonhti_conv %>%
   # filter(conv_type == 2) %>%
@@ -261,9 +269,9 @@ top_violations / total_violations
 
 ownership_defor <- hti_nonhti_conv %>%
   left_join(groups_reclass_hti,by=c("supplier_id"="id")) %>%
-  filter((app == 1 | april == 1 | marubeni == 1) & conv_type == 2 & year > 2012) %>%
+  filter(conv_type == 2 & year >= 2015) %>%
   #filter(year > 2012 & conv_type == 2) %>%
-  drop_na(supplier_id) %>%
+  # drop_na(supplier_id) %>%
   group_by(group_reclassed) %>%
   summarize(area_ha = sum(area_ha)) %>%
   group_by() %>%
