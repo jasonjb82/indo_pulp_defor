@@ -587,11 +587,13 @@ concessions <- hti_gav_annual_lc %>%
   pull(supplier_label) %>%
   print()
 
+hti_gav_annual_lc$class_desc <- factor(hti_gav_annual_lc$class_desc, levels = c("Forest", "Non-forest", "Cleared for pulp"))
+
 hti_plots = list()
 
 for(concession_ in concessions) {
   hti_plots[[concession_]] = ggplot(hti_gav_annual_lc %>% filter(supplier_label == concession_),aes(year,area_ha)) +
-    geom_area(aes(fill= as.character(class_desc)), position = position_stack(reverse = F)) +
+    geom_area(aes(fill= as.factor(class_desc)), position = position_stack(reverse = F)) +
     scale_x_continuous(expand=c(0,0),breaks=seq(2001,2022,by=1),limits = c(2001,2022)) +
     scale_y_continuous(labels = d3_format(".2~s",suffix = "ha"),expand = c(0,0)) +
     geom_vline(aes(xintercept=as.numeric(license_year),color="License\nyear"),size=0.5)+
