@@ -364,7 +364,10 @@ gaveau_forest_2000 <- samples_gfc_margono_peat %>%
   group_by(supplier_id=ID,primary) %>%
   summarize(forest_area_ha = n()) %>%
   filter(!is.na(primary)) %>%
-  as_tibble()
+  as_tibble() %>%
+  rowwise() %>% 
+  transmute(supplier_id, primary, forest_area_ha,year = list(seq(2000, 2022))) %>% 
+  unnest_longer(year)
 
 conc_area <- samples_hti %>%
   group_by(supplier_id=ID) %>%
@@ -378,21 +381,27 @@ gaveau_annual_forest <- samples_gfc_ttm %>%
   lazy_dt() %>%
   left_join(samples_hti,by="sid") %>%
   mutate(year = round(gfc_ttm %% 100)+2000) %>%
+  as_tibble() %>%
   filter(gfc_ttm %in% forest_loss_codes) %>%
   group_by(supplier_id=ID,island,year) %>%
   summarize(n = n()) %>%
   arrange(-desc(supplier_id),year) %>%
   group_by(supplier_id,island) %>% 
   mutate(cum_floss = cumsum(n)) %>%
-  left_join(gaveau_forest_2000,by="supplier_id") %>%
-  mutate(rem_forest_area_ha=forest_area_ha - cum_floss) %>%
+  right_join(gaveau_forest_2000,by=c("supplier_id","year")) %>%
+  #mutate(cum_floss = ifelse(is.na(cum_floss),0,cum_floss)) %>%
+  arrange(-desc(supplier_id),year) %>%
+  group_by(supplier_id) %>%
+  fill(cum_floss,island,.direction="down") %>%
+  mutate(cum_floss = ifelse(is.na(cum_floss),0,cum_floss),
+         rem_forest_area_ha = forest_area_ha - cum_floss) %>%
   select(supplier_id,island,year,rem_forest_area_ha) %>%
   as_tibble() %>%
   right_join(supplier_year_tbl,by=c("supplier_id","year")) %>%
   arrange(-desc(supplier_id),year) %>%
   #mutate(rem_forest_area_ha = ifelse(is.na(rem_forest_area_ha),NA,rem_forest_area_ha)) %>%
   group_by(supplier_id) %>%
-  fill(rem_forest_area_ha,island,.direction="updown") %>%
+  fill(island,.direction="updown") %>%
   mutate(rem_forest_area_ha = ifelse(is.na(rem_forest_area_ha),0,rem_forest_area_ha))
   
 
@@ -546,7 +555,7 @@ for(concession_ in concessions) {
 gav_ac_comb <- gaveau_annual_lc %>%
   left_join(hti_concession_names,by="supplier_id") %>%
   mutate(area_ha = ifelse(is.na(area_ha),0,area_ha)) %>%
-  filter(supplier_id == "H-0313")
+  filter(supplier_id == "H-0469")
 
 gav_ac_comb$class_desc <- factor(gav_ac_comb$class_desc, levels = c("Forest", "Non-forest", "Cleared for pulp"))
 
