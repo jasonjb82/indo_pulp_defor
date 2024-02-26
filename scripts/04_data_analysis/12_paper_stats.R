@@ -210,7 +210,6 @@ pulp_defor_after_zdc <- hti_nonhti_conv %>%
   pull(area_ha) %>% 
   sum()
 
-
 # Area of pulp expansion 
 pulp_expansion <- hti_nonhti_conv %>%
   # filter(conv_type == 2) %>%
