@@ -79,6 +79,8 @@ psdh <- read_csv(paste0(wdir,"\\01_data\\01_in\\klhk\\psdh\\02_out\\PSDH_HTI_ID_
 itp_hv_proj <- st_transform(itp_hv, crs = st_crs(hti)) 
 
 # intersect to get associated HTI concession
+hti <- st_make_valid(hti) 
+itp_hv_proj <- st_make_valid(itp_hv_proj) 
 hti_itp_hv <- st_intersection(hti,itp_hv_proj) %>% mutate(area_m2 = st_area(.))
 
 # create table and clean up
