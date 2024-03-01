@@ -93,8 +93,18 @@ harvest_df <- harvest_df %>%
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 harvest_year_summary <- harvest_df %>% 
   # filter(HARVEST_YEAR==2020) %>%
+  filter(last_clear > 2010) %>% 
   group_by(years_since_clear) %>% 
   summarise(area_sum = sum(area))
+
+# Proportion of harvests occurring in 4-6 years
+total_harvests <- harvest_year_summary %>% pull(area_sum) %>% sum()
+prop_4_6 <- ((harvest_year_summary %>% filter(years_since_clear >= 4, years_since_clear <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+
+# Proportion of harvests occurring within 7 years
+prop_6 <- ((harvest_year_summary %>% filter(years_since_clear <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+prop_7 <- ((harvest_year_summary %>% filter(years_since_clear <= 7) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+
 
 harvest_year_summary %>% 
   ggplot(aes(x = years_since_clear, y = area_sum)) +
@@ -104,7 +114,26 @@ harvest_year_summary %>%
   # ylab("Total area harvested in 2019 (ha)")
   ylab("Total area harvested over 2015-2020 (ha)")
   
-## NOTE: based on rotation length plot, set max length for rotation
+# Explore what proportion of harvests include years before David started mapping 
+test <- harvest_df %>% 
+  filter(HARVEST_YEAR >= 2015) %>% 
+  mutate(pre_gaveau_harvest = last_clear < 2010) %>% 
+  group_by(pre_gaveau_harvest) %>% 
+  summarise(area = sum(area)) %>% 
+  mutate(freq = area / sum(area)) %>% 
+  print()
+
+# test <- harvest_df %>% 
+#   filter(HARVEST_YEAR==2020) %>%
+#   group_by(last_clear) %>% 
+#   summarise(area = sum(area)) %>% 
+#   mutate(freq = area / sum(area)) %>% 
+#   print()
+
+
+
+## NOTE: based on rotation length plot, set max length for rotation; 
+## If rotations were actually longer, MAI would be even smaller, so this is a conservative estimate
 max_rotation <- 7
 
 
@@ -130,7 +159,7 @@ harvest_df <- harvest_df %>%
   mutate(mai = VOLUME_M3 / grow_ha_y)
 
 ## Calculate MAI for entire sector: Note, it's reassuring that this is virtually unchanged if run before or after filtering
-sector_mai <- sum(harvest_df$VOLUME_M3) / sum(harvest_df$grow_ha_y) # m3 / ha / y 
+(sum(harvest_df$VOLUME_M3) / sum(harvest_df$grow_ha_y)) %>% print() # m3 / ha / y
 
 
 ## Filter unreasonable MAIs
@@ -138,7 +167,7 @@ sector_mai <- sum(harvest_df$VOLUME_M3) / sum(harvest_df$grow_ha_y) # m3 / ha / 
 max_mai <- 52.5
 min_mai <- 0
 harvest_df <- harvest_df %>% filter(mai > min_mai, mai < max_mai)
-
+sector_mai <- (sum(harvest_df$VOLUME_M3) / sum(harvest_df$grow_ha_y)) %>%  print()  # m3 / ha / y
 
 ## Calculate annual MAI across sector
 year_mai <- harvest_df %>% 
