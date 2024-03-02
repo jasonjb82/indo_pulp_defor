@@ -48,11 +48,12 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 wdir <- "remote"
 
-harvest_csv <- paste0(wdir, "/01_data/02_out/tables/hti_ws_wood_harvest_yr_age.csv")
+# Harvest data
+harvest_csv <- paste0(wdir, "/01_data/02_out/tables/hti_harvest_yr.csv")
 harvest_df <- read.csv2(harvest_csv, sep = ",")
 
 
-# wood supply (2020)
+# wood production
 ws_2015_2019 <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\RPBBI_2015_2019_compiled.xlsx")) %>%
   select(YEAR,SUPPLIER_ID,VOLUME_M3) %>%
   group_by(YEAR,SUPPLIER_ID) %>%
@@ -68,7 +69,85 @@ ws_2021 <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\RPBBI_2021_compiled.xl
   group_by(YEAR,SUPPLIER_ID) %>%
   summarize(VOLUME_M3 = sum(VOLUME_M3))
 
-ws_df <- rbind(ws_2015_2019, ws_2020, ws_2021)
+ws_df <- rbind(ws_2015_2019, ws_2020, ws_2021) %>% 
+  clean_names() %>% 
+  rename(harvest_year = year)
+
+# Join datasets
+harvest_df <- harvest_df %>% 
+  filter(harvest_year >= 2015)
+
+mai_df <- ws_df %>% 
+  left_join(harvest_df, by = c("supplier_id", "harvest_year"))
+## Why are we missing production reports for some harvested concessions?
+
+
+mai_df <- mai_df %>% 
+  arrange(supplier_id, harvest_year)
+
+# Confirm that most reported production has associated harvest data
+mai_df %>% 
+  mutate(missing_harvests = is.na(ha_y)) %>% 
+  group_by(missing_harvests) %>% 
+  summarise(volume_m3 = sum(volume_m3)) %>% 
+  mutate(prop = prop.table(volume_m3))
+
+mai_df <- mai_df %>% 
+  drop_na()
+
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## calculate MAI -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+mai_df <- mai_df %>% 
+  mutate(ha_y = as.numeric(ha_y), 
+         dmai = volume_m3 / ha_y)
+
+sector_mai <- (sum(mai_df$volume_m3) / sum(mai_df$ha_y)) %>% print()
+
+sample_df <- mai_df %>% filter(burn_flag == 0)
+sector_mai <- (sum(sample_df$volume_m3) / sum(sample_df$ha_y)) %>% print()
+
+sample_df <- mai_df %>% filter(impute_flag == 0)
+sector_mai <- (sum(sample_df$volume_m3) / sum(sample_df$ha_y)) %>% print()
+
+
+mai_df$dmai %>% summary()
+
+# Winsorize MAI
+# From Hardiyanto et al., 2023: The best treatment (comprising low impact harvesting, removal of only merchantable stem wood, conservation of organic matter, planting with improved germplasm, weed control and application of P at planting), yielded an MAI of 52.5 m3 ha-1 y-1, one of the highest growth rates reported for 230 tropical plantations (Nambiar, 2008).
+max_mai <- 52.5
+mai_df <- mai_df %>% 
+  mutate(outlier = dmai > max_mai, 
+         mai_winsorized  = ifelse(outlier, max_mai, dmai),
+         volume_winsorized = mai_winsorized * ha_y)
+
+(sum(mai_df$volume_winsorized) / sum(mai_df$ha_y)) %>% print()
+
+
+
+# Test regressions
+mai_df <- mai_df %>% 
+  mutate(ln_mai = log(dmai),
+         ln_mai_w = log(mai_winsorized))
+
+mod <- lm(ln_mai_w ~ harvest_year, data = mai_df %>% filter(outlier==0))
+summary(mod)
+
+mod <- feols(ln_mai ~ harvest_year | supplier_id, data = mai_df %>% filter(outlier == 0))
+summary(mod)
+
+mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df)
+summary(mod)
+
+mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(impute_prop < .9))
+summary(mod)
+
+mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(burn_prop < .9))
+summary(mod)
+
+
+
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## clean data -------------------------------------
@@ -96,6 +175,8 @@ harvest_df <- harvest_df %>%
   mutate(years_since_clear = as.integer(years_since_clear)) %>% 
   arrange(SUPPLIER_ID, HARVEST_YEAR, years_since_clear) %>% 
   mutate(last_clear = HARVEST_YEAR - years_since_clear)
+
+
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
