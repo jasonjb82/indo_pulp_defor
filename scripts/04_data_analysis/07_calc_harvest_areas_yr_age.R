@@ -66,17 +66,32 @@ ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD
 groups <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.csv"))
 
 # wood supply (2020)
+ws_2015_2019 <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\RPBBI_2015_2019_compiled.xlsx")) %>%
+  select(YEAR,SUPPLIER_ID,VOLUME_M3) %>%
+  group_by(YEAR,SUPPLIER_ID) %>%
+  summarize(VOLUME_M3 = sum(VOLUME_M3))
+
 ws_2020 <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\RPBBI_2020_compiled.xlsx")) %>%
   select(YEAR,SUPPLIER_ID,VOLUME_M3) %>%
   group_by(YEAR,SUPPLIER_ID) %>%
   summarize(VOLUME_M3 = sum(VOLUME_M3))
 
+ws_2021 <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\RPBBI_2021_compiled.xlsx")) %>%
+  select(YEAR,SUPPLIER_ID,VOLUME_M3) %>%
+  group_by(YEAR,SUPPLIER_ID) %>%
+  summarize(VOLUME_M3 = sum(VOLUME_M3))
+
+ws_df <- rbind(ws_2015_2019, ws_2020, ws_2021)
+  
+  
 # psdh
 psdh <- read_csv(paste0(wdir,"\\01_data\\01_in\\klhk\\psdh\\02_out\\PSDH_HTI_ID_COMBINED.csv"))
 
 ## clean up data ---------------------------------------------
 itp_hv <- st_make_valid(itp_hv) 
-itp_hv_proj <- st_transform(itp_hv, crs = st_crs(hti)) %>% st_make_valid()
+itp_hv <- itp_hv %>% 
+  mutate(block_id = paste0("B", as.character(str_pad(OBJECTID, 6, pad = "0"))))
+itp_hv_proj <- st_transform(itp_hv, crs = st_crs(hti)) %>% st_make_valid() 
 
 # intersect to get associated HTI concession
 hti_itp_hv <- st_intersection(hti,itp_hv_proj) %>% mutate(area_m2 = st_area(.))
@@ -84,68 +99,113 @@ hti_itp_hv <- st_intersection(hti,itp_hv_proj) %>% mutate(area_m2 = st_area(.))
 # create table and clean up
 hti_itp_hv_df <- hti_itp_hv %>%
   st_drop_geometry() %>%
-  select(SUPPLIER_ID=ID,year,Class,Harvest1,Harvest2,Harvest3,Ket,yearint,area_m2) %>%
+  select(supplier_id=ID, year=yearint, Class,Harvest1,Harvest2,Harvest3,Ket,area_m2) %>%
   mutate(area_ha = as.double(area_m2*0.0001)) %>%
-  select(-area_m2) %>%
+  select(-area_m2)
+# %>%
   #pivot_longer(c(-SUPPLIER_ID,-yearint,-Ket,-year,-Class,-area_ha), names_to="var", values_to="vals") 
-  filter(is.na(Ket)) %>%
-  mutate(hv_age1 = Harvest1 - yearint,hv_age2 = Harvest2 - Harvest1, hv_age3 = Harvest3 - Harvest2) %>%
-  mutate(hv_age1 = ifelse(hv_age1 <0,0,hv_age1),hv_age2 = ifelse(hv_age2 <0,0,hv_age2),hv_age3 = ifelse(hv_age3 <0,0,hv_age3)) %>%
-  mutate(hv_age3 = ifelse(hv_age3 > 2000, Harvest3 - Harvest1,hv_age3),hv_age2 = ifelse(hv_age2 > 2000, Harvest2 - yearint,hv_age2))
+  # filter(is.na(Ket)) %>% ## JASON - Why are we filtering these?
+  # mutate(hv_age1 = Harvest1 - year,hv_age2 = Harvest2 - Harvest1, hv_age3 = Harvest3 - Harvest2) %>%
+  # mutate(hv_age1 = ifelse(hv_age1 <0,0,hv_age1),hv_age2 = ifelse(hv_age2 <0,0,hv_age2),hv_age3 = ifelse(hv_age3 <0,0,hv_age3))
+  # mutate(hv_age3 = ifelse(hv_age3 > 2000, Harvest3 - Harvest1,hv_age3),hv_age2 = ifelse(hv_age2 > 2000, Harvest2 - yearint,hv_age2))
 
-# first year of harvest
-hti_hv1_areas <- hti_itp_hv_df %>%
-  select(SUPPLIER_ID,HARVEST_YEAR=Harvest1,AGE=hv_age1,AREA_HA=area_ha) %>%
-  filter(HARVEST_YEAR > 0)
+## NOTE: there are some concessions for which Harvest1 ==0 and Harvest2 > 0, same for harvests 2 and 3
+# hti_itp_hv_df %>% filter(Harvest1==0, Harvest2>0)
+# hti_itp_hv_df %>% filter(Harvest2==0, Harvest3>0)
+## Current solution: Shift these up; But 
+## TODO: double check with David that this is ok
+hti_itp_hv_df <- hti_itp_hv_df %>% 
+  mutate(error_harvest1 = (Harvest1==0) & (Harvest2>0),
+         Harvest1 = ifelse(error_harvest1, Harvest2, Harvest1),
+         Harvest2 = ifelse(error_harvest1, 0, Harvest2),
+         error_harvest2 = (Harvest2==0) & (Harvest3>0),
+         Harvest2 = ifelse(error_harvest2, Harvest3, Harvest2),
+         Harvest3 = ifelse(error_harvest2, 0, Harvest3)) %>% 
+  select(-c(error_harvest1, error_harvest2))
 
-# second year of harvest
-hti_hv2_areas <- hti_itp_hv_df %>%
-  select(SUPPLIER_ID,HARVEST_YEAR=Harvest2,AGE=hv_age2,AREA_HA=area_ha) %>%
-  filter(HARVEST_YEAR > 0)
+## NOTE: There are some pulp plantations established after their first observed harvest.
+# hti_itp_hv_df %>% filter(yearint>Harvest1, Harvest1!=0)
+## Current solution: Assume the establishment year is wrong - use maximum rotation length by reassigning establishment year back to 2000
+## TODO: double check with David that this is ok
+hti_itp_hv_df <- hti_itp_hv_df %>% 
+  mutate(error_estab = (year>Harvest1) & (Harvest1!=0),
+         year = ifelse(error_estab, 2000, year)) %>% 
+  select(-error_estab)
 
-# third year of harvest
-hti_hv3_areas <- hti_itp_hv_df %>%
-  select(SUPPLIER_ID,HARVEST_YEAR=Harvest3,AGE=hv_age3,AREA_HA=area_ha) %>%
-  filter(HARVEST_YEAR > 0)
+hti_itp_hv_df <- hti_itp_hv_df %>% 
+  mutate(Harvest1 = replace(Harvest1, Harvest1==0, NA),
+         Harvest2 = replace(Harvest2, Harvest2==0, NA),
+         Harvest3 = replace(Harvest3, Harvest3==0, NA),
+         hv_age1 = Harvest1 - year,
+         hv_age2 = Harvest2 - Harvest1, 
+         hv_age3 = Harvest3 - Harvest2)
 
-# merge harvest areas by year and age
-hti_hv_areas_yr <- hti_hv1_areas %>%
-  bind_rows(hti_hv2_areas) %>%
-  bind_rows(hti_hv3_areas) %>%
-  group_by(SUPPLIER_ID,HARVEST_YEAR,AGE) %>%
-  summarize(AREA_HA = sum(AREA_HA)) %>%
-  pivot_wider(names_from = AGE, values_from = AREA_HA,values_fill = 0)
-               
-# wood supply by supplier
-ws_all <- ws %>%
-  bind_rows(ws_2020) %>%
-  group_by(SUPPLIER_ID,YEAR) %>%
-  summarize(VOLUME_M3 = sum(VOLUME_M3)) %>%
-  left_join(select(groups,group,id),by=c("SUPPLIER_ID"="id"))
+hti_itp_hv_df_long <- hti_itp_hv_df %>% 
+  pivot_longer(cols = starts_with("Harvest"), 
+               names_to = "rotation", values_to = "rotation_length") %>% 
+  select(supplier_id, year, rotation, rotation_length, area_ha)
+  
 
-# join with wood supply
-hti_harvest_areas_yr_ws <- hti_hv_areas_yr %>%
-  left_join(select(ws_all,GROUP=group,SUPPLIER_ID,HARVEST_YEAR=YEAR,VOLUME_M3),by=c("SUPPLIER_ID","HARVEST_YEAR")) %>%
-  drop_na(VOLUME_M3) 
+hti_itp_hv_df %>% summary()
 
 
-## getting wood species composition -----------------------------
 
-wood_type_hti <- psdh %>%
-  select(HTI_ID,COMPANY_CLEAN,VOLUME_M3,YEAR,DESCRIPTION,TYPE) %>%
-  mutate(TYPE = ifelse(TYPE == "ACASIA" | TYPE == "EKALIPTUS", TYPE,"OTHERS")) %>%
-  mutate(TYPE = case_when(
-    TYPE == "ACASIA"  ~ "ACACIA",
-    TYPE == "EKALIPTUS" ~ "EUCALYPTUS",
-    TRUE ~ "OTHERS")) %>%
-  filter(YEAR < 2020 & YEAR > 2016) %>% # data for 2020 still incomplete
-  group_by(HTI_ID,COMPANY_CLEAN,TYPE) %>%
-  summarize(VOLUME_M3 = sum(VOLUME_M3)) %>%
-  group_by(HTI_ID,COMPANY_CLEAN) %>%
-  mutate(PC_VOL = prop.table(VOLUME_M3)*100) %>%
-  arrange(HTI_ID) %>%
-  select(-VOLUME_M3) %>%
-  pivot_wider(names_from=TYPE,values_from=c(PC_VOL)) 
+
+
+
+# # first year of harvest
+# hti_hv1_areas <- hti_itp_hv_df %>%
+#   select(SUPPLIER_ID,HARVEST_YEAR=Harvest1,AGE=hv_age1,AREA_HA=area_ha) %>%
+#   filter(HARVEST_YEAR > 0)
+# 
+# # second year of harvest
+# hti_hv2_areas <- hti_itp_hv_df %>%
+#   select(SUPPLIER_ID,HARVEST_YEAR=Harvest2,AGE=hv_age2,AREA_HA=area_ha) %>%
+#   filter(HARVEST_YEAR > 0)
+# 
+# # third year of harvest
+# hti_hv3_areas <- hti_itp_hv_df %>%
+#   select(SUPPLIER_ID,HARVEST_YEAR=Harvest3,AGE=hv_age3,AREA_HA=area_ha) %>%
+#   filter(HARVEST_YEAR > 0)
+# 
+# # merge harvest areas by year and age
+# hti_hv_areas_yr <- hti_hv1_areas %>%
+#   bind_rows(hti_hv2_areas) %>%
+#   bind_rows(hti_hv3_areas) %>%
+#   group_by(SUPPLIER_ID,HARVEST_YEAR,AGE) %>%
+#   summarize(AREA_HA = sum(AREA_HA)) %>%
+#   pivot_wider(names_from = AGE, values_from = AREA_HA,values_fill = 0)
+#                
+# # wood supply by supplier
+# ws_all <- ws %>%
+#   bind_rows(ws_2020) %>%
+#   group_by(SUPPLIER_ID,YEAR) %>%
+#   summarize(VOLUME_M3 = sum(VOLUME_M3)) %>%
+#   left_join(select(groups,group,id),by=c("SUPPLIER_ID"="id"))
+# 
+# # join with wood supply
+# hti_harvest_areas_yr_ws <- hti_hv_areas_yr %>%
+#   left_join(select(ws_all,GROUP=group,SUPPLIER_ID,HARVEST_YEAR=YEAR,VOLUME_M3),by=c("SUPPLIER_ID","HARVEST_YEAR")) %>%
+#   drop_na(VOLUME_M3) 
+# 
+# 
+# ## getting wood species composition -----------------------------
+# 
+# wood_type_hti <- psdh %>%
+#   select(HTI_ID,COMPANY_CLEAN,VOLUME_M3,YEAR,DESCRIPTION,TYPE) %>%
+#   mutate(TYPE = ifelse(TYPE == "ACASIA" | TYPE == "EKALIPTUS", TYPE,"OTHERS")) %>%
+#   mutate(TYPE = case_when(
+#     TYPE == "ACASIA"  ~ "ACACIA",
+#     TYPE == "EKALIPTUS" ~ "EUCALYPTUS",
+#     TRUE ~ "OTHERS")) %>%
+#   filter(YEAR < 2020 & YEAR > 2016) %>% # data for 2020 still incomplete
+#   group_by(HTI_ID,COMPANY_CLEAN,TYPE) %>%
+#   summarize(VOLUME_M3 = sum(VOLUME_M3)) %>%
+#   group_by(HTI_ID,COMPANY_CLEAN) %>%
+#   mutate(PC_VOL = prop.table(VOLUME_M3)*100) %>%
+#   arrange(HTI_ID) %>%
+#   select(-VOLUME_M3) %>%
+#   pivot_wider(names_from=TYPE,values_from=c(PC_VOL)) 
 
 ## export to csv ---------------------------------------------
 write_csv(hti_harvest_areas_yr_ws,paste0(wdir,"\\01_data\\02_out\\tables\\hti_ws_wood_harvest_yr_age.csv"))
