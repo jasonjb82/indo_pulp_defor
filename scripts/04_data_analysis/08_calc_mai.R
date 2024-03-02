@@ -51,14 +51,24 @@ wdir <- "remote"
 harvest_csv <- paste0(wdir, "/01_data/02_out/tables/hti_ws_wood_harvest_yr_age.csv")
 harvest_df <- read.csv2(harvest_csv, sep = ",")
 
-pw_supply_2020 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2020_compiled.xlsx')) %>%
-  select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
 
-pw_supply_2021 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2021_compiled.xlsx')) %>%
-  select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
+# wood supply (2020)
+ws_2015_2019 <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\RPBBI_2015_2019_compiled.xlsx")) %>%
+  select(YEAR,SUPPLIER_ID,VOLUME_M3) %>%
+  group_by(YEAR,SUPPLIER_ID) %>%
+  summarize(VOLUME_M3 = sum(VOLUME_M3))
 
-pw_supply_2022 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx')) %>%
-  select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
+ws_2020 <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\RPBBI_2020_compiled.xlsx")) %>%
+  select(YEAR,SUPPLIER_ID,VOLUME_M3) %>%
+  group_by(YEAR,SUPPLIER_ID) %>%
+  summarize(VOLUME_M3 = sum(VOLUME_M3))
+
+ws_2021 <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\RPBBI_2021_compiled.xlsx")) %>%
+  select(YEAR,SUPPLIER_ID,VOLUME_M3) %>%
+  group_by(YEAR,SUPPLIER_ID) %>%
+  summarize(VOLUME_M3 = sum(VOLUME_M3))
+
+ws_df <- rbind(ws_2015_2019, ws_2020, ws_2021)
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## clean data -------------------------------------
@@ -287,6 +297,7 @@ mod <- feols(ln_mai ~ HARVEST_YEAR | SUPPLIER_ID, data = harvest_df %>% filter(o
 summary(mod)
 
 # NEED TO ADD ONE MORE REGRESSION SHOWING SENSITIVITY TO ROTATION IMPUTATION
+
 
 mod <- feols(ln_mai_w ~ HARVEST_YEAR | SUPPLIER_ID, data = harvest_df)
 summary(mod)
