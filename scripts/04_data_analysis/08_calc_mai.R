@@ -91,6 +91,63 @@ harvest_df <- harvest_df %>%
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## explore rotation lengths -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Check David's raw data to see proportion of harvests occurring without prior harvest data
+
+# Load davids data
+itp_hv <- read_sf(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_ITPHarvesting_V20220208\\IDN_ITPHarvesting_V20220208.shp"))
+hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
+itp_hv <- st_make_valid(itp_hv) 
+itp_hv_proj <- st_transform(itp_hv, crs = st_crs(hti)) 
+## Question for David - why do some plantations have no Harvest1, but do have a Harvest2?
+
+itp_hv_long <- itp_hv_proj %>% pivot_longer(cols = starts_with("Harvest"),names_to = "harvest",
+                        names_prefix = "Harvest",
+                        values_to = "harvest_year")
+itp_hv_long <- itp_hv_long %>% 
+  filter(harvest_year > 0)
+no_prior_harvest <- itp_hv_long %>% filter(harvest ==1, harvest_year >= 2015) %>% pull(Shape_Area) %>% sum()
+total_harvest <- itp_hv %>% pull(Shape_Area) %>% sum()
+prop_harvest_data <- (1 - (no_prior_harvest / total_harvest)) %>% print()
+
+# Compute rotation lengths for second and third harvests
+itp_rot <- itp_hv_proj %>% 
+  mutate(Harvest1 = replace(Harvest1, Harvest1==0, NA),
+         Harvest2 = replace(Harvest2, Harvest2==0, NA),
+         Harvest3 = replace(Harvest3, Harvest3==0, NA),
+         rot1 = Harvest2 - Harvest1,
+         rot2 = Harvest3 - Harvest1) %>% 
+  pivot_longer(cols = starts_with("rot"), names_to = "rotation", values_to = "rotation_length") %>% 
+  st_drop_geometry()
+
+itp_rot <- itp_rot %>% 
+  select(OBJECTID, Shape_Area, rotation_length) %>% 
+  drop_na()
+
+harvest_year_summary <- itp_rot %>% 
+  # filter(HARVEST_YEAR==2020) %>%
+  group_by(rotation_length) %>% 
+  summarise(area_sum = sum(Shape_Area))
+  
+harvest_year_summary %>% 
+  ggplot(aes(x = rotation_length, y = area_sum)) +
+  geom_line() +
+  theme_bw(base_size = 16) +
+  xlab("Years since last clearing when harvested") +
+  ylab("Total area harvested over 2015-2020 (ha)")
+
+
+# Proportion of harvests occurring in 4-6 years
+total_harvests <- harvest_year_summary %>% pull(area_sum) %>% sum()
+prop_4_6 <- ((harvest_year_summary %>% filter(rotation_length >= 4, rotation_length <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+
+# Proportion of harvests occurring within 7 years
+prop_5 <- ((harvest_year_summary %>% filter(rotation_length == 5) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+prop_6 <- ((harvest_year_summary %>% filter(rotation_length <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+prop_7 <- ((harvest_year_summary %>% filter(rotation_length <= 7) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+
+
+
+#
 harvest_year_summary <- harvest_df %>% 
   # filter(HARVEST_YEAR==2020) %>%
   filter(last_clear > 2010) %>% 
@@ -102,6 +159,7 @@ total_harvests <- harvest_year_summary %>% pull(area_sum) %>% sum()
 prop_4_6 <- ((harvest_year_summary %>% filter(years_since_clear >= 4, years_since_clear <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
 
 # Proportion of harvests occurring within 7 years
+prop_5 <- ((harvest_year_summary %>% filter(years_since_clear == 5) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
 prop_6 <- ((harvest_year_summary %>% filter(years_since_clear <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
 prop_7 <- ((harvest_year_summary %>% filter(years_since_clear <= 7) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
 
@@ -118,9 +176,9 @@ harvest_year_summary %>%
 test <- harvest_df %>% 
   filter(HARVEST_YEAR >= 2015) %>% 
   mutate(pre_gaveau_harvest = last_clear < 2010) %>% 
-  group_by(pre_gaveau_harvest) %>% 
+  group_by(pre_gaveau_harvest, HARVEST_YEAR) %>% 
   summarise(area = sum(area)) %>% 
-  mutate(freq = area / sum(area)) %>% 
+  # mutate(freq = area / sum(area)) %>% 
   print()
 
 # test <- harvest_df %>% 
@@ -158,23 +216,25 @@ harvest_df <- harvest_df %>%
 harvest_df <- harvest_df %>% 
   mutate(mai = VOLUME_M3 / grow_ha_y)
 
-## Calculate MAI for entire sector: Note, it's reassuring that this is virtually unchanged if run before or after filtering
+## Calculate MAI for entire sector: Note, it's reassuring that this is virtually unchanged if run before or after winsorizing
 (sum(harvest_df$VOLUME_M3) / sum(harvest_df$grow_ha_y)) %>% print() # m3 / ha / y
 
 
 ## Filter unreasonable MAIs
-# From Hardiyanto et al., 2023: The best treatment 227 (comprising low impact harvesting, removal of only merchantable stem wood, conservation of 228 organic matter, planting with improved germplasm, weed control and application of P at 229 planting), yielded an MAI of 52.5 m3 ha-1 y-1, one of the highest growth rates reported for 230 tropical plantations (Nambiar, 2008).
+# From Hardiyanto et al., 2023: The best treatment (comprising low impact harvesting, removal of only merchantable stem wood, conservation of organic matter, planting with improved germplasm, weed control and application of P at planting), yielded an MAI of 52.5 m3 ha-1 y-1, one of the highest growth rates reported for 230 tropical plantations (Nambiar, 2008).
 max_mai <- 52.5
-min_mai <- 0
-harvest_df <- harvest_df %>% filter(mai > min_mai, mai < max_mai)
-sector_mai <- (sum(harvest_df$VOLUME_M3) / sum(harvest_df$grow_ha_y)) %>%  print()  # m3 / ha / y
+harvest_df <- harvest_df %>% 
+  mutate(outlier = mai > max_mai, 
+         mai_winsorized  = ifelse(outlier, max_mai, mai),
+         volume_winsorized = mai_winsorized * grow_ha_y) # winsorize outliers
+sector_mai <- (sum(harvest_df$volume_winsorized) / sum(harvest_df$grow_ha_y)) %>%  print()  # m3 / ha / y
 
 ## Calculate annual MAI across sector
 year_mai <- harvest_df %>% 
   group_by(HARVEST_YEAR) %>% 
   summarise(grow_ha_y = sum(grow_ha_y),
             area = sum(area),
-            VOLUME_M3 = sum(VOLUME_M3)) %>% 
+            VOLUME_M3 = sum(volume_winsorized)) %>% 
   mutate(year_mai = VOLUME_M3 / grow_ha_y)
 
 
@@ -213,13 +273,22 @@ year_mai %>%
   geom_smooth(method = "lm")
 
 # Improvement in MAI over the 6 years observed
-mod <- lm(year_mai ~ HARVEST_YEAR, data = year_mai)
+mod <- lm(year_mai ~ HARVEST_YEAR, data = year_mai %>% filter(outlier==0))
 summary(mod)
 
 harvest_df <- harvest_df %>% 
-  mutate(ln_mai = log(mai))
+  mutate(ln_mai = log(mai),
+         ln_mai_w = log(mai_winsorized))
 
-mod <- feols(ln_mai ~ HARVEST_YEAR | SUPPLIER_ID, data = harvest_df)
+mod <- lm(ln_mai ~ HARVEST_YEAR, data = harvest_df %>% filter(outlier==0))
+summary(mod)
+
+mod <- feols(ln_mai ~ HARVEST_YEAR | SUPPLIER_ID, data = harvest_df %>% filter(outlier == 0))
+summary(mod)
+
+# NEED TO ADD ONE MORE REGRESSION SHOWING SENSITIVITY TO ROTATION IMPUTATION
+
+mod <- feols(ln_mai_w ~ HARVEST_YEAR | SUPPLIER_ID, data = harvest_df)
 summary(mod)
 
 
