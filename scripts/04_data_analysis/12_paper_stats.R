@@ -310,12 +310,13 @@ defor_by_supplier %>%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Summary of proposed expansions: remote/01_data/01_in/new_capacity/planned_expansions.xlsx"
 ## Productivity calculations largely building upon script 08_calc_mai.R
-sector_mai <- 21.75
+sector_mai <- 19.11 # After correcting for burns. Was 21.75 in prior version
 
 oki_exp_mt <- 4.2
-rapp_exp_mt <- 2
+rapp_exp_mt <- 1.33
+rappbctmp_exp_mt <- 1.3
 phoenix_exp_mt <- 1.7
-total_exp_mt <- oki_exp_mt + rapp_exp_mt + phoenix_exp_mt
+total_exp_mt <- oki_exp_mt + rapp_exp_mt + rappbctmp_exp_mt + phoenix_exp_mt
 baseline_production <- pulp_production %>% filter(year == 2022) %>% pull(annual_prod_mtpy)
 baseline_cap_mt <- 11.8 ## TODO: Check this with Brian. Doesn't match (mills$PULP_CAP_2019_MTPY %>% sum()); Hardiyanto et al 2023 say it was 11.8M in 2021
 baseline_usage_shr <- baseline_production / baseline_cap_mt
@@ -335,7 +336,7 @@ test_wood_demand <- baseline_cap_mt * baseline_usage_shr * wood_pulp_conv
 (current_wood_demand / 1000000) == test_wood_demand
 
 # Estimate of land demand from capacity expansions
-new_wood_demand <- ((oki_exp_mt + rapp_exp_mt) * baseline_usage_shr * wood_pulp_conv) + (phoenix_exp_mt * baseline_usage_shr * chem_wood_pulp_conv)
+new_wood_demand <- ((oki_exp_mt + rapp_exp_mt) * baseline_usage_shr * wood_pulp_conv) + ((phoenix_exp_mt + rappbctmp_exp_mt) * baseline_usage_shr * chem_wood_pulp_conv)
 
 # Line 103: At current levels of plantation productivity, an additional 1.63 million hectares of plantations would be needed to meet this potential boom in pulpwood demand
 # new_wood_demand <- 30600000 # m3 / y - taken from Brian's calculations in paper draft. Was for original expansion estimates without PT phoenix
@@ -344,7 +345,7 @@ new_wood_demand <- ((oki_exp_mt + rapp_exp_mt) * baseline_usage_shr * wood_pulp_
 new_wood_demand / (current_wood_demand / 1000000)
 
 ## Explore scenario with continued yield improvements for five years. We've seen ~5% increase per year (script 08_calc_mai.R)
-high_yield_mai <- (1.049^5) * sector_mai
+high_yield_mai <- (1.033^10) * sector_mai  # Updated after fixing david's data to account for burns. Was 1.049 growth rate
 assumed_area_plantations <- 3050000
 extra_production <- (high_yield_mai - sector_mai) * assumed_area_plantations
 extra_production / 35500000
