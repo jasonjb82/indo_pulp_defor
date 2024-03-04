@@ -22,26 +22,13 @@
 library(tidyverse)
 library(fixest)
 library(marginaleffects)
+library(modelsummary)
+library(readxl)
+library(janitor)
+library(tidylog)
 
 options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
-# library(stringr)
-# library(data.table)
-# library(naniar)
-# library(visdat)
-# library(readxl)
-# library(tidylog)
-# library(data.table)
-# library(janitor)
-# library(lubridate)
-# library(sf)
-# library(scales)
-# library(aws.s3)
-# library(dtplyr)
-# library(testthat)
-# library(d3.format)
-# library(tidyfast)
-# library(patchwork)
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## load data -------------------------------------
@@ -73,46 +60,40 @@ ws_df <- rbind(ws_2015_2019, ws_2020, ws_2021) %>%
   clean_names() %>% 
   rename(harvest_year = year)
 
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## clean data -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Join datasets
 harvest_df <- harvest_df %>% 
   filter(harvest_year >= 2015)
 
 mai_df <- ws_df %>% 
-  left_join(harvest_df, by = c("supplier_id", "harvest_year"))
-## Why are we missing production reports for some harvested concessions?
+  full_join(harvest_df, by = c("supplier_id", "harvest_year"))
+## NOTE: We are missing production reports for some harvested concessions, and are missing harvests for some concessions with production data. We dig into the scale of this below
 
-
-mai_df <- mai_df %>% 
-  arrange(supplier_id, harvest_year)
-
-# Confirm that most reported production has associated harvest data
-mai_df %>% 
-  mutate(missing_harvests = is.na(ha_y)) %>% 
-  group_by(missing_harvests) %>% 
-  summarise(volume_m3 = sum(volume_m3)) %>% 
-  mutate(prop = prop.table(volume_m3))
-
-mai_df <- mai_df %>% 
-  drop_na()
-
-
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## calculate MAI -------------------------------------
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Clean new merged data
 mai_df <- mai_df %>% 
   mutate(ha_y = as.numeric(ha_y), 
          dmai = volume_m3 / ha_y)
+mai_df <- mai_df %>% 
+  arrange(supplier_id, harvest_year) %>% 
+  mutate()
 
-sector_mai <- (sum(mai_df$volume_m3) / sum(mai_df$ha_y)) %>% print()
+# Confirm that large majority of reported production has associated harvest data
+mai_df %>% 
+  mutate(missing_harvests = is.na(ha_y)) %>% 
+  group_by(missing_harvests) %>% 
+  summarise(volume_m3 = sum(volume_m3, na.rm = TRUE)) %>% 
+  mutate(prop = prop.table(volume_m3))
 
-sample_df <- mai_df %>% filter(burn_flag == 0)
-sector_mai <- (sum(sample_df$volume_m3) / sum(sample_df$ha_y)) %>% print()
+# Confirm that large majority of reported harvesting has associated production data
+mai_df %>% 
+  mutate(missing_prod = is.na(volume_m3)) %>% 
+  group_by(missing_prod) %>% 
+  summarise(ha_y = sum(ha_y, na.rm = TRUE)) %>% 
+  mutate(prop = prop.table(ha_y))
 
-sample_df <- mai_df %>% filter(impute_flag == 0)
-sector_mai <- (sum(sample_df$volume_m3) / sum(sample_df$ha_y)) %>% print()
-
-
-mai_df$dmai %>% summary()
 
 # Winsorize MAI
 # From Hardiyanto et al., 2023: The best treatment (comprising low impact harvesting, removal of only merchantable stem wood, conservation of organic matter, planting with improved germplasm, weed control and application of P at planting), yielded an MAI of 52.5 m3 ha-1 y-1, one of the highest growth rates reported for 230 tropical plantations (Nambiar, 2008).
@@ -122,216 +103,41 @@ mai_df <- mai_df %>%
          mai_winsorized  = ifelse(outlier, max_mai, dmai),
          volume_winsorized = mai_winsorized * ha_y)
 
-(sum(mai_df$volume_winsorized) / sum(mai_df$ha_y)) %>% print()
-
-
-
-# Test regressions
-mai_df <- mai_df %>% 
-  mutate(ln_mai = log(dmai),
-         ln_mai_w = log(mai_winsorized))
-
-mod <- lm(ln_mai_w ~ harvest_year, data = mai_df %>% filter(outlier==0))
-summary(mod)
-
-mod <- feols(ln_mai ~ harvest_year | supplier_id, data = mai_df %>% filter(outlier == 0))
-summary(mod)
-
-mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df)
-summary(mod)
-
-mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(impute_prop < .9))
-summary(mod)
-
-mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(burn_prop < .9))
-summary(mod)
-
-
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## clean data -------------------------------------
+## calculate MAI -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-harvest_df <- harvest_df %>% 
-  select(order(colnames(.)))
+# Two possibilities for missing harvest / production data. Show these yield identical estimates of DMAI
+# a) they're both accurate, but assigned to different concessions. Sector MAI should just include them both in the numerator and denominator:
+sector_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y, na.rm = TRUE)) %>% print()
 
-wood_df <- harvest_df %>% 
-  select(HARVEST_YEAR, SUPPLIER_ID, VOLUME_M3) %>% 
-  mutate(VOLUME_M3 = as.numeric(VOLUME_M3))
-
-harvest_df <- harvest_df %>% 
-  select(-VOLUME_M3)
-
-harvest_df <- harvest_df %>% 
-  mutate_at(vars(starts_with("X")), ~as.numeric(.))
-
-harvest_df <- harvest_df %>% 
-  pivot_longer(cols = starts_with("X"), 
-               names_to = "years_since_clear",
-               names_prefix = "X",
-               values_to = "area")
-
-harvest_df <- harvest_df %>% 
-  mutate(years_since_clear = as.integer(years_since_clear)) %>% 
-  arrange(SUPPLIER_ID, HARVEST_YEAR, years_since_clear) %>% 
-  mutate(last_clear = HARVEST_YEAR - years_since_clear)
-
-
-
-
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## explore rotation lengths -------------------------------------
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Check David's raw data to see proportion of harvests occurring without prior harvest data
-
-# Load davids data
-itp_hv <- read_sf(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_ITPHarvesting_V20220208\\IDN_ITPHarvesting_V20220208.shp"))
-hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
-itp_hv <- st_make_valid(itp_hv) 
-itp_hv_proj <- st_transform(itp_hv, crs = st_crs(hti)) 
-## Question for David - why do some plantations have no Harvest1, but do have a Harvest2?
-
-itp_hv_long <- itp_hv_proj %>% pivot_longer(cols = starts_with("Harvest"),names_to = "harvest",
-                        names_prefix = "Harvest",
-                        values_to = "harvest_year")
-itp_hv_long <- itp_hv_long %>% 
-  filter(harvest_year > 0)
-no_prior_harvest <- itp_hv_long %>% filter(harvest ==1, harvest_year >= 2015) %>% pull(Shape_Area) %>% sum()
-total_harvest <- itp_hv %>% pull(Shape_Area) %>% sum()
-prop_harvest_data <- (1 - (no_prior_harvest / total_harvest)) %>% print()
-
-# Compute rotation lengths for second and third harvests
-itp_rot <- itp_hv_proj %>% 
-  mutate(Harvest1 = replace(Harvest1, Harvest1==0, NA),
-         Harvest2 = replace(Harvest2, Harvest2==0, NA),
-         Harvest3 = replace(Harvest3, Harvest3==0, NA),
-         rot1 = Harvest2 - Harvest1,
-         rot2 = Harvest3 - Harvest1) %>% 
-  pivot_longer(cols = starts_with("rot"), names_to = "rotation", values_to = "rotation_length") %>% 
-  st_drop_geometry()
-
-itp_rot <- itp_rot %>% 
-  select(OBJECTID, Shape_Area, rotation_length) %>% 
+# b) they're invalid, should be dropped from sectoral calculations
+nona_mai_df <- mai_df %>% 
   drop_na()
-
-harvest_year_summary <- itp_rot %>% 
-  # filter(HARVEST_YEAR==2020) %>%
-  group_by(rotation_length) %>% 
-  summarise(area_sum = sum(Shape_Area))
-  
-harvest_year_summary %>% 
-  ggplot(aes(x = rotation_length, y = area_sum)) +
-  geom_line() +
-  theme_bw(base_size = 16) +
-  xlab("Years since last clearing when harvested") +
-  ylab("Total area harvested over 2015-2020 (ha)")
+sector_mai <- (sum(nona_mai_df$volume_m3) / sum(nona_mai_df$ha_y)) %>% print()
 
 
-# Proportion of harvests occurring in 4-6 years
-total_harvests <- harvest_year_summary %>% pull(area_sum) %>% sum()
-prop_4_6 <- ((harvest_year_summary %>% filter(rotation_length >= 4, rotation_length <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+# Explore sensitivity to imputations for burns / missing harvest data
+sample_df <- nona_mai_df %>% filter(burn_flag == 0)
+sector_mai <- (sum(sample_df$volume_m3) / sum(sample_df$ha_y)) %>% print()
 
-# Proportion of harvests occurring within 7 years
-prop_5 <- ((harvest_year_summary %>% filter(rotation_length == 5) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
-prop_6 <- ((harvest_year_summary %>% filter(rotation_length <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
-prop_7 <- ((harvest_year_summary %>% filter(rotation_length <= 7) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+sample_df <- nona_mai_df %>% filter(impute_flag == 0)
+sector_mai <- (sum(sample_df$volume_m3) / sum(sample_df$ha_y)) %>% print()
 
 
-
-#
-harvest_year_summary <- harvest_df %>% 
-  # filter(HARVEST_YEAR==2020) %>%
-  filter(last_clear > 2010) %>% 
-  group_by(years_since_clear) %>% 
-  summarise(area_sum = sum(area))
-
-# Proportion of harvests occurring in 4-6 years
-total_harvests <- harvest_year_summary %>% pull(area_sum) %>% sum()
-prop_4_6 <- ((harvest_year_summary %>% filter(years_since_clear >= 4, years_since_clear <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
-
-# Proportion of harvests occurring within 7 years
-prop_5 <- ((harvest_year_summary %>% filter(years_since_clear == 5) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
-prop_6 <- ((harvest_year_summary %>% filter(years_since_clear <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
-prop_7 <- ((harvest_year_summary %>% filter(years_since_clear <= 7) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
-
-
-harvest_year_summary %>% 
-  ggplot(aes(x = years_since_clear, y = area_sum)) +
-  geom_line() +
-  theme_bw(base_size = 16) +
-  xlab("Years since last clearing when harvested") +
-  # ylab("Total area harvested in 2019 (ha)")
-  ylab("Total area harvested over 2015-2020 (ha)")
-  
-# Explore what proportion of harvests include years before David started mapping 
-test <- harvest_df %>% 
-  filter(HARVEST_YEAR >= 2015) %>% 
-  mutate(pre_gaveau_harvest = last_clear < 2010) %>% 
-  group_by(pre_gaveau_harvest, HARVEST_YEAR) %>% 
-  summarise(area = sum(area)) %>% 
-  # mutate(freq = area / sum(area)) %>% 
+## Calculate annual MAI in the sector
+year_mai <- nona_mai_df %>% 
+  group_by(harvest_year) %>% 
+  summarise(ha_y = sum(ha_y),
+            volume_m3 = sum(volume_m3)) %>% 
+  mutate(year_mai = volume_m3 / ha_y) %>% 
   print()
-
-# test <- harvest_df %>% 
-#   filter(HARVEST_YEAR==2020) %>%
-#   group_by(last_clear) %>% 
-#   summarise(area = sum(area)) %>% 
-#   mutate(freq = area / sum(area)) %>% 
-#   print()
-
-
-
-## NOTE: based on rotation length plot, set max length for rotation; 
-## If rotations were actually longer, MAI would be even smaller, so this is a conservative estimate
-max_rotation <- 7
-
-
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## Calculate MAI -------------------------------------
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## Filter to acacia?
-
-## Adjust long rotations
-harvest_df <- harvest_df %>% 
-  mutate(grow_y = ifelse((last_clear<2010) & (years_since_clear>=max_rotation), max_rotation, years_since_clear),
-         grow_ha_y = area * grow_y)
-
-harvest_df <- harvest_df %>% 
-  group_by(SUPPLIER_ID, HARVEST_YEAR) %>% 
-  summarise(grow_ha_y = sum(grow_ha_y),
-            area = sum(area)) %>% 
-  left_join(wood_df, by = c("SUPPLIER_ID", "HARVEST_YEAR")) %>% 
-  ungroup()
-
-## Calculate concession by year MAI
-harvest_df <- harvest_df %>% 
-  mutate(mai = VOLUME_M3 / grow_ha_y)
-
-## Calculate MAI for entire sector: Note, it's reassuring that this is virtually unchanged if run before or after winsorizing
-(sum(harvest_df$VOLUME_M3) / sum(harvest_df$grow_ha_y)) %>% print() # m3 / ha / y
-
-
-## Filter unreasonable MAIs
-# From Hardiyanto et al., 2023: The best treatment (comprising low impact harvesting, removal of only merchantable stem wood, conservation of organic matter, planting with improved germplasm, weed control and application of P at planting), yielded an MAI of 52.5 m3 ha-1 y-1, one of the highest growth rates reported for 230 tropical plantations (Nambiar, 2008).
-max_mai <- 52.5
-harvest_df <- harvest_df %>% 
-  mutate(outlier = mai > max_mai, 
-         mai_winsorized  = ifelse(outlier, max_mai, mai),
-         volume_winsorized = mai_winsorized * grow_ha_y) # winsorize outliers
-sector_mai <- (sum(harvest_df$volume_winsorized) / sum(harvest_df$grow_ha_y)) %>%  print()  # m3 / ha / y
-
-## Calculate annual MAI across sector
-year_mai <- harvest_df %>% 
-  group_by(HARVEST_YEAR) %>% 
-  summarise(grow_ha_y = sum(grow_ha_y),
-            area = sum(area),
-            VOLUME_M3 = sum(volume_winsorized)) %>% 
-  mutate(year_mai = VOLUME_M3 / grow_ha_y)
 
 
 ## MAI plots
-harvest_df %>% 
-  ggplot(aes(x = mai)) +
+mai_df %>% 
+  ggplot(aes(x = mai_winsorized)) +
   geom_histogram(bins = 20) +
   geom_vline(xintercept = sector_mai, linetype = "longdash") +
   theme_bw() +
@@ -339,15 +145,15 @@ harvest_df %>%
   ylab("Frequency")
 
 year_mai %>% 
-  ggplot(aes(x = HARVEST_YEAR, y = area)) +
+  ggplot(aes(x = harvest_year, y = ha_y)) +
   geom_line() +
   theme_bw(base_size = 16) + 
   xlab("Harvest year") +
   ylab("Total area harvested (ha)") +
-  ylim(c(0, 380000))
+  ylim(c(0, 2700000))
 
 year_mai %>% 
-  ggplot(aes(x = HARVEST_YEAR, y = VOLUME_M3)) +
+  ggplot(aes(x = harvest_year, y = volume_m3)) +
   geom_line() +
   theme_bw(base_size = 16) + 
   xlab("Harvest year") +
@@ -355,7 +161,7 @@ year_mai %>%
   ylim(c(0, 45000000))
 
 year_mai %>% 
-  ggplot(aes(x = HARVEST_YEAR, y = year_mai)) +
+  ggplot(aes(x = harvest_year, y = year_mai)) +
   geom_line() +
   theme_bw(base_size = 15) + 
   xlab("Harvest year") +
@@ -363,46 +169,309 @@ year_mai %>%
   ylim(c(0, 32)) +
   geom_smooth(method = "lm")
 
-# Improvement in MAI over the 6 years observed
-mod <- lm(year_mai ~ HARVEST_YEAR, data = year_mai %>% filter(outlier==0))
-summary(mod)
 
-harvest_df <- harvest_df %>% 
-  mutate(ln_mai = log(mai),
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Regressions to describe trends in MAI -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+mai_df <- mai_df %>% 
+  mutate(ln_mai = log(dmai),
          ln_mai_w = log(mai_winsorized))
 
-mod <- lm(ln_mai ~ HARVEST_YEAR, data = harvest_df %>% filter(outlier==0))
-summary(mod)
-
-mod <- feols(ln_mai ~ HARVEST_YEAR | SUPPLIER_ID, data = harvest_df %>% filter(outlier == 0))
-summary(mod)
-
-# NEED TO ADD ONE MORE REGRESSION SHOWING SENSITIVITY TO ROTATION IMPUTATION
+ols_mod <- lm(ln_mai_w ~ harvest_year, data = mai_df)
+summary(ols_mod)
 
 
-mod <- feols(ln_mai_w ~ HARVEST_YEAR | SUPPLIER_ID, data = harvest_df)
-summary(mod)
+# multi_harv <- mai_df %>% 
+#   select(harvest_year, supplier_id, dmai) %>% 
+#   group_by(supplier_id) %>% 
+#   tally() %>% 
+#   mutate(multi_years = n>1) %>% 
+#   select(supplier_id, multi_years)
+# 
+# mai_df <- mai_df %>% 
+#   left_join(multi_harv, by = "supplier_id")
+# 
+# base_mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(multi_years == 1))
+# summary(base_mod)
+
+base_mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df)
+summary(base_mod)
+
+trim_mod <- feols(ln_mai ~ harvest_year | supplier_id, data = mai_df %>% filter(outlier == 0))
+summary(trim_mod)
+
+nowin_mod <- feols(ln_mai ~ harvest_year | supplier_id, data = mai_df)
+summary(nowin_mod)
+
+noimpute_mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(impute_prop < 0.25 ))
+summary(noimpute_mod)
+
+noburn_mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(burn_prop < 0.25 ))
+summary(noburn_mod)
 
 
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## Calculate MAI -------------------------------------
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## Summary of proposed expansions: remote/01_data/01_in/new_capacity/planned_expansions.xlsx"
-oki_exp_mt <- 4.2
-rapp_exp_mt <- 2
-phoenix_exp_mt <- 1.7
-total_exp_mt <- oki_exp_mt + rapp_exp_mt + phoenix_exp_mt
-baseline_cap_mt <- 9.3 ## TODO: Check this with Brian. Doesn't match (mills$PULP_CAP_2019_MTPY %>% sum())
+models <- list(ols_mod, base_mod, trim_mod, nowin_mod, noimpute_mod, noburn_mod)
 
-# Line 102: Together, these three projects would increase the country’s pulp capacity by 91% and, once fully operational, would lead to a concomitant XX m3 increase in the country’s annual demand for pulpwood. 
-total_exp_mt
-cap_change <- (total_exp_mt / baseline_cap_mt) %>% print()
+modelsummary(models)
 
-# Estimate of land demand from capacity expansions
-current_wood_demand <- pw_supply_2022 %>% pull(VOLUME_M3) %>%  sum()
-new_wood_demand <- (current_wood_demand * cap_change) %>% print()
+modelsummary(models, output = "table.docx")
 
-# new_wood_demand <- 30600000 # m3 / y - taken from Brian's calculations in paper draft. Was for original expansion estimates without PT phoenix
-(area_demand <- new_wood_demand / sector_mai) # ha
-
-harvest_df %>% write_csv(paste0(wdir, "/01_data/02_out/tables/hti_mai.csv"))
+# 
+# ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# ## clean data -------------------------------------
+# ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# harvest_df <- harvest_df %>% 
+#   select(order(colnames(.)))
+# 
+# wood_df <- harvest_df %>% 
+#   select(HARVEST_YEAR, SUPPLIER_ID, VOLUME_M3) %>% 
+#   mutate(VOLUME_M3 = as.numeric(VOLUME_M3))
+# 
+# harvest_df <- harvest_df %>% 
+#   select(-VOLUME_M3)
+# 
+# harvest_df <- harvest_df %>% 
+#   mutate_at(vars(starts_with("X")), ~as.numeric(.))
+# 
+# harvest_df <- harvest_df %>% 
+#   pivot_longer(cols = starts_with("X"), 
+#                names_to = "years_since_clear",
+#                names_prefix = "X",
+#                values_to = "area")
+# 
+# harvest_df <- harvest_df %>% 
+#   mutate(years_since_clear = as.integer(years_since_clear)) %>% 
+#   arrange(SUPPLIER_ID, HARVEST_YEAR, years_since_clear) %>% 
+#   mutate(last_clear = HARVEST_YEAR - years_since_clear)
+# 
+# 
+# 
+# 
+# ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# ## explore rotation lengths -------------------------------------
+# ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# # Check David's raw data to see proportion of harvests occurring without prior harvest data
+# 
+# # Load davids data
+# itp_hv <- read_sf(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_ITPHarvesting_V20220208\\IDN_ITPHarvesting_V20220208.shp"))
+# hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
+# itp_hv <- st_make_valid(itp_hv) 
+# itp_hv_proj <- st_transform(itp_hv, crs = st_crs(hti)) 
+# ## Question for David - why do some plantations have no Harvest1, but do have a Harvest2?
+# 
+# itp_hv_long <- itp_hv_proj %>% pivot_longer(cols = starts_with("Harvest"),names_to = "harvest",
+#                         names_prefix = "Harvest",
+#                         values_to = "harvest_year")
+# itp_hv_long <- itp_hv_long %>% 
+#   filter(harvest_year > 0)
+# no_prior_harvest <- itp_hv_long %>% filter(harvest ==1, harvest_year >= 2015) %>% pull(Shape_Area) %>% sum()
+# total_harvest <- itp_hv %>% pull(Shape_Area) %>% sum()
+# prop_harvest_data <- (1 - (no_prior_harvest / total_harvest)) %>% print()
+# 
+# # Compute rotation lengths for second and third harvests
+# itp_rot <- itp_hv_proj %>% 
+#   mutate(Harvest1 = replace(Harvest1, Harvest1==0, NA),
+#          Harvest2 = replace(Harvest2, Harvest2==0, NA),
+#          Harvest3 = replace(Harvest3, Harvest3==0, NA),
+#          rot1 = Harvest2 - Harvest1,
+#          rot2 = Harvest3 - Harvest1) %>% 
+#   pivot_longer(cols = starts_with("rot"), names_to = "rotation", values_to = "rotation_length") %>% 
+#   st_drop_geometry()
+# 
+# itp_rot <- itp_rot %>% 
+#   select(OBJECTID, Shape_Area, rotation_length) %>% 
+#   drop_na()
+# 
+# harvest_year_summary <- itp_rot %>% 
+#   # filter(HARVEST_YEAR==2020) %>%
+#   group_by(rotation_length) %>% 
+#   summarise(area_sum = sum(Shape_Area))
+#   
+# harvest_year_summary %>% 
+#   ggplot(aes(x = rotation_length, y = area_sum)) +
+#   geom_line() +
+#   theme_bw(base_size = 16) +
+#   xlab("Years since last clearing when harvested") +
+#   ylab("Total area harvested over 2015-2020 (ha)")
+# 
+# 
+# # Proportion of harvests occurring in 4-6 years
+# total_harvests <- harvest_year_summary %>% pull(area_sum) %>% sum()
+# prop_4_6 <- ((harvest_year_summary %>% filter(rotation_length >= 4, rotation_length <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+# 
+# # Proportion of harvests occurring within 7 years
+# prop_5 <- ((harvest_year_summary %>% filter(rotation_length == 5) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+# prop_6 <- ((harvest_year_summary %>% filter(rotation_length <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+# prop_7 <- ((harvest_year_summary %>% filter(rotation_length <= 7) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+# 
+# 
+# 
+# #
+# harvest_year_summary <- harvest_df %>% 
+#   # filter(HARVEST_YEAR==2020) %>%
+#   filter(last_clear > 2010) %>% 
+#   group_by(years_since_clear) %>% 
+#   summarise(area_sum = sum(area))
+# 
+# # Proportion of harvests occurring in 4-6 years
+# total_harvests <- harvest_year_summary %>% pull(area_sum) %>% sum()
+# prop_4_6 <- ((harvest_year_summary %>% filter(years_since_clear >= 4, years_since_clear <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+# 
+# # Proportion of harvests occurring within 7 years
+# prop_5 <- ((harvest_year_summary %>% filter(years_since_clear == 5) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+# prop_6 <- ((harvest_year_summary %>% filter(years_since_clear <= 6) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+# prop_7 <- ((harvest_year_summary %>% filter(years_since_clear <= 7) %>% pull(area_sum) %>% sum()) / total_harvests) %>% print()
+# 
+# 
+# harvest_year_summary %>% 
+#   ggplot(aes(x = years_since_clear, y = area_sum)) +
+#   geom_line() +
+#   theme_bw(base_size = 16) +
+#   xlab("Years since last clearing when harvested") +
+#   # ylab("Total area harvested in 2019 (ha)")
+#   ylab("Total area harvested over 2015-2020 (ha)")
+#   
+# # Explore what proportion of harvests include years before David started mapping 
+# test <- harvest_df %>% 
+#   filter(HARVEST_YEAR >= 2015) %>% 
+#   mutate(pre_gaveau_harvest = last_clear < 2010) %>% 
+#   group_by(pre_gaveau_harvest, HARVEST_YEAR) %>% 
+#   summarise(area = sum(area)) %>% 
+#   # mutate(freq = area / sum(area)) %>% 
+#   print()
+# 
+# # test <- harvest_df %>% 
+# #   filter(HARVEST_YEAR==2020) %>%
+# #   group_by(last_clear) %>% 
+# #   summarise(area = sum(area)) %>% 
+# #   mutate(freq = area / sum(area)) %>% 
+# #   print()
+# 
+# 
+# 
+# ## NOTE: based on rotation length plot, set max length for rotation; 
+# ## If rotations were actually longer, MAI would be even smaller, so this is a conservative estimate
+# max_rotation <- 7
+# 
+# 
+# ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# ## Calculate MAI -------------------------------------
+# ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# ## Filter to acacia?
+# 
+# ## Adjust long rotations
+# harvest_df <- harvest_df %>% 
+#   mutate(grow_y = ifelse((last_clear<2010) & (years_since_clear>=max_rotation), max_rotation, years_since_clear),
+#          grow_ha_y = area * grow_y)
+# 
+# harvest_df <- harvest_df %>% 
+#   group_by(SUPPLIER_ID, HARVEST_YEAR) %>% 
+#   summarise(grow_ha_y = sum(grow_ha_y),
+#             area = sum(area)) %>% 
+#   left_join(wood_df, by = c("SUPPLIER_ID", "HARVEST_YEAR")) %>% 
+#   ungroup()
+# 
+# ## Calculate concession by year MAI
+# harvest_df <- harvest_df %>% 
+#   mutate(mai = VOLUME_M3 / grow_ha_y)
+# 
+# ## Calculate MAI for entire sector: Note, it's reassuring that this is virtually unchanged if run before or after winsorizing
+# (sum(harvest_df$VOLUME_M3) / sum(harvest_df$grow_ha_y)) %>% print() # m3 / ha / y
+# 
+# 
+# ## Filter unreasonable MAIs
+# # From Hardiyanto et al., 2023: The best treatment (comprising low impact harvesting, removal of only merchantable stem wood, conservation of organic matter, planting with improved germplasm, weed control and application of P at planting), yielded an MAI of 52.5 m3 ha-1 y-1, one of the highest growth rates reported for 230 tropical plantations (Nambiar, 2008).
+# max_mai <- 52.5
+# harvest_df <- harvest_df %>% 
+#   mutate(outlier = mai > max_mai, 
+#          mai_winsorized  = ifelse(outlier, max_mai, mai),
+#          volume_winsorized = mai_winsorized * grow_ha_y) # winsorize outliers
+# sector_mai <- (sum(harvest_df$volume_winsorized) / sum(harvest_df$grow_ha_y)) %>%  print()  # m3 / ha / y
+# 
+# ## Calculate annual MAI across sector
+# year_mai <- harvest_df %>% 
+#   group_by(harvest_year) %>% 
+#   summarise(grow_ha_y = sum(ha_y),
+#             area = sum(area),
+#             VOLUME_M3 = sum(volume_winsorized)) %>% 
+#   mutate(year_mai = VOLUME_M3 / grow_ha_y)
+# 
+# 
+# ## MAI plots
+# harvest_df %>% 
+#   ggplot(aes(x = mai)) +
+#   geom_histogram(bins = 20) +
+#   geom_vline(xintercept = sector_mai, linetype = "longdash") +
+#   theme_bw() +
+#   xlab("Mean annual increment (m3 / ha / y") +
+#   ylab("Frequency")
+# 
+# year_mai %>% 
+#   ggplot(aes(x = HARVEST_YEAR, y = area)) +
+#   geom_line() +
+#   theme_bw(base_size = 16) + 
+#   xlab("Harvest year") +
+#   ylab("Total area harvested (ha)") +
+#   ylim(c(0, 380000))
+# 
+# year_mai %>% 
+#   ggplot(aes(x = HARVEST_YEAR, y = VOLUME_M3)) +
+#   geom_line() +
+#   theme_bw(base_size = 16) + 
+#   xlab("Harvest year") +
+#   ylab("Total volume produced (m3)") +
+#   ylim(c(0, 45000000))
+# 
+# year_mai %>% 
+#   ggplot(aes(x = HARVEST_YEAR, y = year_mai)) +
+#   geom_line() +
+#   theme_bw(base_size = 15) + 
+#   xlab("Harvest year") +
+#   ylab("Mean annual increment (m3/ha/y)") +
+#   ylim(c(0, 32)) +
+#   geom_smooth(method = "lm")
+# 
+# # Improvement in MAI over the 6 years observed
+# mod <- lm(year_mai ~ HARVEST_YEAR, data = year_mai %>% filter(outlier==0))
+# summary(mod)
+# 
+# harvest_df <- harvest_df %>% 
+#   mutate(ln_mai = log(mai),
+#          ln_mai_w = log(mai_winsorized))
+# 
+# mod <- lm(ln_mai ~ HARVEST_YEAR, data = harvest_df %>% filter(outlier==0))
+# summary(mod)
+# 
+# mod <- feols(ln_mai ~ HARVEST_YEAR | SUPPLIER_ID, data = harvest_df %>% filter(outlier == 0))
+# summary(mod)
+# 
+# # NEED TO ADD ONE MORE REGRESSION SHOWING SENSITIVITY TO ROTATION IMPUTATION
+# 
+# 
+# mod <- feols(ln_mai_w ~ HARVEST_YEAR | SUPPLIER_ID, data = harvest_df)
+# summary(mod)
+# 
+# 
+# ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# ## Calculate MAI -------------------------------------
+# ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# ## Summary of proposed expansions: remote/01_data/01_in/new_capacity/planned_expansions.xlsx"
+# oki_exp_mt <- 4.2
+# rapp_exp_mt <- 2
+# phoenix_exp_mt <- 1.7
+# total_exp_mt <- oki_exp_mt + rapp_exp_mt + phoenix_exp_mt
+# baseline_cap_mt <- 9.3 ## TODO: Check this with Brian. Doesn't match (mills$PULP_CAP_2019_MTPY %>% sum())
+# 
+# # Line 102: Together, these three projects would increase the country’s pulp capacity by 91% and, once fully operational, would lead to a concomitant XX m3 increase in the country’s annual demand for pulpwood. 
+# total_exp_mt
+# cap_change <- (total_exp_mt / baseline_cap_mt) %>% print()
+# 
+# # Estimate of land demand from capacity expansions
+# current_wood_demand <- pw_supply_2022 %>% pull(VOLUME_M3) %>%  sum()
+# new_wood_demand <- (current_wood_demand * cap_change) %>% print()
+# 
+# # new_wood_demand <- 30600000 # m3 / y - taken from Brian's calculations in paper draft. Was for original expansion estimates without PT phoenix
+# (area_demand <- new_wood_demand / sector_mai) # ha
+# 
+# harvest_df %>% write_csv(paste0(wdir, "/01_data/02_out/tables/hti_mai.csv"))
