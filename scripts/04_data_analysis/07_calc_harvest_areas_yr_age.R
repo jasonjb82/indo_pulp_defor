@@ -283,13 +283,13 @@ prop_7 <- ((observed_harvests %>% filter(rotation_length <= 7) %>% pull(area_sum
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Summarize ha-y harvested in each concession in each year -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-max_rotation <- 6
+# max_rotation <- 5
 
 concession_harvests <- harvest_df %>% 
   filter(harvest_year >= 2015) %>% 
-  mutate(ha_y = area_ha * rotation_length,
-         impute_flag = (rotation==1) & (rotation_length > max_rotation),
-         rotation_length = ifelse(impute_flag, max_rotation, rotation_length)) %>% 
+  mutate(impute_flag = (rotation==1) & (harvest_year - rotation_length < 2009),
+         rotation_length = ifelse(impute_flag, harvest_year - 2009, rotation_length),
+         ha_y = area_ha * rotation_length) %>% 
   group_by(supplier_id, harvest_year) %>% 
   summarise(impute_prop = weighted.mean(impute_flag, ha_y),
             burn_prop = weighted.mean(burn_flag, ha_y),
