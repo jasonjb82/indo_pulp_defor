@@ -109,21 +109,21 @@ mai_df <- mai_df %>%
 ## calculate MAI -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Two possibilities for missing harvest / production data. Show these yield identical estimates of DMAI
-# a) they're both accurate, but assigned to different concessions. Sector MAI should just include them both in the numerator and denominator:
+# a) if they're both accurate, but assigned to different concessions. Sector MAI should just include them both in the numerator and denominator:
 sector_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y, na.rm = TRUE)) %>% print()
 
-# b) they're invalid, should be dropped from sectoral calculations
+# b) if they're invalid, should be dropped from sectoral calculations
 nona_mai_df <- mai_df %>% 
   drop_na()
-sector_mai <- (sum(nona_mai_df$volume_m3) / sum(nona_mai_df$ha_y)) %>% print()
+(sum(nona_mai_df$volume_m3) / sum(nona_mai_df$ha_y)) %>% print()
 
 
 # Explore sensitivity to imputations for burns / missing harvest data
 sample_df <- nona_mai_df %>% filter(burn_flag == 0)
-sector_mai <- (sum(sample_df$volume_m3) / sum(sample_df$ha_y)) %>% print()
+(sum(sample_df$volume_m3) / sum(sample_df$ha_y)) %>% print()
 
 sample_df <- nona_mai_df %>% filter(impute_flag == 0)
-sector_mai <- (sum(sample_df$volume_m3) / sum(sample_df$ha_y)) %>% print()
+(sum(sample_df$volume_m3) / sum(sample_df$ha_y)) %>% print()
 
 
 ## Calculate annual MAI in the sector
@@ -176,9 +176,10 @@ year_mai %>%
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 mai_df <- mai_df %>% 
   mutate(ln_mai = log(dmai),
-         ln_mai_w = log(mai_winsorized))
+         ln_mai_w = log(mai_winsorized),
+         Supplier = supplier_id)
 
-ols_mod <- lm(ln_mai_w ~ harvest_year, data = mai_df)
+ols_mod <- feols(ln_mai_w ~ harvest_year, cluster = mai_df$Supplier, data = mai_df)
 summary(ols_mod)
 
 
@@ -195,29 +196,70 @@ summary(ols_mod)
 # base_mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(multi_years == 1))
 # summary(base_mod)
 
-base_mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df)
+base_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = mai_df)
 summary(base_mod)
 
-trim_mod <- feols(ln_mai ~ harvest_year | supplier_id, data = mai_df %>% filter(outlier == 0))
+trim_mod <- feols(ln_mai ~ harvest_year | Supplier, data = mai_df %>% filter(outlier == 0))
 summary(trim_mod)
 
-nowin_mod <- feols(ln_mai ~ harvest_year | supplier_id, data = mai_df)
+nowin_mod <- feols(ln_mai ~ harvest_year | Supplier, data = mai_df)
 summary(nowin_mod)
 
-noimpute_mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(impute_prop < 0.25 ))
+# Show these coefficient estimates fall within 95% confidence interval of base model
+confint(base_mod, "harvest_year", level = 0.95)
+
+noimpute_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = mai_df %>% filter(impute_prop < 0.25 ))
 summary(noimpute_mod)
 
-noburn_mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(burn_prop < 0.25 ))
+noburn_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = mai_df %>% filter(burn_prop < 0.25 ))
 summary(noburn_mod)
 
 
 models <- list(ols_mod, base_mod, trim_mod, nowin_mod, noimpute_mod, noburn_mod)
+# models <- list(ols_mod, base_mod, noimpute_mod, noburn_mod)
+# models <- list(ols_mod, base_mod)
 
-modelsummary(models)
+rows <- tribble(~term,          ~OLS,  ~F.E., ~Trimmed, ~Full, ~NoImpute, ~NoBurn,
+                'Treatment of outliers', 'Winsorize',   'Winsorize', 'Drop', 'Keep', 'Winsorize', 'Winsorize',
+                'Drop imputed',   'No', 'No', 'No', 'No', 'Yes', 'No',
+                'Drop burned', 'No', 'No', 'No', 'No', 'No', 'Yes',)
+attr(rows, 'position') <- c(4, 5, 6)
 
-modelsummary(models, output = "table.docx")
 
-# 
+modelsummary(models, 
+             fmt = 3, 
+             coef_omit = 1, 
+             stars = c('*' = .1, '**' = .05, '***' = 0.01),
+             coef_rename = c("harvest_year" = "Year"),
+             gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE|Log|Std',
+             add_rows = rows,
+             output =  paste0(wdir, "/01_data/04_results/yield_growth_table.docx"))
+
+
+
+modelsummary(models, stars = TRUE)
+
+
+modelsummary(models, output =  paste0(wdir, "/01_data/04_results/yield_growth_table.docx"))
+
+
+yield_growth <- base_mod$coefficients
+yield_growth_confint <- yield_growth - confint(base_mod, "harvest_year", level = 0.95)[1]
+
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Export key model parameters -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+output <- list("dmai" = sector_mai,
+               "yield_growth" = yield_growth[1],
+               "yield_gowth_ci" = yield_growth_confint[1,1]) %>% 
+  as_tibble()
+
+write_csv(output, paste0(wdir, "/01_data/04_results/key_parameters.csv"))
+
+ 
 # ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # ## clean data -------------------------------------
 # ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
