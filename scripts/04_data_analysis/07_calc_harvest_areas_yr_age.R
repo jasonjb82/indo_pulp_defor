@@ -259,10 +259,26 @@ harvest_df <- hti_itp_hv_df_long %>%
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## explore rotation lengths -------------------------------------
+## impute rotation lengths for unobserved blocks -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+harvest_df <- harvest_df %>% 
+  filter(harvest_year >= 2015) %>% 
+  mutate(impute_flag = (rotation==1) & (harvest_year - rotation_length < 2009),
+         rotation_length = ifelse(impute_flag, harvest_year - 2009, rotation_length),
+         ha_y = area_ha * rotation_length) 
+
+# 82% of the areas harvested within this period had experienced a plantation establishment or prior harvesting event since 2010
+harvest_df %>% 
+  group_by(impute_flag) %>% 
+  summarise(area = sum(area_ha)) %>% 
+  mutate(freq = prop.table(area)) %>% 
+  print()
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## explore rotation lengths in non-imputed blocks -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 observed_harvests <- harvest_df %>% 
-  filter(rotation>1) %>% 
+  filter(rotation > 1) %>% 
   group_by(rotation_length) %>% 
   summarize(area_sum = sum(area_ha)) %>% 
   print()
@@ -285,17 +301,16 @@ prop_7 <- ((observed_harvests %>% filter(rotation_length <= 7) %>% pull(area_sum
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # max_rotation <- 5
 
+
+
+
+
+
 concession_harvests <- harvest_df %>% 
-  filter(harvest_year >= 2015) %>% 
-  mutate(impute_flag = (rotation==1) & (harvest_year - rotation_length < 2009),
-         rotation_length = ifelse(impute_flag, harvest_year - 2009, rotation_length),
-         ha_y = area_ha * rotation_length) %>% 
   group_by(supplier_id, harvest_year) %>% 
   summarise(impute_prop = weighted.mean(impute_flag, ha_y),
             burn_prop = weighted.mean(burn_flag, ha_y),
-            ha_y = sum(ha_y)) %>% 
-  mutate(burn_flag = burn_prop > 0,
-         impute_flag = impute_prop > 0)
+            ha_y = sum(ha_y))
 
 # concession_harvests %>% 
 #   group_by(impute_flag, fire_flag) %>% 
