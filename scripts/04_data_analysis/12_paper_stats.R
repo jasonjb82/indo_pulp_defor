@@ -396,3 +396,22 @@ test$area_ha %>% sum()
 
 test
 
+# S1 stats
+
+# Share of pulpwood plantations in HTI
+hti_pulpwood_plantations <- hti_nonhti_conv %>%
+  filter(year == 2022) %>%
+  mutate(type = ifelse(is.na(supplier),"Non HTI","HTI")) %>%
+  group_by(type) %>%
+  summarize(area_ha = sum(area_ha)) %>%
+  mutate(share = prop.table(area_ha)*100) %>%
+  print()
+
+# Pulpwood share by woodtype
+pw_share <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx')) %>%
+  group_by(TYPE) %>%
+  summarize(VOLUME_M3 = sum(VOLUME_M3)) %>%
+  mutate(SHARE = prop.table(VOLUME_M3)*100) %>%
+  print()
+
+
