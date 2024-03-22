@@ -48,6 +48,7 @@ library(patchwork)
 library(concordance)
 library(rcartocolor)
 library(vistime)
+library(svglite)
 library(khroma) # palettes for color blindness
 
 ## credentials ----------------------------------------------
@@ -94,7 +95,7 @@ wood_species <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\SILK_PULP_WOOD_SPE
 ##policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline.csv"))
 
 # policy timeline (updated)
-policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline_cats.csv")) %>%
+policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline_cats_rev1.csv")) %>%
   mutate(year_col = as.Date(year_proper,format="%d/%m/%Y"))
 
 # deforestation within concessions
@@ -521,3 +522,4 @@ comb_plot
 
 ##ggsave(comb_plot,file="D:/comb_plot.png", dpi=400, w=11, h=14,type="cairo-png") 
 ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=12, h=15,type="cairo-png") 
+ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.svg"), dpi=400, w=12, h=15) 
