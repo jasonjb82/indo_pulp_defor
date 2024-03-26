@@ -79,6 +79,9 @@ hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_TRASE_20230314_pr
 # wood supply
 ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2022.csv", bucket), delim = ",")
 
+# ownership class
+hti_ownership_class <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_company_ownership_reclass.csv"))
+
 # kabupaten
 kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
 prov_slim <- kab %>% select(prov,prov_code) %>% st_drop_geometry() %>% distinct() %>%
@@ -636,11 +639,12 @@ group_var <- "supplier_group" # Generally either island, supplier_group or suppl
 mill_var <- "all" # Generally either april,app,marubeni or all (all concessions)
 
 freq_tab <- hti_conv_timing %>%
+  left_join(hti_ownership_class,by=c("supplier_id")) %>%
   filter(supplier_id != "H-0657" & supplier_id != "H-0656") %>% # remove 2 IPKs (Non HTI suppliers)
   filter(!!sym(mill_var) == 1) %>%
   filter(conv_type == 2 | is.na(conv_type)) %>%
   #filter(island == "kalimantan") %>% # filter to island if required
-  group_by(.data[[group_var]],class) %>% 
+  group_by(.data[[group_var]],linked_group,ownership_class,class) %>% 
   summarize(area_ha = sum(area_ha)) %>% 
   mutate(freq = area_ha / sum(area_ha)) %>%
   ungroup()
