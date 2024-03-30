@@ -68,6 +68,13 @@ annual_conv <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 l
   mutate(year=year+2000) %>%
   drop_na(year)
 
+# pulpwood areas (Indonesia and within HTI)
+pw_area_hti <- read_csv(paste0(wdir, "\\01_data\\02_out\\gee\\pulp_annual_area_hti_only.csv")) %>%
+   select(ID,pulp_2022) 
+
+pw_area_id <- read_csv(paste0(wdir, "\\01_data\\02_out\\gee\\pulp_annual_area_id.csv")) %>%
+  select(prov,pulp_2022) 
+
 # reclasses ownership groups
 groups_reclass_hti <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\ALIGNED_NAMES_GROUP_HTI_reclassed.csv"))
 
@@ -408,8 +415,24 @@ test
 
 # S1 stats
 
-# Share of pulpwood plantations in HTI
-hti_pulpwood_plantations <- hti_nonhti_conv %>%
+# Area of pulpwood in Indonesia and within HTI
+pulp_area_hti <- pw_area_hti %>%
+  filter(ID != "H-0657" & ID != "H-0656") %>%
+  distinct(ID,pulp_2022) %>%
+  group_by() %>%
+  summarize(area_ha = sum(pulp_2022)) %>%
+  print()
+
+pulp_area_id <- pw_area_id %>%
+  distinct(prov,pulp_2022) %>%
+  group_by() %>%
+  summarize(area_ha = sum(pulp_2022)) %>%
+  print()
+
+pulp_area_hti/pulp_area_id * 100
+
+# Share of pulpwood expansion in HTI
+hti_pulpwood_expansion <- hti_nonhti_conv %>%
   filter(year == 2022) %>%
   mutate(type = ifelse(is.na(supplier),"Non HTI","HTI")) %>%
   group_by(type) %>%
@@ -420,7 +443,7 @@ hti_pulpwood_plantations <- hti_nonhti_conv %>%
 # list of HTE plantations
 hte_plantations <- c("H-0344","H-0361","H-0319","H-0526","H-0365","H-0405")
 
-pulpwood_hti_hte <- hti_nonhti_conv %>%
+pulpwood_expansion_hti_hte <- hti_nonhti_conv %>%
   filter(year == 2022) %>%
   mutate(type = ifelse(is.na(supplier),"Non HTI","HTI"),
          type = ifelse(supplier_id %in% hte_plantations,"HTE",type)) %>%
