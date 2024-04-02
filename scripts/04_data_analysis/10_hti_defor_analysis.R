@@ -432,16 +432,11 @@ hti_conv_timing <- gaveau_annual_pulp %>%
   arrange(year,supplier_id) %>%
   as_tibble() %>%
   left_join(mill_supplier,by="supplier_id") %>%
-  #mutate(defor_time = case_when(year >= 2013 & year >= license_year & app == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill",
-  #                              year >= 2015 & year >= license_year & app == 0 & april == 1 ~ "Deforestation post-permit and after first ZDC of downstream mill",
-  #                              year >= 2019 & year >= license_year & app == 0 & april == 0 & marubeni == 1  ~ "Deforestation post-permit and after first ZDC of downstream mill",
-  #                              year >= license_year ~ "Deforestation post-permit",
-  #                              year < license_year  ~ "Deforestation pre-permit",
-  #                              TRUE ~ NA)) %>%
-  mutate(conv_time = case_when(year >= 2013 & app == 1 ~ "Deforestation for pulp after first ZDC of downstream mill",
-                                year >= 2015 & app == 0 & april == 1 ~ "Deforestation for pulp after first ZDC of downstream mill",
-                                year >= 2019 & app == 0 & april == 0 & marubeni == 1  ~ "Deforestation for pulp after first ZDC of downstream mill",
-                                TRUE ~ "Deforestation for pulp before first ZDC of downstream mill")) %>%
+  #mutate(conv_time = case_when(year >= 2013 & app == 1 ~ "Deforestation for pulp after first ZDC of downstream mill",
+  #                              year >= 2015 & app == 0 & april == 1 ~ "Deforestation for pulp after first ZDC of downstream mill",
+  #                              year >= 2019 & app == 0 & april == 0 & marubeni == 1  ~ "Deforestation for pulp after first ZDC of downstream mill",
+  #                              TRUE ~ "Deforestation for pulp before first ZDC of downstream mill")) %>%
+  mutate(conv_time = ifelse(year >= 2015,"Deforestation for pulp after 2015","Deforestation for pulp before 2015")) %>%
   group_by(supplier_id,supplier,supplier_label,license_year,island,april,app,marubeni,all,conv_type,conv_time) %>%
   summarize(area_ha = n()) %>%
   bind_rows(hti_for_areas) %>%
@@ -500,7 +495,7 @@ theme_plot2 <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                      panel.background = element_rect(colour=NA,fill=NA),
                      panel.grid.minor = element_blank(),
                      panel.grid.major.x= element_line(color="grey70",linetype="dashed",size=0.35),
-                     plot.title = element_text(hjust = 0.5),
+                     plot.title = element_text(hjust = 0,size=11,face="bold"),
                      axis.line.x = element_line(),
                      axis.ticks.x = element_blank(),
                      axis.ticks.y = element_blank(),
@@ -617,56 +612,118 @@ p2_island
 
 ## Deforestation timing plot
 
-top_5_hti_deforesters_pp_after_zdc <- hti_conv_timing %>%
-  filter(class == "Deforestation for pulp after first ZDC of downstream mill" & conv_type == 2) %>%
+top_5_hti_deforesters_pp_after_2015 <- hti_conv_timing %>%
+  filter(class == "Deforestation for pulp after 2015" & conv_type == 2) %>%
   arrange(-area_ha) %>%
   slice(1:5) %>%
   print()
 
 ## manual reordering
-order <- c("SINAR MAS","ROYAL GOLDEN EAGLE / TANOTO","SUMITOMO",
-           "KORINDO","DJARUM","MARUBENI","GOVERNMENT","ADR","OTHER")
+#order <- c("SINAR MAS","ROYAL GOLDEN EAGLE / TANOTO","SUMITOMO",
+#           "KORINDO","DJARUM","MARUBENI","GOVERNMENT","ADR","OTHER")
+
+
+order <- c("SINAR MAS",
+           "SINAR MAS (NGO-LINKED)",
+           "ROYAL GOLDEN EAGLE / TANOTO",
+           "ROYAL GOLDEN EAGLE / TANOTO (NGO-LINKED)",
+           "SUMITOMO",
+           "KORINDO",
+           "DJARUM",
+           "MARUBENI",
+           "GOVERNMENT",
+           "ADR",
+           "OTHER")
+
+order <- c("Acknowledged ownership",
+           "Suspected ownership based on civil society investigations",
+           "Third-party suppliers")
 
 ## set plot order
+#plot_order_deft_pulp <- c(
+#  "Never deforested",
+#  "Deforestation not for pulp",
+#  "Deforestation for pulp before first ZDC of downstream mill",
+#  "Deforestation for pulp after first ZDC of downstream mill")
+
+# plot_order_deft_pulp <- c(
+#   "Never deforested",
+#   "Deforestation not for pulp",
+#   "Deforestation for pulp before 2015",
+#   "Deforestation for pulp after 2015")
+
 plot_order_deft_pulp <- c(
-  "Never deforested",
+  "Deforestation for pulp after 2015",
+  "Deforestation for pulp before 2015",
   "Deforestation not for pulp",
-  "Deforestation for pulp before first ZDC of downstream mill",
-  "Deforestation for pulp after first ZDC of downstream mill")
+  "Never deforested"
+  )
+
 
 ## Generate frequency table by group
-group_var <- "supplier_group" # Generally either island, supplier_group or supplier_label
+group_var <- "ownership_class" # Generally either island, supplier_group or supplier_label
 mill_var <- "all" # Generally either april,app,marubeni or all (all concessions)
 
 freq_tab <- hti_conv_timing %>%
   left_join(hti_ownership_class,by=c("supplier_id")) %>%
-  filter(supplier_id != "H-0657" & supplier_id != "H-0656") %>% # remove 2 IPKs (Non HTI suppliers)
+  #filter(supplier_id != "H-0657" & supplier_id != "H-0656") %>% # remove 2 IPKs (Non HTI suppliers)
   filter(!!sym(mill_var) == 1) %>%
   filter(conv_type == 2 | is.na(conv_type)) %>%
+  mutate(supplier_group = 
+           case_when(
+             linked_group == "APP" & ownership_class == "NGO-linked" ~ "SINAR MAS (NGO-LINKED)",
+             linked_group == "APRIL" & ownership_class == "NGO-linked" ~ "ROYAL GOLDEN EAGLE / TANOTO (NGO-LINKED)",
+             TRUE ~ supplier_group)) %>%
   #filter(island == "kalimantan") %>% # filter to island if required
-  group_by(.data[[group_var]],linked_group,ownership_class,class) %>% 
+  group_by(.data[[group_var]],linked_group,class) %>% 
   summarize(area_ha = sum(area_ha)) %>% 
   mutate(freq = area_ha / sum(area_ha)) %>%
+  drop_na(ownership_class) %>%
   ungroup()
 
 freq_tab
 
 ## plot frequencies
-freq_plot <- freq_tab %>% 
+freq_plot_1 <- freq_tab %>% 
+  #filter(class != "Deforestation not for pulp") %>%
   as_tibble() %>%
   mutate(label_order = factor(!!sym(group_var),rev(order))) %>%
   ggplot() +
+  #ggtitle("A: Concession area by deforestation history") +
   aes(y = label_order, x = area_ha, fill = factor(class,levels=plot_order_deft_pulp)) +
   geom_bar(stat = "identity",position = position_stack(reverse = TRUE)) +
   theme_plot2 +
-  xlab("") + ylab("") +
-  scale_y_discrete(labels = function(x) str_wrap(x, width = 10)) +
-  scale_x_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0)) +
+  ylab("Association with\nRGE or Sinar Mas\n") + 
+  xlab("") +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  scale_x_continuous(labels = d3_format(".3~s",suffix = " ha"),expand = c(0,0)) +
   guides(fill = guide_legend(nrow = 2)) +
   scale_fill_manual(values = cols,name ="Group",
-                    breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp)
+                    breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp) +
+  theme(axis.title.y = element_text(angle = 90))
 
-freq_plot
+freq_plot_1
+
+ggsave(freq_plot_1,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev4.png"), dpi=400, w=8, h=4,limitsize = FALSE)
+
+
+# ## plot areas of never deforested
+# freq_plot_2 <- freq_tab %>% 
+#   filter(class == "Never deforested") %>%
+#   as_tibble() %>%
+#   mutate(label_order = factor(!!sym(group_var),rev(order))) %>%
+#   ggplot() +
+#   aes(y = label_order, x = area_ha, fill = factor(class,levels=plot_order_deft_pulp)) +
+#   geom_bar(stat = "identity",position = position_stack(reverse = TRUE)) +
+#   theme_plot2 +
+#   xlab("") + ylab("") +
+#   scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+#   scale_x_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0)) +
+#   guides(fill = guide_legend(nrow = 2)) +
+#   scale_fill_manual(values = cols,name ="Group",
+#                     breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp)
+# 
+# freq_plot_2
 
 # stacked percent plot
 freq_conv_perc_plot <- freq_tab %>% 
@@ -674,22 +731,29 @@ freq_conv_perc_plot <- freq_tab %>%
   filter(class != "Never deforested") %>%
   mutate(label_order = factor(!!sym(group_var),rev(order))) %>%
   ggplot() +
+  ggtitle("B: Percent of deforestation by land use and timing") +
   aes(y = label_order, x = area_ha, fill = factor(class,levels=rev(plot_order_deft_pulp))) +
   geom_bar(stat = "identity",position = "fill") +
   theme_plot2 +
   xlab("") + ylab("")+
   scale_x_continuous(labels = percent,expand = c(0,0)) +
-  scale_y_discrete(labels = function(x) str_wrap(x, width = 10)) +
-  guides(fill = guide_legend(nrow = 4)) +
+  #scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  guides(fill = guide_legend(nrow = 1)) +
   scale_fill_manual(values = cols,name ="Group",
                     breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp) +
-  theme(legend.position = "none")
+  theme(legend.position = "none",axis.text.y = element_blank())
 
 freq_conv_perc_plot
 
 # merging plots
-freq_comb <- (freq_plot + plot_layout(guides = "collect") & theme(legend.position = "bottom")) + (freq_conv_perc_plot + theme(legend.position = "none")) 
+freq_comb <- (freq_plot_1 + plot_layout(guides = "collect") & theme(legend.position = "bottom")) + 
+  (freq_conv_perc_plot + theme(legend.position = "none")) 
 freq_comb
 
+#freq_comb_vert <- (freq_plot_1 + plot_layout(guides = "collect") & theme(legend.position = "none"))/
+#  (freq_conv_perc_plot  + plot_layout(guides = "collect") & theme(legend.position = "bottom")) /   (freq_plot_2 + theme(legend.position = "bottom")) 
+#freq_comb_vert
+
 ## save plot to png
-ggsave(freq_comb,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot.png"), dpi=400, w=10, h=5,type="cairo-png",limitsize = FALSE)
+ggsave(freq_comb,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev3.png"), dpi=400, w=10, h=4,limitsize = FALSE)
+#ggsave(freq_comb_vert,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev2.png"), dpi=400, w=10, h=12,limitsize = FALSE)
