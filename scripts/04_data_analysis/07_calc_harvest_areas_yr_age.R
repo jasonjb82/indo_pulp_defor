@@ -258,6 +258,24 @@ harvest_df <- hti_itp_hv_df_long %>%
   left_join(rot_length, by = c("block_id", "rotation")) ## WHY AM I GETTING DUPLICATES HERE?
 
 
+## NEED TO EXPORT OVERLY LONG ROTATIONS FOR DAVID TO DIG INTO POTENTIAL ERRORS
+harvest_df %>% 
+  filter(harvest_year>=2015) %>% 
+  pull(area_ha) %>% 
+  sum()
+
+long_rotations <- harvest_df %>% 
+  filter(harvest_year>=2015) %>% 
+  filter(rotation_length>7)
+
+long_rotations_sp <- hti_itp_hv %>% 
+  right_join(long_rotations, by = "block_id")
+
+long_rotations_sp$rotation_length %>% summary()
+long_rotations_sp$area_ha %>% sum()
+
+st_write(long_rotations_sp %>% select(-c("FID_", "OBJECTID")), paste0(wdir,"/01_data/03_qc/long_rotations.shp"), append=FALSE)
+
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## impute rotation lengths for unobserved blocks -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

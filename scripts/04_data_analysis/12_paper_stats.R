@@ -372,6 +372,10 @@ assumed_area_plantations <- 3050000
 extra_production <- (high_yield_mai - sector_mai) * assumed_area_plantations
 extra_production / (new_wood_demand * 1000000)
 
+# A further 520,000 hectares of plantations would be needed to meet the remaining pulpwood demand.
+(new_wood_demand - (extra_production / 1000000)) / high_yield_mai
+
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Remaining forests in plantations ---------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
