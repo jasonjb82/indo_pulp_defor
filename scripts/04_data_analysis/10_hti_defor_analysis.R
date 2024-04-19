@@ -436,11 +436,11 @@ hti_conv_timing <- gaveau_annual_pulp %>%
   #                              year >= 2015 & app == 0 & april == 1 ~ "Deforestation for pulp after first ZDC of downstream mill",
   #                              year >= 2019 & app == 0 & april == 0 & marubeni == 1  ~ "Deforestation for pulp after first ZDC of downstream mill",
   #                              TRUE ~ "Deforestation for pulp before first ZDC of downstream mill")) %>%
-  mutate(conv_time = ifelse(year >= 2015,"Deforestation for pulp after 2015","Deforestation for pulp before 2015")) %>%
+  mutate(conv_time = ifelse(year >= 2015,"Deforestation for pulp after 2015","Deforestation for pulp from 2001-2015")) %>%
   group_by(supplier_id,supplier,supplier_label,license_year,island,april,app,marubeni,all,conv_type,conv_time) %>%
   summarize(area_ha = n()) %>%
   bind_rows(hti_for_areas) %>%
-  mutate(class = ifelse(is.na(conv_time),"Never deforested",conv_time)) %>%
+  mutate(class = ifelse(is.na(conv_time),"Remaining forest",conv_time)) %>%
   select(-conv_time) %>%
   bind_rows(hti_nonpulp_conv_areas) %>%
   mutate(class = ifelse(is.na(class),"Deforestation not for pulp",class)) %>%
@@ -654,9 +654,9 @@ order <- c("Acknowledged ownership",
 
 plot_order_deft_pulp <- c(
   "Deforestation for pulp after 2015",
-  "Deforestation for pulp before 2015",
+  "Deforestation for pulp from 2001-2015",
   "Deforestation not for pulp",
-  "Never deforested"
+  "Remaining forest"
   )
 
 
@@ -704,7 +704,7 @@ freq_plot_1 <- freq_tab %>%
 
 freq_plot_1
 
-ggsave(freq_plot_1,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev4.png"), dpi=400, w=8, h=4,limitsize = FALSE)
+ggsave(freq_plot_1,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev5.png"), dpi=400, w=8, h=4,limitsize = FALSE)
 
 
 # ## plot areas of never deforested
