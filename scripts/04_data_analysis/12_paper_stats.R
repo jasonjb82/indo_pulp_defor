@@ -441,12 +441,12 @@ hti_pulpwood_expansion <- hti_nonhti_conv %>%
   print()
 
 # list of HTE plantations
-hte_plantations <- c("H-0344","H-0361","H-0319","H-0526","H-0365","H-0405")
+hti_hte_plantations <- c("H-0344","H-0361","H-0319","H-0526","H-0365","H-0405")
 
 pulpwood_expansion_hti_hte <- hti_nonhti_conv %>%
   filter(year == 2022) %>%
   mutate(type = ifelse(is.na(supplier),"Non HTI","HTI"),
-         type = ifelse(supplier_id %in% hte_plantations,"HTE",type)) %>%
+         type = ifelse(supplier_id %in% hti_hte_plantations,"HTI/HTE",type)) %>%
   group_by(type) %>%
   summarize(area_ha = sum(area_ha)) %>%
   mutate(share = prop.table(area_ha)*100) %>%
@@ -459,4 +459,16 @@ pw_share <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.
   mutate(SHARE = prop.table(VOLUME_M3)*100) %>%
   print()
 
-
+# Share of active pulpwood suppliers in 2022
+active_hti_suppliers <- ws %>%
+  mutate(supplier_id = str_replace(SUPPLIER_ID,"ID-WOOD-CONCESSION-","H-")) %>%
+  filter(YEAR == 2022) %>%
+  full_join(hti_concession_names,by="supplier_id") %>%
+  select(supplier_id,VOLUME_M3) %>%
+  mutate(active_supplier = ifelse(!is.na(VOLUME_M3),"yes","no")) %>%
+  distinct(supplier_id,active_supplier) %>%
+  group_by(active_supplier) %>%
+  summarize(count = n()) %>%
+  mutate(share = prop.table(count)*100) %>%
+  print()
+  
