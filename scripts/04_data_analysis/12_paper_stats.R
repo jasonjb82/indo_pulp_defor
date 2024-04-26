@@ -55,6 +55,9 @@ wdir <- "remote"
 ## read data -------------------------------------------------
 '%ni%' <- Negate('%in%') # filter out function
 
+# hti concessions
+hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_TRASE_20230314_proj.shp"))
+
 # pulpwood supply in 2022 
 pw_supply_2022 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx')) %>%
   select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
@@ -413,11 +416,11 @@ test$area_ha %>% sum()
 
 test
 
-# S1 stats
+# SI 1 stats
 
 # Area of pulpwood in Indonesia and within HTI
 pulp_area_hti <- pw_area_hti %>%
-  filter(ID != "H-0657" & ID != "H-0656") %>%
+  #filter(ID != "H-0657" & ID != "H-0656") %>%
   distinct(ID,pulp_2022) %>%
   group_by() %>%
   summarize(area_ha = sum(pulp_2022)) %>%
@@ -470,5 +473,35 @@ active_hti_suppliers <- ws %>%
   group_by(active_supplier) %>%
   summarize(count = n()) %>%
   mutate(share = prop.table(count)*100) %>%
+  print()
+  
+
+# SI5 stats
+
+## In 2022, existing concessions that could allow for the future expansion of pulpwood plantations
+## contain XX million ha of natural forests, 3 million ha of pulpwood plantations, 
+## and *5.5* million ha of other cleared lands. *2.9* million ha of forests
+## (17% of the total, within-concession forest area) are located within existing HTI concessions
+
+hti_conc_area <- hti %>%
+  mutate(area_ha = as.double(units::set_units(st_area(.), "hectare"))) %>%
+  st_drop_geometry() %>%
+  select(supplier_id=ID,area_ha) %>%
+  mutate(class = "Concession Area") %>%
+  print()
+
+hti_conc_lu_areas <- zdc_hti_conv %>%
+  group_by(supplier_id,class) %>%
+  summarize(area_ha = sum(area_ha)) %>%
+  bind_rows(hti_conc_area) %>%
+  pivot_wider(names_from ="class",
+              values_from = area_ha) %>%
+  mutate_if(is.numeric, ~replace_na(., 0)) %>%
+  mutate(`Other Land Cover` = `Concession Area` - `Remaining forest` - (`Deforestation not for pulp` + `Deforestation for pulp after 2015` + `Deforestation for pulp from 2001-2015`)) %>%
+  pivot_longer(cols = -c(supplier_id),
+               names_to='class',
+               values_to = 'area_ha') %>%
+  group_by(class) %>%
+  summarize(area_Mha = sum(area_ha)/1000000) %>%
   print()
   
