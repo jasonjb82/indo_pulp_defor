@@ -86,7 +86,7 @@ hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
 ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2022.csv", bucket), delim = ",")
 
 # silk data
-silk_data <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\WOOD_EXPORTS_SILK_MERGED.csv"))
+#silk_data <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\WOOD_EXPORTS_SILK_MERGED.csv"))
 
 # wood species lookup table
 wood_species <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\SILK_PULP_WOOD_SPECIES.csv"))
@@ -163,7 +163,7 @@ defor_plot <- hti_nonhti_conv %>%
   xlab("\nYear") +
   ylab("Pulp-driven deforestation (ha)") + 
   scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
-  scale_x_continuous(expand=c(0,1),breaks=seq(2001,2023,by=1)) +
+  scale_x_continuous(expand=c(0,1),breaks=seq(2001,2023,by=1),labels = seq(2001,2023,by=1)) +
   scale_fill_manual(values=c(colorBlind8[3],colorBlind8[5],colorBlind8[7]))+ 
   scale_color_manual(values=c(colorBlind8[3],colorBlind8[5],colorBlind8[7]))+ 
   guides(fill = guide_legend(nrow = 1,reverse = TRUE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
@@ -175,156 +175,6 @@ defor_plot
 # Panel B - Wood supply transition -------------------------------------
 
 # Stacked bar breaking pulpwood volumes into MTH / plantation sources (probably simplify categories from current figure). 
-
-## clean and summarize ---------------------------------------
-
-# get tax IDs for the 6 main pulp mills
-
-### 013418579092000 - PT. RIAU ANDALAN PULP AND PAPER (APRIL)
-### 010005668092000 - PT. INDAH KIAT PULP & PAPER TBK
-### 021212279073000 - PT. INTIGUNA PRIMATAMA (APRIL)
-### 013575964092000 - PT. TANJUNGENIM LESTARI PULP AND PAPER
-### 012197950054000 - PT. TOBA PULP LESTARI TBK
-### 011159654092001 - PT. LONTAR PAPYRUS PULP & PAPER INDUSTRY
-### 032034811312001 - PT. OKI PULP & PAPER MILLS
-
-# npwp_pulp_mills <- mills %>%
-#   select(EXPORTER_ID) %>%
-#   distinct() %>%
-#   pull(EXPORTER_ID) %>%
-#   print()
-# 
-# silk_pulp <- silk_data %>%
-#   filter((HS_NUMBER %like% "470329" | HS_NUMBER  %like% "4702")  & !str_detect(DESKRIPSI, 'SAMPLE') & 
-#            NPWP %in% npwp_pulp_mills & BERAT_BERSIH_KG > 150) %>%
-#   mutate(YEAR = year(TGL_INVOICE),
-#          YEAR = ifelse(is.na(YEAR),year(TGL_TTD),YEAR),
-#          HS_NUMBER = ifelse(HS_NUMBER %like% 4702,470200,470329)) %>%
-#   filter(YEAR >= 2013) %>%
-#   left_join(select(mills,EXPORTER_ID,MILL_GROUP,MILL_NAME),by=c("NPWP"="EXPORTER_ID"))
-# 
-# 
-# silk_pulp_clean <- silk_pulp %>%
-#   separate_rows(SCIENTIFIC_NAMES,sep=";") %>%
-#   group_by(NPWP,NAMA_EKSPORTIR,PROPINSI,KABUPATEN_KOTA,NO_ETPIK,NAMA_IMPORTIR,NEGARA_IMPORTIR,PELABUHAN_MUAT,PELABUHAN_BONGKAR,
-#            NEGARA_TUJUAN,NO_INVOICE,SKEMA_KERJASAMA,NO_V_LEGAL,TRANSPORTASI,TGL_INVOICE,KETERANGAN,PEJABAT_TTD,TEMPAT_TTD,
-#            DIGITAL_SIGN,LOKASI_STUFFING,NO,HS_NUMBER,HS_PRINTED,DESKRIPSI,NUMBER_OF_UNIT,HARVEST_COUNTRY,ID,YEAR,CURRENCY,
-#            VOLUME_M3,BERAT_BERSIH_KG,VALUE) %>%
-#   mutate(PROP_BERAT_BERSIH = prop.table(BERAT_BERSIH_KG),PROP_VALUE=prop.table(VALUE)) %>%
-#   ungroup()%>%
-#   mutate(PROP_BERAT_BERSIH_KG = PROP_BERAT_BERSIH*BERAT_BERSIH_KG, PROP_VALUE_UNIT = PROP_VALUE*VALUE) %>%
-#   mutate(SCIENTIFIC_NAMES = str_trim(SCIENTIFIC_NAMES,side="both")) %>%
-#   left_join(wood_species,by="SCIENTIFIC_NAMES") %>%
-#   mutate(MAJOR_WOOD_SPECIES = ifelse(SPECIES_GENERIC != "ACACIA" & SPECIES_GENERIC != "EUCALYPTUS", "OTHERS", SPECIES_GENERIC))
-# 
-# # get annual exports by HS codes
-# silk_annual_pulp_exports_hs <- silk_pulp_clean %>%
-#   filter(YEAR >= 2015) %>%
-#   group_by(YEAR,HS_NUMBER) %>%
-#   summarize(PULP_EXPORTS = sum(PROP_BERAT_BERSIH_KG/1000)) %>%
-#   print()
-# 
-# # get annual exports by mill
-# silk_annual_pulp_exports_mill <- silk_pulp_clean %>%
-#   filter(YEAR >= 2015) %>%
-#   group_by(YEAR,MILL_NAME) %>%
-#   summarize(PULP_EXPORTS = sum(PROP_BERAT_BERSIH_KG/1000)) %>%
-#   arrange(-desc(MILL_NAME)) %>%
-#   print()
-# 
-# # check that totals are same after splitting rows for wood species
-# s1 <- silk_pulp %>% filter(YEAR == 2018) %>%
-#   group_by() %>%
-#   summarize(VOLUME = sum(BERAT_BERSIH_KG/1000,na.rm = TRUE)) %>%
-#   print()
-# 
-# s2 <- silk_pulp_clean %>% filter(YEAR == 2018) %>%
-#   group_by() %>%
-#   summarize(VOLUME = sum(PROP_BERAT_BERSIH_KG/1000,na.rm = TRUE)) %>%
-#   print()
-# 
-# expect_equal(s1$VOLUME,s2$VOLUME)
-# 
-# # get rank of species by year
-# pulp_species_year <- silk_pulp_clean %>%
-#   group_by(YEAR,SPECIES_GENERIC) %>%
-#   summarize(TOTAL_VOLUME_TONNES = sum(PROP_BERAT_BERSIH_KG/1000)) %>%
-#   arrange(YEAR,-TOTAL_VOLUME_TONNES)
-# 
-# # get total exports by year
-# exports_year <- silk_pulp %>%
-#   group_by(YEAR) %>%
-#   summarize(EXPORT_TONS = sum(BERAT_BERSIH_KG/1000)) %>%
-#   print()
-# 
-# # plot by general wood species
-# silk_pulp_species <- silk_pulp_clean %>%
-#   select(YEAR,PROP_BERAT_BERSIH_KG,ID,MAJOR_WOOD_SPECIES,MILL_NAME,SPECIES_CLEAN) %>% 
-#   mutate(
-#     SPECIES_GENERAL = case_when(
-#       SPECIES_CLEAN == "ACACIA MANGIUM" ~ "ACACIA MANGIUM",
-#       SPECIES_CLEAN == "ACACIA CRASSICARPA" ~ "ACACIA CRASSICARPA",
-#       SPECIES_CLEAN == "EUCALYPTUS PELLITA" ~ "EUCALYPTUS PELLITA",
-#       MAJOR_WOOD_SPECIES == "ACACIA" & (SPECIES_CLEAN != "ACACIA MANGIUM" | SPECIES_CLEAN != "ACACIA CRASSICARPA") ~ "ACACIA (OTHERS)",
-#       MAJOR_WOOD_SPECIES == "EUCALYPTUS" & SPECIES_CLEAN != "EUCALYPTUS PELLITA" ~ "EUCALYPTUS (OTHERS)",
-#       TRUE ~ MAJOR_WOOD_SPECIES
-#     )
-#   )
-# 
-# ## checking shipments and composition of species
-# f <- function(x)setNames(wood_species$GENERAL_CLASS, wood_species$SCIENTIFIC_NAMES)[x] 
-# vars_to_process=c("TYPE1","TYPE2","TYPE3","TYPE4","TYPE5","TYPE6")
-# 
-# silk_species_shipments <- silk_pulp %>%
-#   mutate(MIXED = ifelse(str_detect(SCIENTIFIC_NAMES,";"),"Y","N")) %>%
-#   group_by(NPWP,NAMA_EKSPORTIR,PROPINSI,KABUPATEN_KOTA,NO_ETPIK,NAMA_IMPORTIR,NEGARA_IMPORTIR,PELABUHAN_MUAT,PELABUHAN_BONGKAR,
-#            NEGARA_TUJUAN,NO_INVOICE,SKEMA_KERJASAMA,NO_V_LEGAL,TRANSPORTASI,TGL_INVOICE,KETERANGAN,PEJABAT_TTD,TEMPAT_TTD,
-#            DIGITAL_SIGN,LOKASI_STUFFING,NO,HS_NUMBER,HS_PRINTED,DESKRIPSI,NUMBER_OF_UNIT,HARVEST_COUNTRY,ID,YEAR,CURRENCY,
-#            VOLUME_M3,BERAT_BERSIH_KG,VALUE,MIXED) %>%
-#   ungroup() %>%
-#   mutate(SCIENTIFIC_NAMES = str_trim(SCIENTIFIC_NAMES,side="both")) %>%
-#   separate(SCIENTIFIC_NAMES,c("TYPE1","TYPE2","TYPE3","TYPE4","TYPE5","TYPE6"),";") %>%
-#   mutate_at(.vars=vars_to_process,funs(f)) %>%
-#   mutate(WOODTYPE_EXPORT=pmap_chr(list(TYPE1,TYPE2,TYPE3,TYPE4,TYPE5,TYPE6), ~paste(sort(c(...)), collapse = ","))) %>%
-#   separate_rows(WOODTYPE_EXPORT, sep = ",") %>%
-#   group_by(NPWP,NAMA_EKSPORTIR,PROPINSI,KABUPATEN_KOTA,NO_ETPIK,NAMA_IMPORTIR,NEGARA_IMPORTIR,PELABUHAN_MUAT,PELABUHAN_BONGKAR,
-#            NEGARA_TUJUAN,NO_INVOICE,SKEMA_KERJASAMA,NO_V_LEGAL,TRANSPORTASI,TGL_INVOICE,KETERANGAN,PEJABAT_TTD,TEMPAT_TTD,
-#            DIGITAL_SIGN,LOKASI_STUFFING,NO,HS_NUMBER,HS_PRINTED,DESKRIPSI,NUMBER_OF_UNIT,HARVEST_COUNTRY,ID,YEAR,CURRENCY,
-#            VOLUME_M3,BERAT_BERSIH_KG,VALUE,MIXED) %>%
-#   summarise(WOODTYPE_EXPORT = paste(unique(WOODTYPE_EXPORT), collapse = ","))
-# 
-# # create species shipments by year
-# woodtype_exports_yr <- silk_species_shipments %>%
-#   select(YEAR,BERAT_BERSIH_KG,ID,WOODTYPE_EXPORT,MIXED) %>%
-#   group_by(YEAR,ID,WOODTYPE_EXPORT,MIXED) %>%
-#   summarize(TONS = sum(BERAT_BERSIH_KG/1000)) %>%
-#   group_by(YEAR,ID,MIXED) %>%
-#   group_by(YEAR,WOODTYPE_EXPORT) %>%
-#   summarize(NO_SHIPMENTS=n(),TONS=sum(TONS)) %>%
-#   group_by(YEAR) %>%
-#   mutate(PERC_SHIPMENT = prop.table(NO_SHIPMENTS)*100, PERC_VOLUME = prop.table(TONS)*100) %>%
-#   mutate(WOODTYPE_GENERAL = case_when(grepl("ACACIA", WOODTYPE_EXPORT) ~ "Plantation",
-#                                       grepl("EUCALYPTUS", WOODTYPE_EXPORT) ~ "Plantation",
-#                                       grepl("MIXED TROPICAL HARDWOODS", WOODTYPE_EXPORT, ignore.case = TRUE) ~"Mixed Tropical Hardwoods")) %>%
-#   #complete(YEAR = seq(2001, 2012, by = 1)) %>%
-#   ungroup() %>%
-#   add_row(YEAR = seq(2001,2012,by=1), TONS=0) %>% # temporary fix
-#   add_row(YEAR = c(2020,2022), TONS = 0) %>% # temporary fix
-#   mutate(TONS = ifelse(is.na(TONS),0,TONS), WOODTYPE_GENERAL = ifelse(is.na(WOODTYPE_GENERAL),"Plantation",WOODTYPE_GENERAL))
-# 
-# # check yearly shipments
-# yearly_shipments_total <- woodtype_exports_yr %>%
-#   group_by(YEAR) %>%
-#   summarize(TONS = sum(TONS))
-# 
-# # SILK ratios
-# timber_plantation_silk <- woodtype_exports_yr %>%
-#   group_by(YEAR,WOODTYPE_GENERAL) %>%
-#   summarize(timber_tons = sum(TONS)) %>%
-#   select(year=YEAR,woodtype=WOODTYPE_GENERAL,timber_tons) %>%
-#   filter(year > 2012) %>%
-#   group_by(year) %>%
-#   mutate(ratio = timber_tons / sum(timber_tons))
 
 # O-D ratios
 timber_for_pulp_od <- timber_for_pulp %>%
@@ -400,8 +250,8 @@ wt_plot <- ggplot(pulp_prod_ratio_merged) +
   scale_x_continuous(breaks = seq(from = 2001, to = 2023, by =1)) +
   xlab("") +
   scale_y_continuous(name="Pulp production (Million tonnes)\n",
-                     limits=c(0,9),
-                     breaks=seq(0,9, by=1),
+                     limits=c(0,10),
+                     breaks=seq(0,19, by=1),
                      #labels = d3_format(".3~s"),
                      expand = c(0,0)) + 
   theme_plot +
@@ -412,7 +262,7 @@ wt_plot <- ggplot(pulp_prod_ratio_merged) +
 
 wt_plot
 
-# Panel D - Timeline of key developments in the sector & government ----
+# Panel C - Timeline of key developments in the sector & government ----
 
 # We can discuss what all we'd like to include during our call next week, but here are a few ideas to seed the figure
 # https://www.dropbox.com/s/fzy0s7eg62h2r8a/policy_timeline.xlsx?dl=0
@@ -425,12 +275,9 @@ type_levels <- c("Indonesian government", "Companies","International governments
 
 type_colors <- c(colorBlind8[4],colorBlind8[6],colorBlind8[8])
 type_fill <- c(colorBlind8[4],colorBlind8[6],colorBlind8[8])
-type_shape <- c(21,16)
+type_shape <- c(16)
 
 df$type <- factor(df$type, levels=type_levels, ordered=TRUE)
-
-#positions <- c(0.5, -0.5, 1.0, -1.0, 1.5, -1.5)
-#directions <- c(1, -1)
 
 positions <- c(0.5)
 #directions <- c(1,-1)
@@ -457,41 +304,41 @@ tl_df <- df %>%
          text_position_mod = case_when(
            event == "Omnibus Law for Job Creation" ~ 0.1,
            event == "PT Phoenix mill proposed" ~ 1.6,
-           event == "Norway REDD+" ~ 3.5,
+           event == "REDD+ agreement with Norway" ~ 3.5,
            event == "Indonesia withdraws from Norway REDD+" ~ 3.5,
            event == "Norway REDD+ restart" ~ 3.5,
            TRUE ~ text_position
          ),
-         text_position = ifelse(row_cat == 32,3.5,text_position)
+         text_position = ifelse(row_cat == 32,3.5,text_position),
+         text_position = ifelse(row_cat == 11,1,text_position),
+         text_position = ifelse(row_cat == 21,1.5,text_position),
+         text_position = ifelse(row_cat == 22,2,text_position),
+         text_position = ifelse(row_cat == 23,2.5,text_position)
   )
 
 tl_plot <- ggplot(tl_df,aes(x=year,y=0, col=type, label=type,shape=direction)) + 
-  geom_segment(data=subset(tl_df,type_cat==1), aes(y=text_position,yend=1,x=min(year),xend=max(year),group=1), 
-               alpha=0.2,linewidth=1.75,linetype='solid',color=c(colorBlind8[4])) +
-  geom_segment(data=subset(tl_df,type_cat==2), aes(y=text_position,yend=2,x=min(year),xend=max(year),group=1), 
-               alpha=0.2,linewidth=1.75,linetype='solid',color=c(colorBlind8[6])) +
+  geom_segment(data=subset(tl_df,row_cat==11), aes(y=text_position,yend=1,x=min(year),xend=max(year),group=1), 
+               alpha=1,linewidth=1.75,linetype='solid',color=c(colorBlind8[4])) +
+  geom_segment(data=subset(tl_df,row_cat==21), aes(y=text_position,yend=1.5,x=min(year),xend=max(year),group=1), 
+               alpha=1,linewidth=1.75,linetype='solid',color=c(colorBlind8[6])) +
+  geom_segment(data=subset(tl_df,row_cat==22), aes(y=text_position,yend=2,x=min(year),xend=max(year),group=1), 
+               alpha=1,linewidth=1.75,linetype='solid',color=c(colorBlind8[6])) +
+  geom_segment(data=subset(tl_df,row_cat==23), aes(y=text_position,yend=2.5,x=min(year),xend=max(year),group=1), 
+               alpha=1,linewidth=1.75,linetype='solid',color=c(colorBlind8[6])) +
   geom_segment(data=subset(tl_df,row_cat==31), aes(y=text_position,yend=3,x=min(year),xend=max(year),group=1), 
-               alpha=0.2,linewidth=1.75,linetype='solid',color=c(colorBlind8[8])) +
+               alpha=1,linewidth=1.75,linetype='solid',color=c(colorBlind8[8])) +
   geom_segment(data=subset(tl_df,row_cat==32), aes(y=text_position,yend=3.5,x=min(year),xend=max(year),group=1), 
-               alpha=0.2,linewidth=1.75,linetype='solid',color=c(colorBlind8[8])
+               alpha=1,linewidth=1.75,linetype='solid',color=c(colorBlind8[8])
   ) +
   ylab("\n")+
-  scale_color_manual(values=type_colors, labels=type_levels, drop = FALSE,guide = "legend",name="",na.translate=FALSE) + 
+  scale_color_manual(values=type_colors, labels=type_levels, drop = FALSE,guide = guide_legend(reverse = TRUE),name="",na.translate=FALSE) + 
   scale_fill_manual(values=type_fill, labels=type_levels, drop = FALSE,guide = "legend",name="",na.translate=FALSE) + 
-  scale_shape_manual(values=type_shape, labels=type_levels, drop = TRUE,guide = FALSE,name="",na.translate=FALSE) +
+  scale_shape_manual(values=type_shape, labels=type_levels, drop = TRUE,guide = FALSE,name="",na.translate=FALSE,) +
   theme_classic() + 
   scale_x_continuous(expand=c(0,0.5),breaks=seq(2001,2023,by=1)) +
   scale_y_discrete(expand=c(0,0.2))+
   geom_point(aes(y=text_position), size=4.5,alpha=0.75) + # scatter points 
-  geom_point(data=tl_df[tl_df$direction.x == 0,],aes(y=text_position), size=4.5,alpha=1,fill="white") + # scatter points 
-  #scale_x_date(date_breaks = "1 year", date_labels = "%Y",limits= range) +
-  #geom_hline(yintercept=0,color = "black", size=0.3) + # Plot horizontal black line for timeline
-  #geom_segment(data=tl_df[tl_df$year_count == 1,], aes(y=0.8,yend=0,xend=year), 
-  #             color='grey70', alpha=0.5,size=0.85,linetype='dotted') +
-  #geom_point(aes(y=0), size=2,color="black") + # scatter points 
-  #geom_point(aes(y=text_position), size=2,alpha=0.75) + # scatter points 
-  #geom_text(aes(y=text_position + 0.03,x=year,label=stringr::str_wrap(event,15)),size=2.75,hjust =1, family= "DM Sans",
-  #          fontface = "bold",show.legend = FALSE) +
+  geom_point(data=tl_df[tl_df$direction.x == 0,],aes(y=text_position), size=4.5,alpha=1) + # scatter points 
   ggrepel::geom_text_repel(aes(y=text_position_mod+0.05,x=year,label=stringr::str_wrap(event,25)),size=2.75,hjust =0,vjust=-1.25, family= "DM Sans",
                            fontface = "bold",show.legend = FALSE,min.segment.length = 2.5) +
   #geom_text(data=year_df, aes(x=as.double(year_format),y=-0.03,label=year_format, fontface="bold"),size=2.75, color='black', family = "DM Sans") +
@@ -522,4 +369,4 @@ comb_plot
 
 ##ggsave(comb_plot,file="D:/comb_plot.png", dpi=400, w=11, h=14,type="cairo-png") 
 ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=12, h=15,type="cairo-png") 
-ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.svg"), dpi=400, w=12, h=15) 
+ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_rev1.svg"), dpi=400, w=12, h=15) 
