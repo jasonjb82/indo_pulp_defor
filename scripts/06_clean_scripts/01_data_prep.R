@@ -13,7 +13,6 @@
 ## Notes: Input datasets
 ##        1) HTI concessions (boundaries) and concession start year from KLHK
 ##        2) Gaveau landuse change - pulp deforestation (2000 - 2022) from TreeMap
-##        3) JRC deforestation (1990 - 2022) - Vancutsem et.al (2021) - https://www.science.org/doi/10.1126/sciadv.abe1603
 ##        4) GFC Hansen deforestation year (2001 - 2022) - earthenginepartners.appspot.com/science-2013-global-forest
 ##        5) Peat (MoA Indonesia, 2019) & Margono forest mask (TreeMap version)
 ##
@@ -70,6 +69,7 @@ ws <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\PULP_WOOD_SUPPLY_CLEAN_ALL_AL
 hti_ownership_class <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_company_ownership_reclass.csv"))
 # kabupaten
 kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
+# get provinces
 prov_slim <- kab %>% select(prov,prov_code) %>% st_drop_geometry() %>% distinct() %>%
   mutate(prov_code = ifelse(prov == "PAPUA",92,prov_code))
 # add islands
@@ -191,7 +191,7 @@ supplier_groups <- groups %>%
 ## Create data on land use changes
 ################################################################################
 
-## identify pixels that eventually become pulp
+## Identify pixels that eventually become pulp
 gaveau_pulp_sids <- samples_gaveau_landuse %>%
   select(sid,timberdeforestation_2022) %>%
   lazy_dt() %>%
@@ -204,7 +204,7 @@ gaveau_pulp_sids <- samples_gaveau_landuse %>%
   distinct() %>%
   pull(sid)
 
-# create pixel level dataset starting from primary forest detected by Treemap Margono mask
+# Create pixel level dataset starting from primary forest detected by Treemap Margono mask
 samples_df <- samples_gfc_margono_peat %>%
   lazy_dt() %>%
   select(sid, primary,lossyear) %>%
@@ -224,7 +224,7 @@ samples_df <- samples_gfc_margono_peat %>%
   rename(island = island_name) %>%
   as_tibble()
 
-### Join to gaveau, concession, jrc & gfc year of deforestation
+### Join to hti concession license dates and names
 samples_df <- samples_df %>% 
   as_tibble() %>%
   add_column(rand = runif(nrow(.))) %>%
@@ -232,7 +232,7 @@ samples_df <- samples_df %>%
   rename(supplier_id = ID) %>% 
   left_join(hti_dates_clean,by="supplier_id") %>%
   left_join(hti_concession_names,by="supplier_id") %>%
-  left_join(samples_jrc_defyr,by="supplier_id") %>%
+  #left_join(samples_jrc_defyr,by="supplier_id") %>%
   mutate(pulp = ifelse(sid %in% gaveau_pulp_sids,"Y","N"))
 
 ## create table of annual pulp
@@ -246,7 +246,7 @@ supplier_year_tbl <- hti_concession_names %>%
   mutate(unique=1) %>%
   select(supplier_id,year)
 
-## annual pulp planted areas
+## Calculate annual pulp planted areas
 gaveau_annual_pulp <- samples_gaveau_landuse %>%
   lazy_dt() %>%
   as.data.table() %>%
@@ -262,34 +262,6 @@ gaveau_annual_pulp <- samples_gaveau_landuse %>%
   group_by(supplier_id,year) %>%
   mutate(shr_gav_lu_areas = prop.table(n)*100) %>%
   filter(gav_class != "Others")
-
-## join with downstream mill supplier, license year,concession names and annual change class names
-hti_jrc_ac <- jrc_ac %>%
-  rename(supplier_id=ID) %>%
-  left_join(subset(lu_table,dataset =="jrc tmf annual changes"),by="class") %>%
-  mutate(class_desc = ifelse(class_desc == "permanent or seasonal water" | class_desc == "other land cover" | is.na(class_desc),"other land cover",class_desc )) %>%
-  group_by(supplier_id,class_desc,year,island) %>%
-  summarize(area_class = sum(n),shr_class=sum(shr_class)) %>%
-  left_join(hti_dates_clean,by="supplier_id") %>%
-  left_join(mill_supplier,by="supplier_id") %>%
-  left_join(hti_concession_names,by="supplier_id") %>%
-  mutate(year = str_replace(year,"dec", "")) %>%
-  mutate(year = as.double(year)) %>%
-  select(-supplier) %>%
-  left_join(select(gaveau_annual_pulp,supplier_id,year,shr_gav_lu_areas,gav_lu_areas=n,gav_class),by=c("year","supplier_id")) %>%
-  mutate(
-    zdc_year = case_when(
-      app == 1 ~ 2013,
-      app == 0 & april == 1 ~ 2015,
-      april == 0 & app == 0 & marubeni == 1 ~ 2019,
-      TRUE ~ 0
-    )
-  ) %>%
-  as_tibble() %>%
-  mutate(zdc_year = ifelse(zdc_year ==0,NA_real_,zdc_year))
-
-# Gaveau annual LU classes
-# annual landuse
 
 # calculate forest areas in 2000
 gaveau_forest_2000 <- samples_gfc_margono_peat %>%
@@ -336,7 +308,6 @@ gaveau_annual_forest <- samples_gfc_ttm %>%
   fill(island,.direction="updown") %>%
   mutate(rem_forest_area_ha = ifelse(is.na(rem_forest_area_ha),0,rem_forest_area_ha))
 
-
 # combine areas
 gaveau_annual_lc <- gaveau_annual_forest %>%
   full_join(conc_area,by="supplier_id") %>%
@@ -371,7 +342,7 @@ gaveau_annual_lc <- gaveau_annual_forest %>%
 hti_gav_annual_lc <- gaveau_annual_lc %>%
   left_join(hti_concession_names,by="supplier_id") 
 
-write_csv(hti_gav_annual_lc,"")
+write_csv(hti_gav_annual_lc,paste0(wdir,"\\01_data\\02_out\\tables\\hti_land_use_change_areas.csv"))
 
 ################################################################################
 ## calculate hti conversion timing
@@ -389,7 +360,6 @@ gaveau_pulp_sids <- samples_gaveau_landuse %>%
   filter(class == "3") %>%
   distinct() %>%
   pull(sid)
-
 
 # create pixel level dataset starting from primary forest detected by Treemap Margono mask
 samples_df <- samples_gfc_margono_peat %>%
@@ -411,7 +381,6 @@ samples_df <- samples_gfc_margono_peat %>%
   rename(island = island_name) %>%
   as_tibble()
 
-### Join to gaveau, concession, jrc & gfc year of deforestation
 samples_df <- samples_df %>% 
   as_tibble() %>%
   add_column(rand = runif(nrow(.))) %>%
@@ -420,7 +389,6 @@ samples_df <- samples_df %>%
   left_join(hti_dates_clean,by="supplier_id") %>%
   left_join(hti_concession_names,by="supplier_id") %>%
   left_join(samples_gfc_ttm,by="sid") %>%
-  left_join(samples_jrc_defyr,by="sid") %>%
   mutate(pulp = ifelse(sid %in% gaveau_pulp_sids,"Y","N"))
 
 # gaveau pulp conversion
@@ -448,7 +416,6 @@ hti_pulp_conv <- gaveau_annual_pulp %>%
   filter(conv_type != 0) %>%
   as_tibble()
 
-# Option of using deforestation for other areas within concessions from Hansen GFC (lossyear) / JRC TMF (def_yr)
 # other deforestation (GFC) # conversion type = 3
 hti_other_conv <- samples_df %>%
   filter(pulp == "N" & start_for == "Y" & !is.na(lossyear)) %>%
@@ -601,7 +568,5 @@ hti_conv_timing <- gaveau_annual_pulp %>%
   print()
 
 # write to csv
-write_csv(hti_conv_timing,paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_zdc_pulp_conv_areas.csv"))
-
-# write to csv
+write_csv(hti_conv_timing,paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_deforestation_timing.csv"))
 write_csv(hti_nonhti_conv,paste0(wdir,"\\01_data\\02_out\\tables\\idn_pulp_conversion_hti_nonhti_gaveau.csv"))
