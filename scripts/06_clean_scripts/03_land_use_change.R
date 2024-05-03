@@ -10,9 +10,7 @@
 ## 
 ## ---------------------------------------------------------
 ##
-## Notes: Input datasets
-##        1) HTI concessions (boundaries) and concession start year from KLHK
-##        2) Gaveau landuse change - pulp deforestation (2000 - 2022) from TreeMap
+## Notes: 
 ##
 ## ---------------------------------------------------------
 
@@ -55,8 +53,8 @@ wdir <- "remote"
 # load color palette
 source("scripts\\001_misc\\001_color_palettes.R")
 
-# hti conversion timing
-hti_gav_annual_lc <- read_csv("")
+# concession annual land use changes
+hti_gav_annual_lc <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_land_use_change_areas.csv"))
 
 #########################################################################
 # Plotting --------------------------------------------------------------
@@ -87,7 +85,7 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                     legend.box="horizontal",
                     plot.margin=unit(c(0.5,1.5,0.5,0.5),"cm"))
 
-# create plots by loop
+# get list of concessions
 concessions <- hti_gav_annual_lc %>%
   filter(all == 1) %>%
   distinct(supplier_label) %>%
@@ -98,6 +96,7 @@ hti_gav_annual_lc$class_desc <- factor(hti_gav_annual_lc$class_desc, levels = c(
 
 hti_plots = list()
 
+# create plots by loop
 for(concession_ in concessions) {
   hti_plots[[concession_]] = ggplot(hti_gav_annual_lc %>% filter(supplier_label == concession_),aes(year,area_ha)) +
     geom_area(aes(fill= as.factor(class_desc)), position = position_stack(reverse = F)) +
@@ -116,5 +115,5 @@ for(concession_ in concessions) {
     theme_plot
   
   print(hti_plots[[concession_]])
-  ggsave(hti_plots[[concession_]], file=paste0("D:\\",gsub(" ","_",concession_),"_Gaveau_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
+  ggsave(hti_plots[[concession_]], file=paste0("\\01_data\\02_out\\plots\\001_figures\\lu_traj_plots_all\\",gsub(" ","_",concession_),"_Gaveau_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
 }
