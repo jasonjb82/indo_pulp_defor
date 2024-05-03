@@ -32,7 +32,6 @@ library(janitor)
 library(lubridate)
 library(sf)
 library(scales)
-library(aws.s3)
 library(dtplyr)
 library(testthat)
 library(d3.format)
@@ -41,12 +40,6 @@ library(patchwork)
 library(rcartocolor)
 library(showtext)
 library(khroma) # palettes for color blindness
-
-## credentials ----------------------------------------------
-
-aws.signature::use_credentials()
-bucket <- "trase-storage"
-Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 ## set working directory -------------------------------------
 
@@ -57,6 +50,9 @@ wdir <- "remote"
 
 # hti concessions
 hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_TRASE_20230314_proj.shp"))
+
+# wood supply
+ws <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv"))
 
 # pulpwood supply in 2022 
 pw_supply_2022 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx')) %>%
