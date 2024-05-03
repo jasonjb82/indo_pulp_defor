@@ -85,14 +85,8 @@ hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
 # wood supply
 ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2022.csv", bucket), delim = ",")
 
-# silk data
-#silk_data <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\WOOD_EXPORTS_SILK_MERGED.csv"))
-
 # wood species lookup table
 wood_species <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\SILK_PULP_WOOD_SPECIES.csv"))
-
-# policy timeline
-##policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline.csv"))
 
 # policy timeline (updated)
 policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline_cats_rev1.csv")) %>%
@@ -357,8 +351,6 @@ tl_plot <- ggplot(tl_df,aes(x=year,y=0, col=type, label=type,shape=direction)) +
 
 
 tl_plot
-
-##ggsave(tl_plot,file="D:\\tl_plot.png", dpi=400, w=12, h=6,type="cairo-png") 
 
 # merge plot using patchwork
 comb_plot <- defor_plot / wt_plot / tl_plot
