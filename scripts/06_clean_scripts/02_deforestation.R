@@ -49,7 +49,7 @@ wdir <- "remote"
 source("scripts\\001_misc\\001_color_palettes.R")
 
 # read data on hti conversion timing
-hti_conv_timing <- read_csv("")
+hti_conv_timing <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_deforestation_timing.csv"))
 
 #########################################################################
 # Plotting --------------------------------------------------------------
@@ -130,12 +130,10 @@ freq_tab <- hti_conv_timing %>%
 freq_tab
 
 ## plot frequencies
-freq_plot_1 <- freq_tab %>% 
-  #filter(class != "Deforestation not for pulp") %>%
+defor_plot <- freq_tab %>% 
   as_tibble() %>%
   mutate(label_order = factor(!!sym(group_var),rev(order))) %>%
   ggplot() +
-  #ggtitle("A: Concession area by deforestation history") +
   aes(y = label_order, x = area_ha, fill = factor(class,levels=plot_order_deft_pulp)) +
   geom_bar(stat = "identity",position = position_stack(reverse = TRUE)) +
   theme_plot2 +
@@ -148,14 +146,7 @@ freq_plot_1 <- freq_tab %>%
                     breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp) +
   theme(axis.title.y = element_text(angle = 90))
 
-freq_plot_1
+defor_plot
 
-ggsave(freq_plot_1,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev5.png"), dpi=400, w=8, h=4,limitsize = FALSE)
+ggsave(defor_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev5.png"), dpi=400, w=8, h=4,limitsize = FALSE)
 
-# merging plots
-freq_comb <- (freq_plot_1 + plot_layout(guides = "collect") & theme(legend.position = "bottom")) + 
-  (freq_conv_perc_plot + theme(legend.position = "none")) 
-freq_comb
-
-## save plot to png
-ggsave(freq_comb,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev3.png"), dpi=400, w=10, h=4,limitsize = FALSE)
