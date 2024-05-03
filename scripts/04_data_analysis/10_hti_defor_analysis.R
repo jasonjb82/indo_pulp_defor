@@ -45,12 +45,6 @@ library(rcartocolor)
 library(showtext)
 library(khroma) # palettes for color blindness
 
-## credentials ----------------------------------------------
-
-aws.signature::use_credentials()
-bucket <- "trase-storage"
-Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
-
 ## set working directory -------------------------------------
 
 wdir <- "remote"
@@ -77,7 +71,7 @@ samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.
 hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_TRASE_20230314_proj.shp"))
 
 # wood supply
-ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2022.csv", bucket), delim = ",")
+ws <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv"))
 
 # ownership class
 hti_ownership_class <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_company_ownership_reclass.csv"))
@@ -102,7 +96,7 @@ islands <- kab %>%
   drop_na(island)
 
 # mills
-mills <- s3read_using(read_excel, object = "indonesia/wood_pulp/logistics/out/mills/MILLS_EXPORTERS_20200405.xlsx", bucket = bucket)
+mills <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\MILLS_EXPORTERS_20200405.xlsx"))
 
 ## clean mill supplier
 mill_supplier <- ws %>%
@@ -432,10 +426,6 @@ hti_conv_timing <- gaveau_annual_pulp %>%
   arrange(year,supplier_id) %>%
   as_tibble() %>%
   left_join(mill_supplier,by="supplier_id") %>%
-  #mutate(conv_time = case_when(year >= 2013 & app == 1 ~ "Deforestation for pulp after first ZDC of downstream mill",
-  #                              year >= 2015 & app == 0 & april == 1 ~ "Deforestation for pulp after first ZDC of downstream mill",
-  #                              year >= 2019 & app == 0 & april == 0 & marubeni == 1  ~ "Deforestation for pulp after first ZDC of downstream mill",
-  #                              TRUE ~ "Deforestation for pulp before first ZDC of downstream mill")) %>%
   mutate(conv_time = ifelse(year >= 2015,"Deforestation for pulp after 2015","Deforestation for pulp from 2001-2015")) %>%
   group_by(supplier_id,supplier,supplier_label,license_year,island,april,app,marubeni,all,conv_type,conv_time) %>%
   summarize(area_ha = n()) %>%
@@ -618,11 +608,6 @@ top_5_hti_deforesters_pp_after_2015 <- hti_conv_timing %>%
   slice(1:5) %>%
   print()
 
-## manual reordering
-#order <- c("SINAR MAS","ROYAL GOLDEN EAGLE / TANOTO","SUMITOMO",
-#           "KORINDO","DJARUM","MARUBENI","GOVERNMENT","ADR","OTHER")
-
-
 order <- c("SINAR MAS",
            "SINAR MAS (NGO-LINKED)",
            "ROYAL GOLDEN EAGLE / TANOTO",
@@ -638,19 +623,6 @@ order <- c("SINAR MAS",
 order <- c("Acknowledged ownership",
            "Suspected ownership based on civil society investigations",
            "Third-party suppliers")
-
-## set plot order
-#plot_order_deft_pulp <- c(
-#  "Never deforested",
-#  "Deforestation not for pulp",
-#  "Deforestation for pulp before first ZDC of downstream mill",
-#  "Deforestation for pulp after first ZDC of downstream mill")
-
-# plot_order_deft_pulp <- c(
-#   "Never deforested",
-#   "Deforestation not for pulp",
-#   "Deforestation for pulp before 2015",
-#   "Deforestation for pulp after 2015")
 
 plot_order_deft_pulp <- c(
   "Deforestation for pulp after 2015",
@@ -706,25 +678,6 @@ freq_plot_1
 
 ggsave(freq_plot_1,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev5.png"), dpi=400, w=8, h=4,limitsize = FALSE)
 
-
-# ## plot areas of never deforested
-# freq_plot_2 <- freq_tab %>% 
-#   filter(class == "Never deforested") %>%
-#   as_tibble() %>%
-#   mutate(label_order = factor(!!sym(group_var),rev(order))) %>%
-#   ggplot() +
-#   aes(y = label_order, x = area_ha, fill = factor(class,levels=plot_order_deft_pulp)) +
-#   geom_bar(stat = "identity",position = position_stack(reverse = TRUE)) +
-#   theme_plot2 +
-#   xlab("") + ylab("") +
-#   scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
-#   scale_x_continuous(labels = d3_format(".2~s",suffix = " ha"),expand = c(0,0)) +
-#   guides(fill = guide_legend(nrow = 2)) +
-#   scale_fill_manual(values = cols,name ="Group",
-#                     breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp)
-# 
-# freq_plot_2
-
 # stacked percent plot
 freq_conv_perc_plot <- freq_tab %>% 
   as_tibble() %>%
@@ -750,9 +703,6 @@ freq_comb <- (freq_plot_1 + plot_layout(guides = "collect") & theme(legend.posit
   (freq_conv_perc_plot + theme(legend.position = "none")) 
 freq_comb
 
-#freq_comb_vert <- (freq_plot_1 + plot_layout(guides = "collect") & theme(legend.position = "none"))/
-#  (freq_conv_perc_plot  + plot_layout(guides = "collect") & theme(legend.position = "bottom")) /   (freq_plot_2 + theme(legend.position = "bottom")) 
-#freq_comb_vert
 
 ## save plot to png
 ggsave(freq_comb,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev3.png"), dpi=400, w=10, h=4,limitsize = FALSE)
