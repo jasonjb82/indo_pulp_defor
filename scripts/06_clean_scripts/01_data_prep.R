@@ -12,7 +12,7 @@
 ##
 ## Notes: Input datasets
 ##        1) HTI concessions (boundaries) and concession start year from KLHK
-##        2) Gaveau landuse change - pulp deforestation (2000 - 2022) from TreeMap
+##        2) TreeMap landuse change - pulp deforestation (2000 - 2022)
 ##        4) GFC Hansen deforestation year (2001 - 2022) - earthenginepartners.appspot.com/science-2013-global-forest
 ##        5) Peat (MoA Indonesia, 2019) & Margono forest mask (TreeMap version)
 ##
@@ -69,7 +69,7 @@ ws <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\PULP_WOOD_SUPPLY_CLEAN_ALL_AL
 hti_ownership_class <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_company_ownership_reclass.csv"))
 # kabupaten
 kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
-# get provinces
+# provinces
 prov_slim <- kab %>% select(prov,prov_code) %>% st_drop_geometry() %>% distinct() %>%
   mutate(prov_code = ifelse(prov == "PAPUA",92,prov_code))
 # add islands
@@ -100,20 +100,7 @@ mill_supplier <- ws %>%
   mutate(supplier_id = str_replace(supplier_id,"ID-WOOD-CONCESSION-","H-")) %>%
   distinct() 
 
-## JRC
-## Annual changes 
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\jrc\\annual_changes\\"),pattern = "*.csv",full.names= TRUE)
-
-samples_jrc_tmf <- filenames %>%  map_dfr(read_csv) %>% janitor::clean_names() 
-
-## Deforestation year
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\jrc\\deforestation_year\\"),
-                 pattern = "*.csv",
-                 full.names= TRUE)
-
-samples_jrc_defyr <- filenames %>% map_dfr(read_csv) %>% janitor::clean_names() 
-
-## Gaveau data
+## TreeMap data
 filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),pattern = "*gaveau_classes.csv",full.names= TRUE)
 
 samples_gaveau_landuse <- filenames %>% map_dfr(read_csv) %>% janitor::clean_names() 
@@ -141,8 +128,9 @@ pulp_nonfor_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_ann
   select(-`system:index`,-constant,-.geo)
 
 ## clean hti concession names
-## Note: 2 supplying concessions - PT OKI PULP & PAPER MILLS (H-0656) & PT WANA SUBUR SAWIT INDAH (H-0657) are
-## not HTI concessions but IPK concessions [wood utilization permit] included as they are suppliers to pulp mills
+## Note: 3 supplying concessions - PT OKI PULP & PAPER MILLS & PT WANA SUBUR SAWIT INDAH,
+## and PT MUTAIARA SABUK KHATULISTIWA are not HTI concessions but IPK concessions [wood utilization permit]
+## and Hutan Alam included as they are suppliers to pulp mills
 hti_concession_names <- hti %>%
   st_drop_geometry() %>%
   select(supplier_id=ID,supplier=namaobj) %>%
@@ -232,7 +220,6 @@ samples_df <- samples_df %>%
   rename(supplier_id = ID) %>% 
   left_join(hti_dates_clean,by="supplier_id") %>%
   left_join(hti_concession_names,by="supplier_id") %>%
-  #left_join(samples_jrc_defyr,by="supplier_id") %>%
   mutate(pulp = ifelse(sid %in% gaveau_pulp_sids,"Y","N"))
 
 ## create table of annual pulp
@@ -487,7 +474,7 @@ pulp_conv_outside_hti <- id_pulp_conv_for %>%
 
 # merge conversion (hti)
 hti_conv <- hti_pulp_conv %>%
-  bind_rows(hti_other_conv) %>% # GFC Hansen / JRC deforestation within concessions / TTM GFC modified data
+  bind_rows(hti_other_conv) %>% # TTM GFC modified data
   left_join(mill_supplier,by="supplier_id") %>%
   mutate(
     zdc_year = case_when(
