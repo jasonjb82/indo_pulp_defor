@@ -56,9 +56,9 @@ source("scripts\\001_misc\\001_color_palettes.R")
 # concession annual land use changes
 hti_gav_annual_lc <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_land_use_change_areas.csv"))
 
-#########################################################################
-# Plotting --------------------------------------------------------------
-#########################################################################
+
+## Plotting -------------------------------------------------
+
 
 ## set up theme
 theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
