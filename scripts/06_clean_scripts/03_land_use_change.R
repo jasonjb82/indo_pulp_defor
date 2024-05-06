@@ -106,7 +106,7 @@ for(concession_ in concessions) {
     geom_vline(aes(xintercept=as.numeric(zdc_year),color="Earliest ZDC year\nof downstream mill"),size=0.5)+
     ylab("") +
     xlab("") +
-    ggtitle(paste0(concession_)) +
+    ggtitle(paste0(str_sub(concession_, end=-10))) +
     scale_fill_manual(values=c("#009E73","#F0E442","#CC79A7"),
                       breaks = c("Forest","Non-forest","Cleared for pulp"),
                       labels = c("Forest","Non-forest","Cleared for pulp"))+
@@ -115,5 +115,5 @@ for(concession_ in concessions) {
     theme_plot
   
   print(hti_plots[[concession_]])
-  ggsave(hti_plots[[concession_]], file=paste0("\\01_data\\02_out\\plots\\001_figures\\lu_traj_plots_all\\",gsub(" ","_",concession_),"_Gaveau_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
+  ggsave(hti_plots[[concession_]], file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\lu_traj_plots_all\\",gsub(" ","_",concession_),"_TreeMap_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
 }
