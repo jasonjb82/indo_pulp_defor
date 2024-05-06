@@ -109,9 +109,8 @@ group_var <- "ownership_class" # Generally either island, supplier_group or supp
 mill_var <- "all" # Generally either april,app,marubeni or all (all concessions)
 
 freq_tab <- hti_conv_timing %>%
-  left_join(hti_ownership_class,by=c("supplier_id")) %>%
   filter(!!sym(mill_var) == 1) %>%
-  filter(conv_type == 2 | is.na(conv_type)) %>%
+  filter(conv_type == 2 | is.na(conv_type) | is.na(supplier_group)) %>%
   mutate(supplier_group = 
            case_when(
              linked_group == "APP" & ownership_class == "NGO-linked" ~ "SINAR MAS (NGO-LINKED)",
