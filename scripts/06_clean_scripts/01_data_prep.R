@@ -552,6 +552,7 @@ hti_conv_timing <- gaveau_annual_pulp %>%
          supplier_group = ifelse(supplier_group == "UNKNOWN" | is.na(supplier_group),"OTHER",supplier_group)) %>%
   group_by() %>%
   mutate(all = ifelse(is.na(all),1,all)) %>%
+  left_join(hti_ownership_class,by=c("supplier_id")) %>%
   print()
 
 # write to csv
