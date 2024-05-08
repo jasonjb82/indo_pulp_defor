@@ -34,7 +34,6 @@ library(scales)
 library(dtplyr)
 library(d3.format) # to install: devtools::install_github("dreamRs/d3.format")
 library(tidyfast)
-library(patchwork)
 library(showtext)
 library(khroma) # palettes for color blindness
 
