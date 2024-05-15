@@ -1,8 +1,8 @@
 ## ---------------------------------------------------------
 ## 
-## Project: Data preparation
+## Project: Indonesia pulp deforestation
 ##
-## Purpose of script: 
+## Purpose of script: Data preparation
 ##
 ## Author: Robert Heilmayr and Jason Jon Benedict
 ##
@@ -36,20 +36,20 @@ library(tidyfast)
 library(showtext)
 library(khroma) # palettes for color blindness
 
+'%ni%' <- Negate('%in%') # filter out function
+
 ## set working directory -------------------------------------
 
 wdir <- "remote"
-
-'%ni%' <- Negate('%in%') # filter out function
 
 ## read data -------------------------------------------------
 
 # pulp conversion from non-forest (indonesia wide)
 pulp_nonfor_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_annual_defor_non-forest_id.csv")) %>%
   select(-`system:index`,-constant,-.geo)
-# license dates of HTI
+# license dates of concessions
 lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
-# supplier groups
+# concession groups
 groups <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.csv"))
 # sample IDs and HTI
 samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
@@ -80,7 +80,7 @@ islands <- kab %>%
 # mills
 mills <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\MILLS_EXPORTERS_20200405.xlsx"))
 
-## clean mill supplier
+# clean mill suppliers
 mill_supplier <- ws %>%
   filter(str_detect(SUPPLIER_ID, '^ID-WOOD-CONCESSION')) %>%
   select(supplier_id=SUPPLIER_ID,EXPORTER) %>%
@@ -92,30 +92,28 @@ mill_supplier <- ws %>%
   mutate(supplier_id = str_replace(supplier_id,"ID-WOOD-CONCESSION-","H-")) %>%
   distinct() 
 
-## TreeMap extracted data
+## read point sample extracted datasets ##
+
+# TreeMap cleared area classes
 filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),pattern = "*gaveau_classes.csv",full.names= TRUE)
 
-samples_gaveau_landuse <- filenames %>% map_dfr(read_csv) %>% janitor::clean_names() 
+samples_treemap_landuse <- filenames %>% map_dfr(read_csv) %>% janitor::clean_names() 
 
-## Peat and Margono primary forest
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_peat\\"),
-                 pattern = "*.csv",
-                 full.names= TRUE)
+# peat areas and Margono primary forest
+filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_peat\\"), pattern = "*.csv", full.names= TRUE)
 
 samples_gfc_margono_peat <- filenames %>% map_dfr(read_csv) %>% janitor::clean_names() 
 
-## GFC deforestation (modified by TreeMap)
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_ttm\\"),
-                 pattern = "*.csv",
-                 full.names= TRUE)
+# GFC deforestation (modified by TreeMap)
+filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_ttm\\"), pattern = "*.csv", full.names= TRUE)
 
 samples_gfc_ttm <- filenames %>% map_dfr(read_csv) %>%janitor::clean_names() 
 
-# pulp conversion from forest (Indonesia wide)
+# pulp conversion from forest (Indonesia wide) - TreeMap
 pulp_for_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_annual_defor_forest_id.csv")) %>%
   select(-`system:index`,-constant,-.geo)
 
-# pulp conversion from non-forest (Indonesia wide)
+# pulp conversion from non-forest (Indonesia wide) - TreeMap
 pulp_nonfor_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_annual_defor_non-forest_id.csv")) %>%
   select(-`system:index`,-constant,-.geo)
 
@@ -123,6 +121,7 @@ pulp_nonfor_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_ann
 ## Note: 3 non-HTI active supplier concessions included - PT OKI PULP & PAPER MILLS & PT WANA SUBUR SAWIT INDAH are
 ## IPK concessions [wood utilization permit] and PT MUTAIARA SABUK KHATULISTIWA is classed as Hutan Alam [Natural Forest]  
 
+# HTI concession names
 hti_concession_names <- hti %>%
   st_drop_geometry() %>%
   select(supplier_id=ID,supplier=namaobj) %>%
@@ -157,10 +156,16 @@ other_concessions <- hti_concession_names %>%
 
 mill_supplier <- mill_supplier %>%
   rbind(other_concessions) %>%
-  as.data.table()
-
-mill_supplier <- dcast(mill_supplier, formula = supplier_id ~ mill, fun.aggregate = length) 
-mill_supplier$all <- "1" # 1 value for all concessions
+  as.data.table() %>%
+  dcast(., formula = supplier_id ~ mill, fun.aggregate = length) %>%
+  mutate(all = 1,
+         zdc_year = case_when(
+            app == 1 ~ 2013,
+            app == 0 & april == 1 ~ 2015,
+            april == 0 & app == 0 & marubeni == 1 ~ 2019,
+            TRUE ~ 0),
+    zdc_year = ifelse(zdc_year ==0,NA_real_,zdc_year)
+  ) 
 
 # clean supplier groups
 supplier_groups <- groups %>%
@@ -171,20 +176,18 @@ supplier_groups <- groups %>%
 ## Create dataset of HTI land use changes --------------------------------------
 ################################################################################
 
-## Identify pixels that eventually become pulp
-gaveau_pulp_sids <- samples_gaveau_landuse %>%
+# Identify samples that eventually become pulp
+treemap_pulp_sids <- samples_treemap_landuse %>%
   select(sid,timberdeforestation_2022) %>%
   lazy_dt() %>%
   as.data.table() %>%
-  dt_pivot_longer(cols = c(-sid),
-                  names_to = 'year',
-                  values_to = 'class') %>%
+  dt_pivot_longer(cols = c(-sid), names_to = 'year', values_to = 'class') %>%
   as_tibble() %>%
   filter(class == "3") %>%
   distinct() %>%
   pull(sid)
 
-# Create pixel level dataset starting from primary forest detected by Treemap Margono mask
+# Create sample level dataset starting from primary forest detected by Treemap Margono mask
 samples_df <- samples_gfc_margono_peat %>%
   lazy_dt() %>%
   select(sid, primary,lossyear) %>%
@@ -204,7 +207,7 @@ samples_df <- samples_gfc_margono_peat %>%
   rename(island = island_name) %>%
   as_tibble()
 
-### Join to hti concession license dates and names
+# add HTI concession license dates and names
 samples_df <- samples_df %>% 
   as_tibble() %>%
   add_column(rand = runif(nrow(.))) %>%
@@ -213,30 +216,26 @@ samples_df <- samples_df %>%
   left_join(hti_dates_clean,by="supplier_id") %>%
   left_join(hti_concession_names,by="supplier_id") %>%
   left_join(samples_gfc_ttm,by="sid") %>%
-  mutate(pulp = ifelse(sid %in% gaveau_pulp_sids,"Y","N"))
+  mutate(pulp = ifelse(sid %in% treemap_pulp_sids,"Y","N"))
 
-## create table of annual pulp
+# create table of annual pulp
 supplier_year_tbl <- hti_concession_names %>%
   select(supplier_id) %>%
   group_by(supplier_id) %>%
-  summarise(start = min(2001),
-            end = max(2022)) %>%
+  summarise(start = min(2001),end = max(2022)) %>%
   mutate(year = Map(seq, start, end)) %>%
   unnest(cols =year) %>%
   mutate(unique=1) %>%
   select(supplier_id,year)
 
-# gaveau pulp conversion
-gaveau_annual_conv <- samples_gaveau_landuse %>%
+# TreeMap pulp conversion
+treemap_annual_conv <- samples_treemap_landuse %>%
   lazy_dt() %>%
   as.data.table() %>%
-  dt_pivot_longer(cols = c(-sid),
-                  names_to = 'year',
-                  values_to = 'class')
+  dt_pivot_longer(cols = c(-sid),names_to = 'year',values_to = 'class')
 
 ## Calculate annual pulp planted areas
-
-gaveau_annual_pulp <- gaveau_annual_conv %>%
+treemap_annual_pulp <- treemap_annual_conv %>%
   mutate(year = str_replace(year,"timberdeforestation_", ""),year = as.double(year)) %>%
   mutate(gav_class = ifelse(class == 3,"Pulp","Others")) %>%
   left_join(samples_hti,by="sid") %>%
@@ -247,24 +246,8 @@ gaveau_annual_pulp <- gaveau_annual_conv %>%
   mutate(shr_gav_lu_areas = prop.table(n)*100) %>%
   filter(gav_class != "Others")
 
-# gaveau_annual_pulp <- samples_gaveau_landuse %>%
-#   lazy_dt() %>%
-#   as.data.table() %>%
-#   dt_pivot_longer(cols = c(-sid),
-#                   names_to = 'year',
-#                   values_to = 'class') %>%
-#   mutate(year = str_replace(year,"timberdeforestation_", ""),year = as.double(year)) %>%
-#   mutate(gav_class = ifelse(class == 3,"Pulp","Others")) %>%
-#   left_join(samples_hti,by="sid") %>%
-#   as_tibble() %>%
-#   group_by(supplier_id=ID,year,gav_class) %>%
-#   summarize(n = n()) %>%
-#   group_by(supplier_id,year) %>%
-#   mutate(shr_gav_lu_areas = prop.table(n)*100) %>%
-#   filter(gav_class != "Others")
-
 # calculate forest areas in 2000
-gaveau_forest_2000 <- samples_gfc_margono_peat %>%
+treemap_forest_2000 <- samples_gfc_margono_peat %>%
   lazy_dt() %>%
   left_join(samples_hti,by="sid") %>%
   group_by(supplier_id=ID,primary) %>%
@@ -279,11 +262,11 @@ conc_area <- samples_hti %>%
   group_by(supplier_id=ID) %>%
   summarize(conc_area_ha = n())
 
-# list of codes of forest
+# list of codes for forest class
 forest_loss_codes <- c(101:122,401:422,601:622)
 
 # merge and calculate remaining forest areas in each year
-gaveau_annual_forest <- samples_gfc_ttm %>%
+treemap_annual_forest <- samples_gfc_ttm %>%
   lazy_dt() %>%
   left_join(samples_hti,by="sid") %>%
   mutate(year = round(gfc_ttm %% 100)+2000) %>%
@@ -294,7 +277,7 @@ gaveau_annual_forest <- samples_gfc_ttm %>%
   arrange(-desc(supplier_id),year) %>%
   group_by(supplier_id,island) %>% 
   mutate(cum_floss = cumsum(n)) %>%
-  right_join(gaveau_forest_2000,by=c("supplier_id","year")) %>%
+  right_join(treemap_forest_2000,by=c("supplier_id","year")) %>%
   arrange(-desc(supplier_id),year) %>%
   group_by(supplier_id) %>%
   fill(cum_floss,island,.direction="down") %>%
@@ -309,53 +292,42 @@ gaveau_annual_forest <- samples_gfc_ttm %>%
   mutate(rem_forest_area_ha = ifelse(is.na(rem_forest_area_ha),0,rem_forest_area_ha))
 
 # combine areas
-gaveau_annual_lc <- gaveau_annual_forest %>%
+treemap_annual_lc <- treemap_annual_forest %>%
   full_join(conc_area,by="supplier_id") %>%
-  full_join(gaveau_annual_pulp,by=c("supplier_id","year")) %>%
+  full_join(treemap_annual_pulp,by=c("supplier_id","year")) %>%
   mutate(pulp_area_ha = ifelse(is.na(n),0,n)) %>%
   arrange(-desc(supplier_id),year) %>%
   group_by(supplier_id) %>%
   fill(conc_area_ha,rem_forest_area_ha,.direction = "updown") %>%
   mutate(other_land_ha = conc_area_ha - (rem_forest_area_ha + pulp_area_ha)) %>%
   select(year,supplier_id,island,pulp_area_ha,rem_forest_area_ha,other_land_ha,conc_area_ha) %>%
-  pivot_longer(cols = -c(supplier_id,island,year),
-               names_to = 'class',
-               values_to = 'area_ha') %>%
+  pivot_longer(cols = -c(supplier_id,island,year), names_to = 'class', values_to = 'area_ha') %>%
   filter(class != "conc_area_ha") %>%
   mutate(class_desc = case_when(
-    class == "pulp_area_ha" ~ "Cleared for pulp", # pulp planted area (need to check)
+    class == "pulp_area_ha" ~ "Cleared for pulp",
     class == "rem_forest_area_ha" ~ "Forest",
     class == "other_land_ha" ~ "Non-forest")) %>%
   select(year,supplier_id,island,class_desc,area_ha) %>%
   left_join(hti_dates_clean,by="supplier_id") %>%
-  left_join(mill_supplier,by="supplier_id") %>%
-  mutate(
-    zdc_year = case_when(
-      app == 1 ~ 2013,
-      app == 0 & april == 1 ~ 2015,
-      april == 0 & app == 0 & marubeni == 1 ~ 2019,
-      TRUE ~ 0
-    )
-  ) %>%
-  mutate(zdc_year = ifelse(zdc_year ==0,NA_real_,zdc_year))
+  left_join(mill_supplier,by="supplier_id") 
 
-hti_gav_annual_lc <- gaveau_annual_lc %>%
+hti_treemap_annual_lc <- treemap_annual_lc %>%
   left_join(hti_concession_names,by="supplier_id") 
 
-write_csv(hti_gav_annual_lc,paste0(wdir,"\\01_data\\02_out\\tables\\hti_land_use_change_areas.csv"))
+write_csv(hti_treemap_annual_lc,paste0(wdir,"\\01_data\\02_out\\tables\\hti_land_use_change_areas.csv"))
 
-##############################################################################################
-## Create dataset on HTI conversion timing and pulp conversion inside and outside HTI's -----
-##############################################################################################
+######################################################################################################
+## Create dataset on HTI land use conversion timing and pulp conversion inside and outside HTI's -----
+######################################################################################################
 
-# gaveau pulp conversion
-gaveau_annual_pulp <- gaveau_annual_conv %>%
+# TreeMap pulp conversion
+treemap_annual_pulp <- treemap_annual_conv %>%
   as_tibble() %>%
   filter(class != "0") %>%
   mutate(year = str_replace(year,"timberdeforestation_", ""),year = as.double(year))
 
 # deforestation for pulp (1 - non-forest to pulp,2 - forest to pulp)
-hti_pulp_conv <- gaveau_annual_pulp %>%
+hti_pulp_conv <- treemap_annual_pulp %>%
   lazy_dt() %>%
   arrange(sid,year) %>%
   group_by(sid) %>%
@@ -422,7 +394,7 @@ pulp_conv_outside_hti <- id_pulp_conv_for %>%
   left_join(id_pulp_conv_hti,by=c("year","conv_type","island")) %>%
   mutate(area_ha.y = ifelse(is.na(area_ha.y),0,area_ha.y),
          area_ha = area_ha.x - area_ha.y,
-         area_ha = ifelse(area_ha < 50,0,area_ha)) %>% # remove minor differences due to area and sample based calculations
+         area_ha = ifelse(area_ha < 50,0,area_ha)) %>% # remove areas below 50 ha because of point sampling based calculations
   select(-area_ha.x,-area_ha.y) %>%
   arrange(year) %>%
   mutate(supplier_id = NA,supplier=NA,supplier_label=NA,license_year=NA) %>%
@@ -431,34 +403,12 @@ pulp_conv_outside_hti <- id_pulp_conv_for %>%
 # pulp and non-pulp conversion (within HTI)
 hti_conv <- hti_pulp_conv %>%
   bind_rows(hti_other_conv) %>% # TTM GFC modified data
-  left_join(mill_supplier,by="supplier_id") %>%
-  mutate(
-    zdc_year = case_when(
-      app == 1 ~ 2013,
-      app == 0 & april == 1 ~ 2015,
-      april == 0 & app == 0 & marubeni == 1 ~ 2019, 
-      TRUE ~ 0
-    )
-  ) %>%
-  mutate(zdc_year = ifelse(zdc_year ==0,NA_real_,zdc_year)) %>%
-  arrange(year,supplier_id) %>%
-  print()
-
-# pulp conversion (HTI and non-HTI areas)
+  left_join(mill_supplier,by="supplier_id")
+ 
+# pulp conversion (within and outside HTI)
 hti_nonhti_conv <- hti_pulp_conv %>%
   bind_rows(pulp_conv_outside_hti) %>% # deforestation for pulp outside concessions
-  left_join(mill_supplier,by="supplier_id") %>%
-  mutate(
-    zdc_year = case_when(
-      app == 1 ~ 2013,
-      app == 0 & april == 1 ~ 2015,
-      april == 0 & app == 0 & marubeni == 1 ~ 2019, 
-      TRUE ~ 0
-    )
-  ) %>%
-  mutate(zdc_year = ifelse(zdc_year ==0,NA_real_,zdc_year)) %>%
-  arrange(year,supplier_id) %>%
-  print()
+  left_join(mill_supplier,by="supplier_id") 
 
 # forest areas in 2022
 hti_for_areas <- samples_gfc_ttm %>%
@@ -472,11 +422,10 @@ hti_for_areas <- samples_gfc_ttm %>%
 # other conversion
 hti_nonpulp_conv_areas <- hti_other_conv %>%
   group_by(supplier_id,supplier,supplier_label,license_year,island) %>%
-  summarize(area_ha = sum(area_ha)) %>%
-  print()
+  summarize(area_ha = sum(area_ha)) 
 
-# deforestation timing and remaining forest areas
-hti_conv_timing <- gaveau_annual_pulp %>%
+# deforestation type, timing and remaining forest areas
+hti_conv_timing <- treemap_annual_pulp %>%
   lazy_dt() %>%
   arrange(sid,year) %>%
   group_by(sid) %>%
@@ -499,18 +448,14 @@ hti_conv_timing <- gaveau_annual_pulp %>%
   arrange(-desc(supplier_id)) %>%
   left_join(supplier_groups,by="supplier_id") %>%
   group_by(supplier_id) %>%
-  mutate(app = zoo::na.locf(app, na.rm = FALSE),
-         april = zoo::na.locf(april, na.rm = FALSE),
-         marubeni = zoo::na.locf(marubeni, na.rm = FALSE),
-         app = ifelse(is.na(app),0,app),
-         april = ifelse(is.na(april),0,april),
-         marubeni = ifelse(is.na(marubeni),0,marubeni),
+  mutate(app = zoo::na.locf(app, na.rm = FALSE),april = zoo::na.locf(april, na.rm = FALSE),
+         marubeni = zoo::na.locf(marubeni, na.rm = FALSE), app = ifelse(is.na(app),0,app),
+         april = ifelse(is.na(april),0,april), marubeni = ifelse(is.na(marubeni),0,marubeni),
          supplier_group = ifelse(supplier_group == "UNKNOWN" | is.na(supplier_group),"OTHER",supplier_group)) %>%
   group_by() %>%
   mutate(all = ifelse(is.na(all),1,all)) %>%
-  left_join(hti_ownership_class,by=c("supplier_id")) %>%
-  print()
+  left_join(hti_ownership_class,by=c("supplier_id")) 
 
-# write to csv
+# write datasets to csv file ----
 write_csv(hti_conv_timing,paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_deforestation_timing.csv"))
-write_csv(hti_nonhti_conv,paste0(wdir,"\\01_data\\02_out\\tables\\idn_pulp_conversion_hti_nonhti_gaveau.csv"))
+write_csv(hti_nonhti_conv,paste0(wdir,"\\01_data\\02_out\\tables\\idn_pulp_conversion_hti_nonhti_treemap.csv"))
