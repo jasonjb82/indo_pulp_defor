@@ -93,7 +93,7 @@ policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline_cat
   mutate(year_col = as.Date(year_proper,format="%d/%m/%Y"))
 
 # deforestation within concessions
-hti_nonhti_conv <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\idn_deforestation_hti_nonhti_gaveau.csv"))
+hti_nonhti_conv <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\idn_deforestation_hti_nonhti_treemap.csv"))
 
 # timber for pulp production (Obidzinski Dermawan)
 timber_for_pulp <- read_csv(paste0(wdir,"\\01_data\\01_in\\obidzinski_dermawan\\plot_data.csv"))
