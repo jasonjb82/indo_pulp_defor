@@ -2,7 +2,7 @@
 ## 
 ## Project: Indonesia pulp deforestation
 ##
-## Purpose of script: Generate plot of deforestation timing
+## Purpose of script: Generate plot of deforestation type, timing and remaining forest areas
 ##
 ## Author: Robert Heilmayr and Jason Jon Benedict
 ##
@@ -10,11 +10,7 @@
 ## 
 ## ---------------------------------------------------------
 ##
-## Notes: Input datasets
-##        1) HTI concessions (boundaries) and concession start year from KLHK
-##        2) Gaveau landuse change - pulp deforestation (2000 - 2022) from TreeMap
-##        4) GFC Hansen deforestation year (2001 - 2022) - earthenginepartners.appspot.com/science-2013-global-forest
-##        5) Peat (MoA Indonesia, 2019) & Margono forest mask (TreeMap version)
+## Notes: 
 ##
 ## ---------------------------------------------------------
 
@@ -78,45 +74,28 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
 
 options(crayon.enabled = FALSE)
 
-## Deforestation timing plot
-
-order <- c("SINAR MAS",
-           "SINAR MAS (NGO-LINKED)",
-           "ROYAL GOLDEN EAGLE / TANOTO",
-           "ROYAL GOLDEN EAGLE / TANOTO (NGO-LINKED)",
-           "SUMITOMO",
-           "KORINDO",
-           "DJARUM",
-           "MARUBENI",
-           "GOVERNMENT",
-           "ADR",
-           "OTHER")
-
-order <- c("Acknowledged ownership",
+# set order of group ownership type
+ownership_order <- c("Acknowledged ownership",
            "Suspected ownership based on civil society investigations",
            "Third-party suppliers")
 
-plot_order_deft_pulp <- c(
+defor_order <- c(
   "Deforestation for pulp after 2015",
   "Deforestation for pulp from 2001-2015",
   "Deforestation not for pulp",
   "Remaining forest"
   )
 
-## Generate frequency table by group
-group_var <- "ownership_class" # Generally either island, supplier_group or supplier_label
-mill_var <- "all" # Generally either april,app,marubeni or all (all concessions)
-
+# calculate areas
 freq_tab <- hti_conv_timing %>%
-  filter(!!sym(mill_var) == 1) %>%
+  filter(all == 1) %>%
   filter(conv_type == 2 | is.na(conv_type) | is.na(supplier_group)) %>%
   mutate(supplier_group = 
            case_when(
              linked_group == "APP" & ownership_class == "NGO-linked" ~ "SINAR MAS (NGO-LINKED)",
              linked_group == "APRIL" & ownership_class == "NGO-linked" ~ "ROYAL GOLDEN EAGLE / TANOTO (NGO-LINKED)",
              TRUE ~ supplier_group)) %>%
-  #filter(island == "kalimantan") %>% # filter to island if required
-  group_by(.data[[group_var]],linked_group,class) %>% 
+  group_by(ownership_class,linked_group,class) %>% 
   summarize(area_ha = sum(area_ha)) %>% 
   mutate(freq = area_ha / sum(area_ha)) %>%
   drop_na(ownership_class) %>%
@@ -124,12 +103,12 @@ freq_tab <- hti_conv_timing %>%
 
 freq_tab
 
-## plot frequencies
+# create plot
 defor_plot <- freq_tab %>% 
   as_tibble() %>%
-  mutate(label_order = factor(!!sym(group_var),rev(order))) %>%
+  mutate(label_order = factor(ownership_class,rev(ownership_order))) %>%
   ggplot() +
-  aes(y = label_order, x = area_ha, fill = factor(class,levels=plot_order_deft_pulp)) +
+  aes(y = label_order, x = area_ha, fill = factor(class,levels=defor_order)) +
   geom_bar(stat = "identity",position = position_stack(reverse = TRUE)) +
   theme_plot +
   ylab("Association with\nRGE or Sinar Mas\n") + 
@@ -143,5 +122,6 @@ defor_plot <- freq_tab %>%
 
 defor_plot
 
+# export plot to png file
 ggsave(defor_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev5.png"), dpi=400, w=8, h=4,limitsize = FALSE)
 
