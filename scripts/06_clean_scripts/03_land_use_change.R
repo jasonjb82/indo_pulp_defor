@@ -20,12 +20,8 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 
 ### Load packages
 library(stringr)
-library(naniar)
-library(visdat)
 library(tidyverse)
-library(readxl)
 library(tidylog)
-library(data.table)
 library(janitor)
 library(lubridate)
 library(scales)
@@ -33,17 +29,17 @@ library(dtplyr)
 library(d3.format) # to install: devtools::install_github("dreamRs/d3.format")
 library(tidyfast)
 library(concordance)
-library(vistime)
 library(extrafont)
 library(showtext)
 library(khroma) # palettes for color blindness
+
+'%ni%' <- Negate('%in%') # filter out function
 
 ## set working directory -------------------------------------
 
 wdir <- "remote"
 
 ## read data -------------------------------------------------
-'%ni%' <- Negate('%in%') # filter out function
 
 # load color palette
 source("scripts\\001_misc\\001_color_palettes.R")
@@ -51,11 +47,9 @@ source("scripts\\001_misc\\001_color_palettes.R")
 # concession annual land use changes
 hti_gav_annual_lc <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_land_use_change_areas.csv"))
 
-
 ## Plotting -------------------------------------------------
 
-
-## set up theme
+# set up theme
 theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                     panel.background = element_rect(colour=NA,fill=NA),
                     panel.grid.minor = element_blank(),
@@ -71,7 +65,7 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                     axis.title.y = element_text(size = 10, color = "grey30"),
                     strip.text.x = element_text(size = 12, face = "bold",color="grey30"),
                     strip.background = element_rect(color=NA, fill=NA),
-                    legend.key = element_rect(size = 12, fill = "white", colour = NA),
+                    legend.key = element_rect(linewidth = 12, fill = "white", colour = NA),
                     legend.key.height = unit(10, "pt"),
                     legend.key.width = unit(10, "pt"),
                     legend.text = element_text(size = 8,colour="grey30"),
@@ -91,7 +85,7 @@ hti_gav_annual_lc$class_desc <- factor(hti_gav_annual_lc$class_desc, levels = c(
 
 hti_plots = list()
 
-# create plots by loop
+# create plots by loop and export as png files
 for(concession_ in concessions) {
   hti_plots[[concession_]] = ggplot(hti_gav_annual_lc %>% filter(supplier_label == concession_),aes(year,area_ha)) +
     geom_area(aes(fill= as.factor(class_desc)), position = position_stack(reverse = F)) +
