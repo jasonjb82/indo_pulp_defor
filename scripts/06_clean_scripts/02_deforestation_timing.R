@@ -117,7 +117,7 @@ defor_plot <- freq_tab %>%
   scale_x_continuous(labels = d3_format(".3~s",suffix = " ha"),expand = c(0,0)) +
   guides(fill = guide_legend(nrow = 2)) +
   scale_fill_manual(values = cols,name ="Group",
-                    breaks=plot_order_deft_pulp,labels=plot_order_deft_pulp) +
+                    breaks=ownership_order,labels=ownership_order) +
   theme(axis.title.y = element_text(angle = 90))
 
 defor_plot
