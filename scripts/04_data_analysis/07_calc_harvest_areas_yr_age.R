@@ -1,4 +1,4 @@
-## ---------------------------------------------------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## 
 ## Project: Indonesia pulp deforestation
 ##
@@ -8,20 +8,18 @@
 ##
 ## Date Created: 2022-02-10
 ## 
-## ---------------------------------------------------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ##
 ## Notes: Input datasets
 ##        1) HTI concessions (boundaries) and concession start year - from KLHK
 ##        2) Gaveau harvested areas (2010 - 2021)
 ##        3) Wood supply data - RPBBI (cleaned and checked by UCSB & WWI)
 ##
-## ---------------------------------------------------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
-
-## ---------------------------------------------------------
-
-### Load packages
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Imports and setup environment ------------------------------------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 library(stringr)
 library(data.table)
 library(naniar)
@@ -41,20 +39,25 @@ library(d3.format)
 library(tidyfast)
 library(patchwork)
 
-## credentials ----------------------------------------------
+options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
+## credentials
 aws.signature::use_credentials()
 bucket <- "trase-storage"
 Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
-## set working directory -------------------------------------
-
+## set working directory
 wdir <- "remote"
 
-## read data -------------------------------------------------
 
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Load data ------------------------------------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # itp harvest years
 itp_hv <- read_sf(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_ITPHarvesting_V20220208\\IDN_ITPHarvesting_V20220208.shp"))
+
+# itp harvest years corrections
+itp_hv_updates <- read_sf(paste0(wdir, "/01_data/03_qc/long_rotations_Checked_20240503/long_rotations_Checked_20240503.shp"))
 
 # hti concessions
 hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
@@ -68,12 +71,80 @@ groups <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.c
 # psdh
 psdh <- read_csv(paste0(wdir,"\\01_data\\01_in\\klhk\\psdh\\02_out\\PSDH_HTI_ID_COMBINED.csv"))
 
-## clean up data ---------------------------------------------
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Cleaning David's harvest data ------------------------------------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# prep original harvest dataset
 itp_hv <- st_make_valid(itp_hv) 
 itp_hv <- itp_hv %>% 
   mutate(block_id = paste0("B", as.character(str_pad(OBJECTID, 6, pad = "0"))))
 itp_hv_proj <- st_transform(itp_hv, crs = st_crs(hti)) %>% st_make_valid() 
 
+# clean up and improve consistency across variable names / order
+itp_hv_updates <- itp_hv_updates %>% 
+  select(block_id = block_d, year = yearint, Ket, Class, 
+         Harvest1 = `1Harvst`, Harvest2 = `2Harvst`, Harvest3 = `3Harvst`, Harvest0 = Pre2010Hrv, 
+         Delete = Delete)
+
+itp_hv_proj <- itp_hv_proj %>% 
+  select(OBJECTID, block_id, year = yearint, Ket, Class, Harvest1, Harvest2, Harvest3, geometry)
+
+# Remove old data for block_ids that were reviewed / revised by Husna
+revised_ids <- itp_hv_updates %>% 
+  st_drop_geometry() %>% 
+  pull(block_id) %>% 
+  unique()
+
+itp_hv <- itp_hv %>% 
+  filter(!(block_id %in% revised_ids))
+
+
+# revised data has some duplicates - remove
+itp_hv_updates <- itp_hv_updates %>% 
+  distinct()
+
+# some conflicting second harvest dates - correct and remove remaining duplicates
+itp_hv_updates %>% 
+  group_by(block_id, geometry) %>% 
+  tally() %>% 
+  filter(n>1)
+
+itp_hv_updates <- itp_hv_updates %>% 
+  mutate(Harvest2 = ifelse(block_id == "B032115", 2020, 
+                           ifelse(block_id == "B083053", 2018, Harvest2))) %>% 
+  distinct()
+
+# remove deletion flagged entries
+itp_hv_updates <- itp_hv_updates %>% 
+  filter(is.na(Delete)) %>% 
+  select(-Delete)
+
+# append data back to original file
+itp_hv_updates <- itp_hv_updates %>% 
+  mutate(OBJECTID = 0)
+
+itp_hv_proj <- itp_hv_proj %>% 
+  mutate(Harvest0 = "0")
+  
+itp_hv_proj <- itp_hv_proj %>% 
+  rbind(itp_hv_updates)
+
+itp_hv_proj <- itp_hv_proj %>% 
+  mutate(OBJECTID = row_number())
+
+# Test that there are no duplicated entries
+n_duplicates <- (itp_hv_proj %>% duplicated()) %>% sum()
+test_that("Test of duplicate entries", expect_equal(n_duplicates, 0))
+
+# Recreate block_id so that they're still unique after Husna's splits
+itp_hv_proj <- itp_hv_proj %>% 
+  mutate(block_id = paste0("B", as.character(str_pad(OBJECTID, 6, pad = "0"))))
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Next steps --------------------------------------------------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # intersect to get associated HTI concession
 hti_itp_hv <- st_intersection(hti,itp_hv_proj) %>% mutate(area_m2 = st_area(.))
 
@@ -89,6 +160,11 @@ hti_itp_hv_df <- hti_itp_hv %>%
   # mutate(hv_age1 = Harvest1 - year,hv_age2 = Harvest2 - Harvest1, hv_age3 = Harvest3 - Harvest2) %>%
   # mutate(hv_age1 = ifelse(hv_age1 <0,0,hv_age1),hv_age2 = ifelse(hv_age2 <0,0,hv_age2),hv_age3 = ifelse(hv_age3 <0,0,hv_age3))
   # mutate(hv_age3 = ifelse(hv_age3 > 2000, Harvest3 - Harvest1,hv_age3),hv_age2 = ifelse(hv_age2 > 2000, Harvest2 - yearint,hv_age2))
+
+
+
+
+
 
 ## NOTE: there are some concessions for which Harvest1 ==0 and Harvest2 > 0, same for harvests 2 and 3
 # hti_itp_hv_df %>% filter(Harvest1==0, Harvest2>0)
