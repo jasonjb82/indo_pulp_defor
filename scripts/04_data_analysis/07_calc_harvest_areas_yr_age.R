@@ -59,6 +59,14 @@ itp_hv <- read_sf(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_ITPHarvesting_V2022
 # itp harvest years corrections
 itp_hv_updates <- read_sf(paste0(wdir, "/01_data/03_qc/long_rotations_Checked_20240503/long_rotations_Checked_20240503.shp"))
 
+# gut check - still lots of very long rotations in the revised data...
+# itp_hv_updates <- itp_hv_updates %>% 
+#   st_transform(itp_hv, crs = st_crs(hti)) %>% 
+#   st_make_valid() %>% 
+#   mutate(area_ha = st_area(.) * 0.0001)
+itp_hv_updates %>%   filter(`Pre2010Hrv` == 0, `1Harvst` %in% c(2019, 2020, 2021, 2022), is.na(Ket))  %>% arrange(desc(area_ha)) %>% select(FCODE, block_d, area_ha, estab_year = yearint, `Pre2010Hrv`, `1Harvst`, `2Harvst`, `3Harvst`, Ket)
+
+
 # hti concessions
 hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
 
@@ -86,7 +94,6 @@ itp_hv_updates <- itp_hv_updates %>%
   select(block_id = block_d, year = yearint, Ket, Class, 
          Harvest1 = `1Harvst`, Harvest2 = `2Harvst`, Harvest3 = `3Harvst`, Harvest0 = Pre2010Hrv, 
          Delete = Delete)
-
 itp_hv_proj <- itp_hv_proj %>% 
   select(OBJECTID, block_id, year = yearint, Ket, Class, Harvest1, Harvest2, Harvest3, geometry)
 
@@ -95,21 +102,19 @@ revised_ids <- itp_hv_updates %>%
   st_drop_geometry() %>% 
   pull(block_id) %>% 
   unique()
-
 itp_hv <- itp_hv %>% 
   filter(!(block_id %in% revised_ids))
-
 
 # revised data has some duplicates - remove
 itp_hv_updates <- itp_hv_updates %>% 
   distinct()
 
 # some conflicting second harvest dates - correct and remove remaining duplicates
+# TODO: Correct with details from Husna
 itp_hv_updates %>% 
   group_by(block_id, geometry) %>% 
   tally() %>% 
   filter(n>1)
-
 itp_hv_updates <- itp_hv_updates %>% 
   mutate(Harvest2 = ifelse(block_id == "B032115", 2020, 
                            ifelse(block_id == "B083053", 2018, Harvest2))) %>% 
@@ -123,13 +128,10 @@ itp_hv_updates <- itp_hv_updates %>%
 # append data back to original file
 itp_hv_updates <- itp_hv_updates %>% 
   mutate(OBJECTID = 0)
-
 itp_hv_proj <- itp_hv_proj %>% 
   mutate(Harvest0 = "0")
-  
 itp_hv_proj <- itp_hv_proj %>% 
   rbind(itp_hv_updates)
-
 itp_hv_proj <- itp_hv_proj %>% 
   mutate(OBJECTID = row_number())
 
@@ -137,22 +139,27 @@ itp_hv_proj <- itp_hv_proj %>%
 n_duplicates <- (itp_hv_proj %>% duplicated()) %>% sum()
 test_that("Test of duplicate entries", expect_equal(n_duplicates, 0))
 
-# Recreate block_id so that they're still unique after Husna's splits
-itp_hv_proj <- itp_hv_proj %>% 
-  mutate(block_id = paste0("B", as.character(str_pad(OBJECTID, 6, pad = "0"))))
-
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Next steps --------------------------------------------------------
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # intersect to get associated HTI concession
-hti_itp_hv <- st_intersection(hti,itp_hv_proj) %>% mutate(area_m2 = st_area(.))
+hti_itp_hv <- st_intersection(hti, itp_hv_proj) %>% mutate(area_m2 = st_area(.))
+
+# Recreate block_id so that they're still unique after HTI and Husna's splits
+hti_itp_hv <- hti_itp_hv %>% 
+  mutate(OBJECTID = row_number())
+
+hti_itp_hv <- hti_itp_hv %>% 
+  mutate(block_id = paste0("B", as.character(str_pad(OBJECTID, 6, pad = "0"))))
 
 # create table and clean up
 hti_itp_hv_df <- hti_itp_hv %>%
   st_drop_geometry() %>%
-  select(block_id, supplier_id=ID, estab_year=yearint, Class,Harvest1,Harvest2,Harvest3,Ket,area_m2) %>%
-  mutate(area_ha = as.double(area_m2*0.0001)) %>%
+  select(block_id, supplier_id=ID, estab_year=year, Class, Harvest0, Harvest1, 
+         Harvest2, Harvest3, Ket, area_m2) %>%
+  mutate(area_ha = as.double(area_m2*0.0001),
+         estab_year = as.integer(estab_year),
+         Harvest0 = as.integer(Harvest0),
+         Harvest1 = as.integer(Harvest1),
+         Harvest2 = as.integer(Harvest2),
+         Harvest3 = as.integer(Harvest3)) %>%
   select(-area_m2)
 # %>%
   #pivot_longer(c(-SUPPLIER_ID,-yearint,-Ket,-year,-Class,-area_ha), names_to="var", values_to="vals") 
@@ -164,20 +171,34 @@ hti_itp_hv_df <- hti_itp_hv %>%
 
 
 
-
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Update Harvest timings -------------------------------------------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Add Husna's pre-2010 rotation into the mix
+hti_itp_hv_df <- hti_itp_hv_df %>% 
+  mutate(early_harvest_flag = (Harvest0!=0),
+         Harvest4 = ifelse(early_harvest_flag, Harvest3, 0),
+         Harvest3 = ifelse(early_harvest_flag, Harvest2, Harvest3),
+         Harvest2 = ifelse(early_harvest_flag, Harvest1, Harvest2),
+         Harvest1 = ifelse(early_harvest_flag, Harvest0, Harvest1))
 
 ## NOTE: there are some concessions for which Harvest1 ==0 and Harvest2 > 0, same for harvests 2 and 3
 # hti_itp_hv_df %>% filter(Harvest1==0, Harvest2>0)
 # hti_itp_hv_df %>% filter(Harvest2==0, Harvest3>0)
-## Current solution: Shift these up; But 
-## TODO: double check with David that this is ok
+## Current solution: Shift these up
 hti_itp_hv_df <- hti_itp_hv_df %>% 
   mutate(error_harvest1 = (Harvest1==0) & (Harvest2>0),
          Harvest1 = ifelse(error_harvest1, Harvest2, Harvest1),
-         Harvest2 = ifelse(error_harvest1, 0, Harvest2),
+         Harvest2 = ifelse(error_harvest1, Harvest3, Harvest2),
+         Harvest3 = ifelse(error_harvest1, Harvest4, Harvest3),
+         Harvest4 = ifelse(error_harvest1, 0, Harvest4),
          error_harvest2 = (Harvest2==0) & (Harvest3>0),
          Harvest2 = ifelse(error_harvest2, Harvest3, Harvest2),
-         Harvest3 = ifelse(error_harvest2, 0, Harvest3))
+         Harvest3 = ifelse(error_harvest2, Harvest4, Harvest3),
+         Harvest4 = ifelse(error_harvest2, 0, Harvest4),
+         error_harvest3 = (Harvest3==0) & (Harvest4>0),
+         Harvest3 = ifelse(error_harvest3, Harvest4, Harvest3),
+         Harvest4 = ifelse(error_harvest3, 0, Harvest4))
 
 ## NOTE: There are some pulp plantations established after their first observed harvest.
 # hti_itp_hv_df %>% filter(yearint>Harvest1, Harvest1!=0)
@@ -188,17 +209,18 @@ hti_itp_hv_df <- hti_itp_hv_df %>%
          estab_year = ifelse(error_estab, Harvest1, estab_year),
          Harvest1 = ifelse(error_estab, Harvest2, Harvest1),
          Harvest2 = ifelse(error_estab, Harvest3, Harvest2),
-         Harvest3 = ifelse(error_estab, 0, Harvest3))
+         Harvest3 = ifelse(error_estab, Harvest4, Harvest3),
+         Harvest4 = ifelse(error_estab, 0, Harvest4))
 
 # Summarize frequency of edits made in above two steps
 hti_itp_hv_df %>% 
-  group_by(error_harvest1, error_harvest2, error_estab) %>% 
+  group_by(error_harvest1, error_harvest2, error_harvest3, error_estab) %>% 
   summarize(area_n = sum(area_ha)) %>% 
   ungroup() %>% 
   mutate(freq = prop.table(area_n))
 
 hti_itp_hv_df <- hti_itp_hv_df %>% 
-  select(-c(error_harvest1, error_harvest2, error_estab))
+  select(-c(early_harvest_flag, Harvest0, error_harvest1, error_harvest2, error_harvest3, error_estab))
 
 
 # Calculate harvest rotation lengths
@@ -206,9 +228,11 @@ hti_itp_hv_df <- hti_itp_hv_df %>%
   mutate(Harvest1 = replace(Harvest1, Harvest1==0, NA),
          Harvest2 = replace(Harvest2, Harvest2==0, NA),
          Harvest3 = replace(Harvest3, Harvest3==0, NA),
+         Harvest4 = replace(Harvest4, Harvest4==0, NA),
          hv_age1 = Harvest1 - estab_year,
          hv_age2 = Harvest2 - Harvest1, 
-         hv_age3 = Harvest3 - Harvest2)
+         hv_age3 = Harvest3 - Harvest2,
+         hv_age4 = Harvest4 - Harvest3)
 
 
 # Summarize harvests
@@ -224,6 +248,11 @@ hti_itp_hv_df %>%
 
 hti_itp_hv_df %>% 
   group_by(Harvest3) %>% 
+  summarize(area_ha = sum(area_ha)) %>% 
+  mutate(freq = prop.table(area_ha))
+
+hti_itp_hv_df %>% 
+  group_by(Harvest4) %>% 
   summarize(area_ha = sum(area_ha)) %>% 
   mutate(freq = prop.table(area_ha))
 
@@ -265,9 +294,12 @@ burned_rows <- burned_rows %>%
                                  .f = id_invalid_harvests),
          burned_harv3 =  pmap_lgl(.l = list(Harvest3, burn_year_1, burn_year_2, burn_year_3), 
                                   .f = id_invalid_harvests),
+         burned_harv4 =  pmap_lgl(.l = list(Harvest4, burn_year_1, burn_year_2, burn_year_3), 
+                                  .f = id_invalid_harvests),
          Harvest1 = ifelse(burned_harv1, NA, Harvest1),
          Harvest2 = ifelse(burned_harv2, NA, Harvest2),
-         Harvest3 = ifelse(burned_harv3, NA, Harvest3))
+         Harvest3 = ifelse(burned_harv3, NA, Harvest3),
+         Harvest4 = ifelse(burned_harv4, NA, Harvest4))
 
 
 # Shift harvests to fix harvests that were removed due to burns
@@ -275,13 +307,19 @@ burned_rows <- burned_rows %>%
   mutate(error_harvest1 = (is.na(Harvest1) & !is.na(Harvest2)),
          Harvest1 = ifelse(error_harvest1, Harvest2, Harvest1),
          Harvest2 = ifelse(error_harvest1, Harvest3, Harvest2),
-         Harvest3 = ifelse(error_harvest1, NA, Harvest3),
+         Harvest3 = ifelse(error_harvest1, Harvest4, Harvest3),
+         Harvest4 = ifelse(error_harvest1, NA, Harvest4),
          error_harvest2 = (is.na(Harvest2) & !is.na(Harvest3)),
          Harvest2 = ifelse(error_harvest2, Harvest3, Harvest2),
-         Harvest3 = ifelse(error_harvest2, NA, Harvest3),
+         Harvest3 = ifelse(error_harvest1, Harvest4, Harvest3),
+         Harvest4 = ifelse(error_harvest1, NA, Harvest4),
+         error_harvest3 = (is.na(Harvest3) & !is.na(Harvest4)),
+         Harvest3 = ifelse(error_harvest1, Harvest4, Harvest3),
+         Harvest4 = ifelse(error_harvest1, NA, Harvest4),
          hv_age1 = Harvest1 - estab_year,
          hv_age2 = Harvest2 - Harvest1,
-         hv_age3 = Harvest3 - Harvest2)
+         hv_age3 = Harvest3 - Harvest2,
+         hv_age4 = Harvest4 - Harvest3)
 
 # Adjust harvests that were interrupted by a fire
 id_interrupted_harvests <- function(rot_end, rot_length, b1, b2, b3){
@@ -303,12 +341,15 @@ burned_rows <- burned_rows %>%
          hv_age2 = Harvest2 - h2_start,
          h3_start = pmap_dbl(.l = list(Harvest3, hv_age3, burn_year_1, burn_year_2, burn_year_3), 
                              .f = id_interrupted_harvests),
-         hv_age3 = Harvest3 - h3_start)
+         hv_age3 = Harvest3 - h3_start,
+         h4_start = pmap_dbl(.l = list(Harvest4, hv_age1, burn_year_1, burn_year_2, burn_year_3), 
+                             .f = id_interrupted_harvests),
+         hv_age4 = Harvest4 - h4_start,)
 
 
 # Clean up and re-bind the two dataframes
 burned_rows <- burned_rows %>% 
-  select(-c(burned_harv1, burned_harv2, burned_harv3, error_harvest1, error_harvest2, h1_start, h2_start, h3_start))
+  select(-c(burned_harv1, burned_harv2, burned_harv3, burned_harv4, error_harvest1, error_harvest2, error_harvest3, h1_start, h2_start, h3_start, h4_start))
 hti_itp_hv_df <- rbind(burned_rows, unburned_rows)
 
 
@@ -320,21 +361,33 @@ hti_itp_hv_df <- rbind(burned_rows, unburned_rows)
 hti_itp_hv_df_long <- hti_itp_hv_df %>% 
   pivot_longer(cols = starts_with("Harvest"), 
                names_to = "rotation", names_prefix = "Harvest", values_to = "harvest_year") %>% 
-  select(block_id, supplier_id, estab_year, rotation, harvest_year, area_ha, burn_flag) %>% 
-  drop_na()
-  
+  select(block_id, supplier_id, estab_year, rotation, harvest_year, area_ha, burn_flag)
+
+# hti_itp_hv_df_long <- hti_itp_hv_df %>% 
+#   pivot_longer(cols = c(starts_with("Harvest"), starts_with("hv_age")), 
+#                names_to = "rotation", names_prefix = c("Harvest", "hv_age"), values_to = c("harvest_year", "rotation_length")) %>% 
+#   select(block_id, supplier_id, estab_year, rotation, harvest_year, area_ha, burn_flag) %>% 
+#   drop_na()
+
 rot_length <- hti_itp_hv_df %>% 
   pivot_longer(cols = starts_with("hv_age"), 
                names_to = "rotation", names_prefix = "hv_age", values_to = "rotation_length") %>% 
-  select(block_id, rotation, rotation_length) %>% 
-  drop_na()
-
+  select(block_id, rotation, rotation_length)
 
 harvest_df <- hti_itp_hv_df_long %>% 
-  left_join(rot_length, by = c("block_id", "rotation")) ## WHY AM I GETTING DUPLICATES HERE?
+  left_join(rot_length, by = c("block_id", "rotation")) %>%
+  drop_na() # Dropping non-existant rotations
+
+
 
 
 ## NEED TO EXPORT OVERLY LONG ROTATIONS FOR DAVID TO DIG INTO POTENTIAL ERRORS
+test <- harvest_df %>% 
+  filter(harvest_year>=2015) %>% 
+  group_by(rotation_length) %>% 
+  summarize(area_harvest = sum(area_ha))
+
+
 harvest_df %>% 
   filter(harvest_year>=2015) %>% 
   pull(area_ha) %>% 
@@ -351,6 +404,7 @@ long_rotations_sp$rotation_length %>% summary()
 long_rotations_sp$area_ha %>% sum()
 
 st_write(long_rotations_sp %>% select(-c("FID_", "OBJECTID")), paste0(wdir,"/01_data/03_qc/long_rotations.shp"), append=FALSE)
+
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## impute rotation lengths for unobserved blocks -------------------------------------
