@@ -171,11 +171,11 @@ hti_itp_hv_df <- hti_itp_hv %>%
          Harvest3 = as.integer(Harvest3)) %>%
   select(-area_m2)
 # %>%
-  #pivot_longer(c(-SUPPLIER_ID,-yearint,-Ket,-year,-Class,-area_ha), names_to="var", values_to="vals") 
-  # filter(is.na(Ket)) %>% ## JASON - Why are we filtering these?
-  # mutate(hv_age1 = Harvest1 - year,hv_age2 = Harvest2 - Harvest1, hv_age3 = Harvest3 - Harvest2) %>%
-  # mutate(hv_age1 = ifelse(hv_age1 <0,0,hv_age1),hv_age2 = ifelse(hv_age2 <0,0,hv_age2),hv_age3 = ifelse(hv_age3 <0,0,hv_age3))
-  # mutate(hv_age3 = ifelse(hv_age3 > 2000, Harvest3 - Harvest1,hv_age3),hv_age2 = ifelse(hv_age2 > 2000, Harvest2 - yearint,hv_age2))
+#pivot_longer(c(-SUPPLIER_ID,-yearint,-Ket,-year,-Class,-area_ha), names_to="var", values_to="vals") 
+# filter(is.na(Ket)) %>% ## JASON - Why are we filtering these?
+# mutate(hv_age1 = Harvest1 - year,hv_age2 = Harvest2 - Harvest1, hv_age3 = Harvest3 - Harvest2) %>%
+# mutate(hv_age1 = ifelse(hv_age1 <0,0,hv_age1),hv_age2 = ifelse(hv_age2 <0,0,hv_age2),hv_age3 = ifelse(hv_age3 <0,0,hv_age3))
+# mutate(hv_age3 = ifelse(hv_age3 > 2000, Harvest3 - Harvest1,hv_age3),hv_age2 = ifelse(hv_age2 > 2000, Harvest2 - yearint,hv_age2))
 
 
 
@@ -331,11 +331,11 @@ burned_rows <- burned_rows %>%
                                   .f = id_invalid_harvests),
          burned_harv4 =  pmap_lgl(.l = list(Harvest4, burn_year_1, burn_year_2, burn_year_3),
                                   .f = id_invalid_harvests))
-         # ,
-         # Harvest1 = ifelse(burned_harv1, NA, Harvest1),
-         # Harvest2 = ifelse(burned_harv2, NA, Harvest2),
-         # Harvest3 = ifelse(burned_harv3, NA, Harvest3),
-         # Harvest4 = ifelse(burned_harv4, NA, Harvest4))
+# ,
+# Harvest1 = ifelse(burned_harv1, NA, Harvest1),
+# Harvest2 = ifelse(burned_harv2, NA, Harvest2),
+# Harvest3 = ifelse(burned_harv3, NA, Harvest3),
+# Harvest4 = ifelse(burned_harv4, NA, Harvest4))
 #
 #
 # # Shift harvests to fix harvests that were removed due to burns
@@ -369,13 +369,13 @@ id_interrupted_harvests <- function(rot_end, rot_start, b1, b2, b3){
 
 burned_rows <- burned_rows %>%
   mutate(hv_start1 = pmap_dbl(.l = list(Harvest1, hv_start1, burn_year_1, burn_year_2, burn_year_3),
-                             .f = id_interrupted_harvests),
+                              .f = id_interrupted_harvests),
          hv_start2 = pmap_dbl(.l = list(Harvest2, hv_start2, burn_year_1, burn_year_2, burn_year_3),
-                             .f = id_interrupted_harvests),
+                              .f = id_interrupted_harvests),
          hv_start3 = pmap_dbl(.l = list(Harvest3, hv_start3, burn_year_1, burn_year_2, burn_year_3),
-                             .f = id_interrupted_harvests),
+                              .f = id_interrupted_harvests),
          hv_start4 = pmap_dbl(.l = list(Harvest4, hv_start4, burn_year_1, burn_year_2, burn_year_3),
-                             .f = id_interrupted_harvests))
+                              .f = id_interrupted_harvests))
 
 
 # Re-bind the two dataframes
@@ -403,7 +403,7 @@ hti_itp_hv_df_long <- hti_itp_hv_df %>%
   pivot_longer(cols = starts_with("Harvest"), 
                names_to = "rotation", names_prefix = "Harvest", values_to = "harvest_year") %>% 
   select(block_id, supplier_id, rotation, harvest_year, area_ha, burn_flag)
-  # select(block_id, supplier_id, estab_year, rotation, harvest_year, area_ha, burn_flag)
+# select(block_id, supplier_id, estab_year, rotation, harvest_year, area_ha, burn_flag)
 
 # hti_itp_hv_df_long <- hti_itp_hv_df %>% 
 #   pivot_longer(cols = c(starts_with("Harvest"), starts_with("hv_age")), 
