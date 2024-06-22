@@ -37,7 +37,7 @@ wdir <- "remote"
 
 # Harvest data
 harvest_csv <- paste0(wdir, "/01_data/02_out/tables/hti_harvest_yr.csv")
-harvest_df <- read.csv2(harvest_csv, sep = ",")
+harvest_df <- read_csv(harvest_csv)
 
 
 # wood production
@@ -74,12 +74,21 @@ mai_df <- ws_df %>%
 
 # Clean new merged data
 mai_df <- mai_df %>% 
-  mutate(ha_y = as.numeric(ha_y), 
-         dmai = volume_m3 / ha_y)
-mai_df <- mai_df %>% 
-  arrange(supplier_id, harvest_year) %>% 
-  mutate()
+  rename(ha_y_rw = ha_y_w) %>% 
+  mutate(dmai = volume_m3 / ha_y,
+         dmai_rw = volume_m3 / ha_y_rw,
+         dmai_if = volume_m3 / ha_y_if,
+         dmai_mf = volume_m3 / ha_y_mf,
+         dmai_hf = volume_m3 / ha_y_hf)
 
+mai_df <- mai_df %>% 
+  arrange(supplier_id, harvest_year)
+
+
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Explore missing data -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Confirm that large majority of reported production has associated harvest data
 mai_df %>% 
   mutate(missing_harvests = is.na(ha_y)) %>% 
@@ -94,36 +103,59 @@ mai_df %>%
   summarise(ha_y = sum(ha_y, na.rm = TRUE)) %>% 
   mutate(prop = prop.table(ha_y))
 
-
-# Winsorize MAI
-# From Hardiyanto et al., 2023: The best treatment (comprising low impact harvesting, removal of only merchantable stem wood, conservation of organic matter, planting with improved germplasm, weed control and application of P at planting), yielded an MAI of 52.5 m3 ha-1 y-1, one of the highest growth rates reported for 230 tropical plantations (Nambiar, 2008).
-max_mai <- 52.5
-mai_df <- mai_df %>% 
-  mutate(outlier = dmai > max_mai, 
-         mai_winsorized  = ifelse(outlier, max_mai, dmai),
-         volume_winsorized = mai_winsorized * ha_y)
-
-
-
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## calculate MAI -------------------------------------
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Two possibilities for missing harvest / production data. Show these yield identical estimates of DMAI
+# Two possibilities for missing harvest / production data. Show these yield similar estimates of DMAI
 # a) if they're both accurate, but assigned to different concessions. Sector MAI should just include them both in the numerator and denominator:
 sector_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y, na.rm = TRUE)) %>% print()
 
-# b) if they're invalid, should be dropped from sectoral calculations
+# b) if they're invalid, all should be dropped from sectoral calculations
 nona_mai_df <- mai_df %>% 
   drop_na()
 (sum(nona_mai_df$volume_m3) / sum(nona_mai_df$ha_y)) %>% print()
 
 
-# Explore sensitivity to imputations for burns / missing harvest data
-sample_df <- nona_mai_df %>% filter(burn_flag == 0)
-(sum(sample_df$volume_m3) / sum(sample_df$ha_y)) %>% print()
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Winsorize individual MAIs -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Winsorize MAI
+# From Hardiyanto et al., 2023: The best treatment (comprising low impact harvesting, removal of only merchantable stem wood, conservation of organic matter, planting with improved germplasm, weed control and application of P at planting), yielded an MAI of 52.5 m3 ha-1 y-1, one of the highest growth rates reported for 230 tropical plantations (Nambiar, 2008).
+winsorize_mai <- function(mai){
+  max_mai <- 52.5
+  if(mai > max_mai){
+    mai <- max_mai
+  }
+  return(mai)
+}
 
-sample_df <- nona_mai_df %>% filter(impute_flag == 0)
-(sum(sample_df$volume_m3) / sum(sample_df$ha_y)) %>% print()
+nona_mai_df <- nona_mai_df %>% 
+  mutate(mai_winsorized  = map_dbl(dmai, winsorize_mai),
+         volume_winsorized = mai_winsorized * ha_y,
+         dmai_rw = map_dbl(dmai_rw, winsorize_mai),
+         dmai_if = map_dbl(dmai_if, winsorize_mai),
+         dmai_mf = map_dbl(dmai_mf, winsorize_mai),
+         dmai_hf = map_dbl(dmai_hf, winsorize_mai))
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Calculate sectoral MAI -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Calculate baseline MAI
+sector_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y, na.rm = TRUE)) %>% print()
+
+## Compare to alternate specifications with different treatments of burned areas:
+## a) Ignore all fire labels (keep all harvest blocks in dataset)
+if_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y_if, na.rm = TRUE)) %>% print()
+
+## b) (1) Use corrected fire data when year is labeled; (2) keep harvests in blocks with unspecified fires
+mf_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y_mf, na.rm = TRUE)) %>% print()
+
+## c) Drop all blocks with any recorded fires
+hf_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y_hf, na.rm = TRUE)) %>% print()
+
+## Compare to alternate specifications with winsorization of outliers
+## a) Winsorize long rotations
+rw_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y_rw, na.rm = TRUE)) %>% print()
+
+## b) Winsorize excessively large DMAIs
+(sum(nona_mai_df$volume_winsorized, na.rm = TRUE) / sum(nona_mai_df$ha_y, na.rm = TRUE)) %>% print()
 
 
 ## Calculate annual MAI in the sector
@@ -136,12 +168,12 @@ year_mai <- nona_mai_df %>%
 
 
 ## MAI plots
-mai_df %>% 
+nona_mai_df %>% 
   ggplot(aes(x = mai_winsorized)) +
   geom_histogram(bins = 20) +
   geom_vline(xintercept = sector_mai, linetype = "longdash") +
   theme_bw() +
-  xlab("Mean annual increment (m3 / ha / y") +
+  xlab("Mean annual increment (m3 / ha / y)") +
   ylab("Frequency")
 
 year_mai %>% 
@@ -174,12 +206,17 @@ year_mai %>%
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Regressions to describe trends in MAI -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-mai_df <- mai_df %>% 
-  mutate(ln_mai = log(dmai),
+nona_mai_df <- nona_mai_df %>% 
+  mutate(outlier = dmai != mai_winsorized, 
+         ln_mai = log(dmai),
          ln_mai_w = log(mai_winsorized),
+         ln_rw = log(dmai_rw),
+         ln_if = log(dmai_if),
+         ln_mf = log(dmai_mf),
+         ln_hf = log(dmai_hf),
          Supplier = supplier_id)
 
-ols_mod <- feols(ln_mai_w ~ harvest_year, cluster = mai_df$Supplier, data = mai_df)
+ols_mod <- feols(ln_mai_w ~ harvest_year, cluster = mai_df$Supplier, data = nona_mai_df)
 summary(ols_mod)
 
 
@@ -195,24 +232,43 @@ summary(ols_mod)
 # 
 # base_mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(multi_years == 1))
 # summary(base_mod)
+grow_yield <- function(current_mai, growth_mod){
+  yield_growth <- hf_mod$coefficients + 1
+  future_mai <- (yield_growth^10) * current_mai
+  return(future_mai)
+}
 
-base_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = mai_df)
+base_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = nona_mai_df)
 summary(base_mod)
+grow_yield(sector_mai, base_mod)
 
-trim_mod <- feols(ln_mai ~ harvest_year | Supplier, data = mai_df %>% filter(outlier == 0))
+trim_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = nona_mai_df %>% filter(outlier == 0))
 summary(trim_mod)
+grow_yield(sector_mai, trim_mod)
 
-nowin_mod <- feols(ln_mai ~ harvest_year | Supplier, data = mai_df)
+nowin_mod <- feols(ln_mai ~ harvest_year | Supplier, data = nona_mai_df)
 summary(nowin_mod)
 
-# Show these coefficient estimates fall within 95% confidence interval of base model
-confint(base_mod, "harvest_year", level = 0.95)
 
-noimpute_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = mai_df %>% filter(impute_prop < 0.25 ))
-summary(noimpute_mod)
+# # Show these coefficient estimates fall within 95% confidence interval of base model
+# confint(base_mod, "harvest_year", level = 0.95)
 
-noburn_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = mai_df %>% filter(burn_prop < 0.25 ))
-summary(noburn_mod)
+rw_mod <- feols(ln_rw ~ harvest_year | Supplier, data = nona_mai_df)
+summary(rw_mod)
+grow_yield(rw_mai, rw_mod)
+
+if_mod <- feols(ln_if ~ harvest_year | Supplier, data = nona_mai_df)
+summary(if_mod)
+grow_yield(if_mai, if_mod)
+
+mf_mod <- feols(ln_mf ~ harvest_year | Supplier, data = nona_mai_df)
+summary(mf_mod)
+grow_yield(mf_mai, mf_mod)
+
+hf_mod <- feols(ln_hf ~ harvest_year | Supplier, data = nona_mai_df)
+summary(hf_mod)
+grow_yield(hf_mai, hf_mod)
+
 
 
 models <- list(ols_mod, base_mod, trim_mod, nowin_mod, noimpute_mod, noburn_mod)
