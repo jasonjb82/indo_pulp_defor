@@ -355,24 +355,24 @@ cap_change <- (total_exp_mt / baseline_cap_mt) %>% print()
 new_wood_demand <- ((oki_exp_mt + rapp_exp_mt) * baseline_usage_shr * wood_pulp_conv) + ((phoenix_exp_mt + rappbctmp_exp_mt) * baseline_usage_shr * chem_wood_pulp_conv)
 new_wood_demand
 
-# Line 103: At current levels of plantation productivity, an additional 1.63 million hectares of plantations would be needed to meet this potential boom in pulpwood demand
+# Line 103: At historical levels of plantation productivity, an additional 1.63 million hectares of plantations would be needed to meet this potential boom in pulpwood demand
 # new_wood_demand <- 30600000 # m3 / y - taken from Brian's calculations in paper draft. Was for original expansion estimates without PT phoenix
 (area_demand <- new_wood_demand / sector_mai) # ha
 
 new_wood_demand / (current_wood_demand / 1000000)
 
-## Explore scenario with continued yield improvements for five years. We've seen ~5% increase per year (script 08_calc_mai.R)
+## Explore scenario with continued yield improvements for five years. We've seen ~4.5% increase per year (script 08_calc_mai.R)
 ## "...even if companies were able to sustain the current rate of productivity 
 ## improvement over the next decade, increased production from existing plantations 
 ## would only meet 62% of the anticipated growth in pulpwood demand"
 yield_growth = mai_df$yield_growth + 1
-high_yield_mai <- (yield_growth^10) * sector_mai  # Updated after fixing david's data to account for burns. Was 1.049 growth rate
+high_yield_mai <- (yield_growth^5) * mai_2021  # Updated after fixing david's data to account for burns. Was 1.049 growth rate
 assumed_area_plantations <- 3050000
-extra_production <- (high_yield_mai - sector_mai) * assumed_area_plantations
-extra_production / (new_wood_demand * 1000000)
+extra_production <- (high_yield_mai - sector_mai) * assumed_area_plantations / 1000000
+extra_production / new_wood_demand
 
 # A further 520,000 hectares of plantations would be needed to meet the remaining pulpwood demand.
-(new_wood_demand - (extra_production / 1000000)) / high_yield_mai
+(new_wood_demand - extra_production) / high_yield_mai
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
