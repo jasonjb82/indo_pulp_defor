@@ -118,8 +118,9 @@ nona_mai_df <- mai_df %>%
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Winsorize MAI
 # From Hardiyanto et al., 2023: The best treatment (comprising low impact harvesting, removal of only merchantable stem wood, conservation of organic matter, planting with improved germplasm, weed control and application of P at planting), yielded an MAI of 52.5 m3 ha-1 y-1, one of the highest growth rates reported for 230 tropical plantations (Nambiar, 2008).
+mai_limit <- 52.5
 winsorize_mai <- function(mai){
-  max_mai <- 52.5
+  max_mai <- mai_limit
   if(mai > max_mai){
     mai <- max_mai
   }
@@ -133,6 +134,12 @@ nona_mai_df <- nona_mai_df %>%
          dmai_if = map_dbl(dmai_if, winsorize_mai),
          dmai_mf = map_dbl(dmai_mf, winsorize_mai),
          dmai_hf = map_dbl(dmai_hf, winsorize_mai))
+
+outlier_ids <- mai_df %>% 
+  group_by(supplier_id) %>% 
+  summarize(max_mai = max(dmai)) %>% 
+  filter(max_mai > mai_limit) %>% 
+  pull(supplier_id)
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Calculate sectoral MAI -------------------------------------
@@ -154,16 +161,17 @@ hf_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y_hf, na.rm = TRU
 ## a) Winsorize long rotations
 rw_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y_rw, na.rm = TRUE)) %>% print()
 
-## b) Winsorize excessively large DMAIs
+## b) Use adjusted volumes based on Winsorized versions of excessively large DMAIs
 (sum(nona_mai_df$volume_winsorized, na.rm = TRUE) / sum(nona_mai_df$ha_y, na.rm = TRUE)) %>% print()
 
 
 ## Calculate annual MAI in the sector
-year_mai <- nona_mai_df %>% 
+year_mai <- mai_df %>% 
   group_by(harvest_year) %>% 
-  summarise(ha_y = sum(ha_y),
-            volume_m3 = sum(volume_m3)) %>% 
-  mutate(year_mai = volume_m3 / ha_y) %>% 
+  summarise(ha_y = sum(ha_y, na.rm = TRUE),
+            volume_m3 = sum(volume_m3, na.rm = TRUE)) %>% 
+  mutate(year_mai = volume_m3 / ha_y,
+         ln_mai = log(year_mai)) %>% 
   print()
 
 
@@ -201,7 +209,7 @@ year_mai %>%
   ylim(c(0, 32)) +
   geom_smooth(method = "lm")
 
-
+mai_2021 <- year_mai %>% filter(harvest_year == 2021) %>% pull(year_mai) %>% print()
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Regressions to describe trends in MAI -------------------------------------
@@ -216,7 +224,9 @@ nona_mai_df <- nona_mai_df %>%
          ln_hf = log(dmai_hf),
          Supplier = supplier_id)
 
-ols_mod <- feols(ln_mai_w ~ harvest_year, cluster = mai_df$Supplier, data = nona_mai_df)
+nona_mai_df %>% group_by(outlier) %>% tally() %>% mutate(shr = prop.table(n))
+
+ols_mod <- feols(ln_mai_w ~ harvest_year, cluster = nona_mai_df$Supplier, data = nona_mai_df)
 summary(ols_mod)
 
 
@@ -232,19 +242,20 @@ summary(ols_mod)
 # 
 # base_mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(multi_years == 1))
 # summary(base_mod)
-grow_yield <- function(current_mai, growth_mod){
+grow_yield <- function(current_mai, growth_mod, nyears){
   yield_growth <- hf_mod$coefficients + 1
-  future_mai <- (yield_growth^10) * current_mai
+  future_mai <- (yield_growth^nyears) * current_mai
   return(future_mai)
 }
 
+nyears <- 5
 base_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = nona_mai_df)
 summary(base_mod)
-grow_yield(sector_mai, base_mod)
+grow_yield(sector_mai, mai_2021, nyears)
 
 trim_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = nona_mai_df %>% filter(outlier == 0))
 summary(trim_mod)
-grow_yield(sector_mai, trim_mod)
+grow_yield(sector_mai, trim_mod, nyears)
 
 nowin_mod <- feols(ln_mai ~ harvest_year | Supplier, data = nona_mai_df)
 summary(nowin_mod)
@@ -255,30 +266,33 @@ summary(nowin_mod)
 
 rw_mod <- feols(ln_rw ~ harvest_year | Supplier, data = nona_mai_df)
 summary(rw_mod)
-grow_yield(rw_mai, rw_mod)
+rw_mai
+grow_yield(rw_mai, rw_mod, nyears)
 
 if_mod <- feols(ln_if ~ harvest_year | Supplier, data = nona_mai_df)
 summary(if_mod)
-grow_yield(if_mai, if_mod)
+if_mai
+grow_yield(if_mai, if_mod, nyears)
 
 mf_mod <- feols(ln_mf ~ harvest_year | Supplier, data = nona_mai_df)
 summary(mf_mod)
-grow_yield(mf_mai, mf_mod)
+grow_yield(mf_mai, mf_mod, nyears)
 
 hf_mod <- feols(ln_hf ~ harvest_year | Supplier, data = nona_mai_df)
 summary(hf_mod)
-grow_yield(hf_mai, hf_mod)
+hf_mai
+grow_yield(hf_mai, hf_mod, nyears)
 
 
 
-models <- list(ols_mod, base_mod, trim_mod, nowin_mod, noimpute_mod, noburn_mod)
+models <- list(ols_mod, base_mod, trim_mod, nowin_mod, rw_mod, if_mod, hf_mod)
 # models <- list(ols_mod, base_mod, noimpute_mod, noburn_mod)
 # models <- list(ols_mod, base_mod)
 
-rows <- tribble(~term,          ~OLS,  ~F.E., ~Trimmed, ~Full, ~NoImpute, ~NoBurn,
-                'Treatment of outliers', 'Winsorize',   'Winsorize', 'Drop', 'Keep', 'Winsorize', 'Winsorize',
-                'Drop imputed',   'No', 'No', 'No', 'No', 'Yes', 'No',
-                'Drop burned', 'No', 'No', 'No', 'No', 'No', 'Yes',)
+rows <- tribble(~term,          ~OLS,  ~F.E., ~Trimmed, ~NoWins, ~ShortenRot, ~IgFire, ~DropFire,
+                'Treatment of outliers', 'Winsorize',   'Winsorize', 'Drop', 'Keep', 'Winsorize', 'Winsorize', 'Winsorize',
+                'Shorten long rotations', 'False', 'False', 'False', 'False', 'True', 'False', 'False',
+                'Treatment of fires', 'Impute', 'Impute', 'Impute', 'Impute', 'Impute', 'Keep', 'Drop')
 attr(rows, 'position') <- c(4, 5, 6)
 
 
@@ -288,15 +302,16 @@ modelsummary(models,
              stars = c('*' = .1, '**' = .05, '***' = 0.01),
              coef_rename = c("harvest_year" = "Year"),
              gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE|Log|Std',
+             add_rows = rows)
+
+modelsummary(models, 
+             fmt = 3, 
+             coef_omit = 1, 
+             stars = c('*' = .1, '**' = .05, '***' = 0.01),
+             coef_rename = c("harvest_year" = "Year"),
+             gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE|Log|Std',
              add_rows = rows,
              output =  paste0(wdir, "/01_data/04_results/yield_growth_table.docx"))
-
-
-
-modelsummary(models, stars = TRUE)
-
-
-modelsummary(models, output =  paste0(wdir, "/01_data/04_results/yield_growth_table.docx"))
 
 
 yield_growth <- base_mod$coefficients
@@ -309,6 +324,7 @@ yield_growth_confint <- yield_growth - confint(base_mod, "harvest_year", level =
 
 
 output <- list("dmai" = sector_mai,
+               "dmai_2021" = mai_2021,
                "yield_growth" = yield_growth[1],
                "yield_gowth_ci" = yield_growth_confint[1,1]) %>% 
   as_tibble()
