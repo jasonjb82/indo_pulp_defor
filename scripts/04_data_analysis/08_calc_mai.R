@@ -74,7 +74,6 @@ mai_df <- ws_df %>%
 
 # Clean new merged data
 mai_df <- mai_df %>% 
-  rename(ha_y_rw = ha_y_w) %>% 
   mutate(dmai = volume_m3 / ha_y,
          dmai_rw = volume_m3 / ha_y_rw,
          dmai_if = volume_m3 / ha_y_if,
@@ -224,7 +223,8 @@ nona_mai_df <- nona_mai_df %>%
          ln_hf = log(dmai_hf),
          Supplier = supplier_id)
 
-nona_mai_df %>% group_by(outlier) %>% tally() %>% mutate(shr = prop.table(n))
+# Result to report in appendix
+nona_mai_df %>% group_by(outlier) %>% summarise(volume_m3 = sum(volume_m3)) %>% mutate(shr = prop.table(volume_m3))
 
 ols_mod <- feols(ln_mai_w ~ harvest_year, cluster = nona_mai_df$Supplier, data = nona_mai_df)
 summary(ols_mod)
@@ -243,15 +243,15 @@ summary(ols_mod)
 # base_mod <- feols(ln_mai_w ~ harvest_year | supplier_id, data = mai_df %>% filter(multi_years == 1))
 # summary(base_mod)
 grow_yield <- function(current_mai, growth_mod, nyears){
-  yield_growth <- hf_mod$coefficients + 1
+  yield_growth <- growth_mod$coefficients + 1
   future_mai <- (yield_growth^nyears) * current_mai
   return(future_mai)
 }
 
-nyears <- 5
+nyears <- 10
 base_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = nona_mai_df)
 summary(base_mod)
-grow_yield(sector_mai, mai_2021, nyears)
+grow_yield(sector_mai, base_mod, nyears)
 
 trim_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = nona_mai_df %>% filter(outlier == 0))
 summary(trim_mod)
