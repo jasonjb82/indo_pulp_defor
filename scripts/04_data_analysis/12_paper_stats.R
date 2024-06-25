@@ -363,10 +363,10 @@ new_wood_demand / (current_wood_demand / 1000000)
 ## "...even if companies were able to sustain the current rate of productivity 
 ## improvement over the next decade, increased production from existing plantations 
 ## would only meet 62% of the anticipated growth in pulpwood demand"
-yield_growth = mai_df$yield_growth + 1
-high_yield_mai <- (yield_growth^5) * sector_mai  # Updated after fixing david's data to account for burns. Was 1.049 growth rate
+yield_growth = (mai_df$yield_growth + 1) %>% print()
+high_yield_mai <- ((yield_growth^7) * mai_2021) %>% print()  # Updated after fixing david's data to account for burns. Was 1.049 growth rate
 assumed_area_plantations <- 3050000
-extra_production <- (high_yield_mai - sector_mai) * assumed_area_plantations / 1000000
+extra_production <- (high_yield_mai - mai_2021) * assumed_area_plantations / 1000000
 extra_production / new_wood_demand
 
 # A further XX hectares of plantations would be needed to meet the remaining pulpwood demand.
