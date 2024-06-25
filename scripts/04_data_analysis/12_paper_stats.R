@@ -328,18 +328,16 @@ phoenix_exp_mt <- 1.7
 total_exp_mt <- oki_exp_mt + rapp_exp_mt + rappbctmp_exp_mt + phoenix_exp_mt
 baseline_production <- pulp_production %>% filter(year == 2022) %>% pull(annual_prod_mtpy) # JASON - why doesnt this number match the production you were drawing on to calculate capacity factors across time? Your table says pulp production in 2022 was 9.9 million tonnes, but here it's only 8.9
 baseline_cap_mt <- 10.9 ## TODO: This should be drawn directly from RPBBI - RPBBI installed capacity in 2022
-baseline_usage_shr <- baseline_production / baseline_cap_mt 
 
 ## Calculate the prior industry average conversion rate: m3 per tonne of pulp
 wood_pulp_conv <- (current_wood_demand / 1000000) / baseline_production
 
 
 ## Double check calculations on current production
+baseline_usage_shr <- baseline_production / baseline_cap_mt
 test_wood_demand <- baseline_cap_mt * baseline_usage_shr * wood_pulp_conv
 (current_wood_demand / 1000000) == test_wood_demand
-
-
-baseline_usage_shr = 1 # Currently using 100% cap usage
+baseline_usage_shr <- 1 # Assume all capacity will eventually go into production 
 
 
 ## Set assumed conversion rate for new semi-chemical pulp mill (pt phoenix). Source: https://unece.org/forestry-timber/documents/2022/01/informal-documents/supporting-tables-forest-products-conversion
@@ -366,12 +364,12 @@ new_wood_demand / (current_wood_demand / 1000000)
 ## improvement over the next decade, increased production from existing plantations 
 ## would only meet 62% of the anticipated growth in pulpwood demand"
 yield_growth = mai_df$yield_growth + 1
-high_yield_mai <- (yield_growth^5) * mai_2021  # Updated after fixing david's data to account for burns. Was 1.049 growth rate
+high_yield_mai <- (yield_growth^5) * sector_mai  # Updated after fixing david's data to account for burns. Was 1.049 growth rate
 assumed_area_plantations <- 3050000
 extra_production <- (high_yield_mai - sector_mai) * assumed_area_plantations / 1000000
 extra_production / new_wood_demand
 
-# A further 520,000 hectares of plantations would be needed to meet the remaining pulpwood demand.
+# A further XX hectares of plantations would be needed to meet the remaining pulpwood demand.
 (new_wood_demand - extra_production) / high_yield_mai
 
 
