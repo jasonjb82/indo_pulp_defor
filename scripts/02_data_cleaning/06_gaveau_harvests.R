@@ -307,7 +307,7 @@ hti_itp_hv_df <- hti_itp_hv_df %>%
 # Identify rows that were never burned
 unburned_rows <- hti_itp_hv_df %>%
   filter(!burn_flag)
-unburned_rows <- unburned_rows %>% 
+unburned_rows <- unburned_rows %>%
   mutate(burned_harv1 = FALSE,
          burned_harv2 = FALSE,
          burned_harv3 = FALSE,
@@ -317,7 +317,7 @@ unburned_rows <- unburned_rows %>%
 burned_rows_nl <- hti_itp_hv_df %>%
   filter(burn_flag,
          burn_ylabel == FALSE)
-burned_rows_nl <- burned_rows_nl %>% 
+burned_rows_nl <- burned_rows_nl %>%
   mutate(burned_harv1 = TRUE,
          burned_harv2 = TRUE,
          burned_harv3 = TRUE,
@@ -373,6 +373,14 @@ burned_rows_l <- burned_rows_l %>%
 
 # Re-bind the three dataframes
 hti_itp_hv_df <- rbind(burned_rows_l, burned_rows_nl, unburned_rows)
+
+# hti_itp_hv_df <- hti_itp_hv_df %>% 
+#   mutate(burn_flag = 0,
+#          burn_ylabel = 0,
+#          burned_harv1 = 0,
+#          burned_harv2 = 0,
+#          burned_harv3 = 0,
+#          burned_harv4 = 0)
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -454,7 +462,7 @@ harvest_df <- harvest_df %>%
 harvest_df <- harvest_df %>% 
   mutate(impute_flag = rotation_length > 8,
          rotation_length_w = ifelse(impute_flag, 8, rotation_length),
-         ha_y_w = area_ha * rotation_length_w)
+         ha_y_rw = area_ha * rotation_length_w)
 
 # # 82% of the areas harvested within this period had experienced a plantation establishment or prior harvesting event since 2010
 # harvest_df %>% 
@@ -495,7 +503,7 @@ concession_harvests <- harvest_df %>%
   filter(burned_harv == FALSE) %>% 
   group_by(supplier_id, harvest_year) %>% 
   summarise(ha_y = sum(ha_y),
-            ha_y_w = sum(ha_y_w)) # Add column for specification with winsorized long rotations
+            ha_y_rw = sum(ha_y_rw)) # Add column for specification with winsorized long rotations
 
 # impute_prop = weighted.mean(impute_flag, ha_y),
 # burn_prop = weighted.mean(burn_flag, ha_y),
