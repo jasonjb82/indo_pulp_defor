@@ -80,17 +80,6 @@ islands <- kab %>%
 # mills
 mills <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\MILLS_EXPORTERS_20200405.xlsx"))
 
-# clean mill suppliers
-mill_supplier <- ws %>%
-  filter(str_detect(SUPPLIER_ID, '^ID-WOOD-CONCESSION')) %>%
-  select(supplier_id=SUPPLIER_ID,EXPORTER) %>%
-  mutate(mill = case_when(EXPORTER == "OKI" ~ "app",
-                          EXPORTER == "INDAH KIAT" ~ "app",
-                          EXPORTER == "APRIL" ~ "april",
-                          TRUE  ~ "marubeni")) %>%
-  select(-EXPORTER) %>%
-  mutate(supplier_id = str_replace(supplier_id,"ID-WOOD-CONCESSION-","H-")) %>%
-  distinct() 
 
 ## read point sample extracted datasets ##
 
@@ -139,7 +128,10 @@ mill_supplier <- ws %>%
   mutate(mill = case_when(EXPORTER == "OKI" ~ "app",
                           EXPORTER == "INDAH KIAT" ~ "app",
                           EXPORTER == "APRIL" ~ "april",
-                          TRUE  ~ "marubeni")) %>%
+                          EXPORTER == "LONTAR PAPYRUS" ~ "app",
+                          EXPORTER == "TOBA PULP LESTARI" ~ "april",
+                          EXPORTER == "TANJUNG ENIM LESTARI" ~ "marubeni", 
+                          TRUE  ~ NA)) %>%
   select(-EXPORTER) %>%
   distinct() %>%
   mutate(supplier_id = str_replace(supplier_id,"ID-WOOD-CONCESSION-","H-"))
