@@ -77,7 +77,8 @@ options(crayon.enabled = FALSE)
 # set order of group ownership type
 ownership_order <- c("Acknowledged ownership",
            "Suspected ownership based on civil society investigations",
-           "Third-party suppliers")
+           "Third-party suppliers",
+           "Remaining concessions not yet\nsupplying to mill")
 
 defor_order <- c(
   "Deforestation for pulp after 2015",
@@ -103,6 +104,25 @@ freq_tab <- hti_conv_timing %>%
 
 freq_tab
 
+freq_tab <- hti_conv_timing %>%
+  filter(all == 1) %>%
+  filter(conv_type == 2 | is.na(conv_type) | is.na(supplier_group)) %>%
+  mutate(supplier_group = 
+           case_when(
+             linked_group == "APP" & ownership_class == "NGO-linked" ~ "SINAR MAS (NGO-LINKED)",
+             linked_group == "APRIL" & ownership_class == "NGO-linked" ~ "ROYAL GOLDEN EAGLE / TANOTO (NGO-LINKED)",
+             TRUE ~ supplier_group)) %>%
+  mutate(ownership_class = 
+           case_when((ownership_class == "Third-party suppliers" | is.na(ownership_class)) & april == 0 & app == 0 & marubeni == 0  ~ "Remaining concessions not yet\nsupplying to mill",
+              TRUE ~ ownership_class
+              )) %>%
+  group_by(ownership_class,linked_group,class) %>% 
+  summarize(area_ha = sum(area_ha)) %>% 
+  mutate(freq = area_ha / sum(area_ha)) %>%
+  drop_na(ownership_class) %>%
+  ungroup()
+
+
 # create plot
 defor_plot <- freq_tab %>% 
   as_tibble() %>%
@@ -117,11 +137,11 @@ defor_plot <- freq_tab %>%
   scale_x_continuous(labels = d3_format(".3~s",suffix = " ha"),expand = c(0,0)) +
   guides(fill = guide_legend(nrow = 2)) +
   scale_fill_manual(values = cols,name ="Group",
-                    breaks=ownership_order,labels=ownership_order) +
+                    breaks=defor_order,labels=defor_order) +
   theme(axis.title.y = element_text(angle = 90))
 
 defor_plot
 
 # export plot to png file
-ggsave(defor_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev5.png"), dpi=400, w=8, h=4,limitsize = FALSE)
+ggsave(defor_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev6.png"), dpi=400, w=8, h=4,limitsize = FALSE)
 
