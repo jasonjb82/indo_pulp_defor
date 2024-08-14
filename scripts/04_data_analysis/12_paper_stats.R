@@ -138,7 +138,7 @@ late_change %>% print()
 overall_change <- (conv_2022 - conv_2011) / conv_2011
 overall_change %>% print()
 
-# Conversion of pulp between 2017 and 2022
+# Conversion of peat between 2017 and 2022
 annual_pulp_conv <- pulp_ttm_soil_type %>%
   select(-`system:index`,-constant,-kab,-kab_code,-prov_code,-.geo,-type) %>%
   pivot_longer(cols = -c(prov),
@@ -155,12 +155,6 @@ pulp_conv_2022 = annual_pulp_conv %>% filter(class == "peat" & year==2022) %>% p
 overall_pulp_change <- (pulp_conv_2022 - pulp_conv_2017) / pulp_conv_2017
 overall_pulp_change %>% print()
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Emissions -----------------------------------------------
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Line 27: In addition, the combination of land use conversion, burning, and peat subsidence released an estimated XX million tons of carbon to the atmosphere 
-## TODO: Work with Vivian and Carina to fill this in.
-
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Plantation yield changes -----------------------------------------------
@@ -175,8 +169,6 @@ pulp_2015 = annual_pulp %>% filter(year==2015) %>% pull(n)
 pulp_change <- (pulp_2015 - pulp_2001) %>% 
   print()
 
-
-# Line 73: In addition, improvements in plantation management have led to an XX% increase in plantation yields 
 
 
 # Line 74: pulp plantations now supply nearly all of Indonesia’s 47 million m3 of annual pulpwood demand (Figure 1). 
@@ -286,32 +278,32 @@ ownership_defor <- hti_nonhti_conv %>%
   mutate(share = prop.table(area_ha)*100) %>%
   print()
   
-## QUESTION: Should we break these group stats into those that are officially declared as subsidiaries, and those that have been inferred (e.g. http://awsassets.panda.org/downloads/removing_the_corporate_mask_app_assessment_2018.pdf)
+ownership_defor %>% select(area_ha) %>% sum()
 
-## Create supplier list for Brian to fill in indirect control
-defor_by_supplier <- zdc_hti_conv %>%
-  filter(conv_type == 2) %>%
-  # filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>% 
-  group_by(supplier_id) %>% 
-  summarise(pulp_defor_ha = sum(area_ha))
-
-supplier_index = zdc_hti_conv %>% 
-  select(supplier_id, supplier, supplier_group, island) %>% 
-  unique()
-
-defor_by_supplier <- supplier_index %>% 
-  left_join(defor_by_supplier, by = "supplier_id")
-
-defor_by_supplier <- defor_by_supplier %>% 
-  arrange(desc(pulp_defor_ha))
-
-defor_by_supplier <- defor_by_supplier %>% 
-  drop_na()
-# %>% 
-#   filter(!(supplier_group %in% c("SINAR MAS", "ROYAL GOLDEN EAGLE / TANOTO")))
-
-defor_by_supplier %>% 
-  write_csv(paste0(wdir, '/01_data/02_out/tables/supplier_defor_list.csv'))
+# ## Create supplier list for Brian to fill in indirect control
+# defor_by_supplier <- zdc_hti_conv %>%
+#   filter(conv_type == 2) %>%
+#   # filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>% 
+#   group_by(supplier_id) %>% 
+#   summarise(pulp_defor_ha = sum(area_ha))
+# 
+# supplier_index = zdc_hti_conv %>% 
+#   select(supplier_id, supplier, supplier_group, island) %>% 
+#   unique()
+# 
+# defor_by_supplier <- supplier_index %>% 
+#   left_join(defor_by_supplier, by = "supplier_id")
+# 
+# defor_by_supplier <- defor_by_supplier %>% 
+#   arrange(desc(pulp_defor_ha))
+# 
+# defor_by_supplier <- defor_by_supplier %>% 
+#   drop_na()
+# # %>% 
+# #   filter(!(supplier_group %in% c("SINAR MAS", "ROYAL GOLDEN EAGLE / TANOTO")))
+# 
+# defor_by_supplier %>% 
+#   write_csv(paste0(wdir, '/01_data/02_out/tables/supplier_defor_list.csv'))
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
