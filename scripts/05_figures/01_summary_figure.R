@@ -149,18 +149,25 @@ options(crayon.enabled = FALSE)
 
 # Panel A - Pulp contributions to deforestation through time -----------
 
+island_order <- c(
+  "Sumatera",
+  "Kalimantan",
+  "Papua")
+
 defor_plot <- hti_nonhti_conv %>%
   filter(conv_type == 2) %>% 
   ggplot() +
-  aes(y = area_ha, x = year, fill=as.factor(island),color=as.factor(island)) +
+  aes(y = area_ha, x = year, fill=factor(island,levels=rev(island_order)),color=factor(island,levels=rev(island_order))) +
   geom_col() +
   xlab("\nYear") +
   ylab("Pulp-driven deforestation (ha)") + 
   scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
   scale_x_continuous(expand=c(0,1),breaks=seq(2001,2023,by=1),labels = seq(2001,2023,by=1)) +
-  scale_fill_manual(values=c(colorBlind8[3],colorBlind8[5],colorBlind8[7]))+ 
-  scale_color_manual(values=c(colorBlind8[3],colorBlind8[5],colorBlind8[7]))+ 
-  guides(fill = guide_legend(nrow = 1,reverse = TRUE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
+  scale_fill_manual(values=c(colorBlind8[7],colorBlind8[3],colorBlind8[5]),
+                    breaks=island_order,labels=island_order)+ 
+  scale_color_manual(values=c(colorBlind8[7],colorBlind8[3],colorBlind8[5]),
+                     breaks=island_order,labels=island_order)+ 
+  guides(fill = guide_legend(nrow = 1,reverse = FALSE),color = guide_legend(nrow = 1,reverse = FALSE),keyheight = 10) +
   #facet_wrap(~supplier_label,ncol=1,scales="free") +
   theme_plot
 
