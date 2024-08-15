@@ -78,11 +78,11 @@ options(crayon.enabled = FALSE)
 ownership_order <- c("Acknowledged ownership",
            "Suspected ownership based on civil society investigations",
            "Third-party suppliers",
-           "Remaining concessions not yet\nsupplying to mill")
+           "Not yet supplying\nto mills")
 
 defor_order <- c(
   "Deforestation for pulp after 2015",
-  "Deforestation for pulp from 2001-2015",
+  "Deforestation for pulp during 2001-2015",
   "Deforestation not for pulp",
   "Remaining forest"
   )
@@ -113,7 +113,9 @@ freq_tab <- hti_conv_timing %>%
              linked_group == "APRIL" & ownership_class == "NGO-linked" ~ "ROYAL GOLDEN EAGLE / TANOTO (NGO-LINKED)",
              TRUE ~ supplier_group)) %>%
   mutate(ownership_class = 
-           case_when((ownership_class == "Third-party suppliers" | is.na(ownership_class)) & april == 0 & app == 0 & marubeni == 0  ~ "Remaining concessions not yet\nsupplying to mill",
+           case_when(
+             (ownership_class == "Third-party suppliers" | is.na(ownership_class)) & april == 0 & app == 0 & marubeni == 0  ~ "Not yet supplying\nto mills",
+             april == 0 & app == 0 & marubeni == 1 ~ "Not yet supplying\nto mills",
               TRUE ~ ownership_class
               )) %>%
   group_by(ownership_class,linked_group,class) %>% 
@@ -143,5 +145,5 @@ defor_plot <- freq_tab %>%
 defor_plot
 
 # export plot to png file
-ggsave(defor_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev6.png"), dpi=400, w=8, h=4,limitsize = FALSE)
+ggsave(defor_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev8.png"), dpi=400, w=8, h=4,limitsize = FALSE)
 
