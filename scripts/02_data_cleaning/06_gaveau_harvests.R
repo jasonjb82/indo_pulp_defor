@@ -382,6 +382,7 @@ hti_itp_hv_df <- rbind(burned_rows_l, burned_rows_nl, unburned_rows)
 #          burned_harv3 = 0,
 #          burned_harv4 = 0)
 
+hti_itp_hv_df %>% group_by(burn_flag, burn_ylabel) %>% summarize(area = sum(area_ha)) %>% ungroup() %>% mutate(prop = prop.table(area))
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## convert to long -------------------------------------
