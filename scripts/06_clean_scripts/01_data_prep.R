@@ -429,7 +429,7 @@ hti_conv_timing <- treemap_annual_pulp %>%
   arrange(year,supplier_id) %>%
   as_tibble() %>%
   left_join(mill_supplier,by="supplier_id") %>%
-  mutate(conv_time = ifelse(year >= 2015,"Deforestation for pulp after 2015","Deforestation for pulp from 2001-2015")) %>%
+  mutate(conv_time = ifelse(year >= 2015,"Deforestation for pulp after 2015","Deforestation for pulp during 2001-2015")) %>%
   group_by(supplier_id,supplier,supplier_label,license_year,island,april,app,marubeni,all,conv_type,conv_time) %>%
   summarize(area_ha = n()) %>%
   bind_rows(hti_for_areas) %>%
