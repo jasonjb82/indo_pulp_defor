@@ -81,28 +81,45 @@ concessions <- hti_gav_annual_lc %>%
   pull(supplier_label) %>%
   print()
 
-hti_gav_annual_lc$class_desc <- factor(hti_gav_annual_lc$class_desc, levels = c("Forest", "Non-forest", "Cleared for pulp"))
-
 hti_plots = list()
 
 # create plots by loop and export as png files
 for(concession_ in concessions) {
-  hti_plots[[concession_]] = ggplot(hti_gav_annual_lc %>% filter(supplier_label == concession_),aes(year,area_ha)) +
+  
+  filtered_df <- hti_gav_annual_lc %>% filter(supplier_label == concession_) %>%
+    mutate(class_desc = ordered(class_desc, levels = c("Forest", "Non-forest", "Cleared for pulp")))
+  
+  # get actual classes in plot
+  non_zero <- filtered_df %>% filter(area_ha > 0) %>% pull(class_desc) %>% unique() %>% sort()
+  
+  hti_plots[[concession_]] <- ggplot(filtered_df,aes(year,area_ha))+
     geom_area(aes(fill= as.factor(class_desc)), position = position_stack(reverse = F)) +
     scale_x_continuous(expand=c(0,0),breaks=seq(2001,2022,by=1),limits = c(2001,2022)) +
     scale_y_continuous(labels = d3_format(".2~s",suffix = "ha"),expand = c(0,0)) +
-    geom_vline(aes(xintercept=as.numeric(license_year),color="License\nyear"),size=0.5)+
-    geom_vline(aes(xintercept=as.numeric(zdc_year),color="Earliest ZDC year\nof downstream mill"),size=0.5)+
     ylab("") +
     xlab("") +
     ggtitle(paste0(str_sub(concession_, end=-10))) +
-    scale_fill_manual(values=c("#009E73","#F0E442","#CC79A7"),
-                      breaks = c("Forest","Non-forest","Cleared for pulp"),
-                      labels = c("Forest","Non-forest","Cleared for pulp"))+
-    scale_color_manual(values = c("#000000","#0072B2")) +
+    scale_fill_manual(values=c("Forest"="#009E73","Non-forest"="#F0E442","Cleared for pulp"="#CC79A7"),
+                      breaks = non_zero)+
     guides(fill = guide_legend(nrow = 1),color = guide_legend(nrow=1),shape = guide_legend(nrow=2),keyheight = 10) +
     theme_plot
   
+  if (!all(is.na(filtered_df$zdc_year))) {
+    hti_plots[[concession_]] <- hti_plots[[concession_]] + 
+      geom_vline(aes(xintercept = zdc_year, color = "Earliest ZDC year\nof downstream mill"),size=0.5,na.rm=T) +
+      scale_color_manual(values = c("License\nyear"="#000000","Earliest ZDC year\nof downstream mill"= "#000000")) +
+      guides(fill = guide_legend(nrow = 1,order=1),color = guide_legend(nrow=1,order=2),shape = guide_legend(nrow=2,order=3),keyheight = 10)
+  }
+  
+  
+  if (!all(filtered_df$license_year < 2001 | filtered_df$license_year >= 2022)) {
+    hti_plots[[concession_]] <- hti_plots[[concession_]] + 
+      geom_vline(aes(xintercept = license_year, color = "License\nyear"),size=0.5,linetype="dashed",na.rm=T) +
+      scale_color_manual(values = c("License\nyear"="#000000","Earliest ZDC year\nof downstream mill"= "#000000")) +
+      guides(fill = guide_legend(nrow = 1,order=1),color = guide_legend(nrow=1,order=2),shape = guide_legend(nrow=2,order=3),keyheight = 10)
+  }
+  
   print(hti_plots[[concession_]])
   ggsave(hti_plots[[concession_]], file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\lu_traj_plots_all\\",gsub(" ","_",concession_),"_TreeMap_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
+
 }
