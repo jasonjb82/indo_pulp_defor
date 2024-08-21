@@ -52,7 +52,7 @@ hti_conv_timing <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_def
 theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                      panel.background = element_rect(colour=NA,fill=NA),
                      panel.grid.minor = element_blank(),
-                     panel.grid.major.x= element_line(color="grey70",linetype="dashed",size=0.35),
+                     panel.grid.major.x= element_line(color="grey70",linetype="dashed",linewidth=0.35),
                      plot.title = element_text(hjust = 0,size=11,face="bold"),
                      axis.line.x = element_line(),
                      axis.ticks.x = element_blank(),
