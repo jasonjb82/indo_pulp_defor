@@ -101,6 +101,9 @@ timber_for_pulp <- read_csv(paste0(wdir,"\\01_data\\01_in\\obidzinski_dermawan\\
 # pulp exports (WITS)
 pulp_exports <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\pulp_exports_wits.csv"))
 
+# pulp prices (FRED)
+pulp_prices <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\WPU0911_FRED.csv"))
+
 # pulp production data (MoEF)
 pulp_production <- read_excel(paste0(wdir,"\\01_data\\01_in\\tables\\annual_pulp_shr_prod.xlsx"))
 
@@ -115,6 +118,13 @@ mills <- s3read_using(read_excel, object = "indonesia/wood_pulp/logistics/out/mi
 ############################################################################
 # Clean / prep data --------------------------------------------------------
 ############################################################################
+
+pulp_prices_clean <- pulp_prices %>%
+  select(DATE,PPI=WPU0911) %>%
+  mutate(DATE = as.Date(DATE,format="%m/%d/%Y")) %>%
+  #filter(between(DATE, as.Date("2000-01-01"),as.Date("2022-12-31"))) %>%
+  mutate(year = year(DATE),PPI = as.double(PPI)) %>%
+  select(year,PPI)
 
 
 ###########################################################################
@@ -154,24 +164,54 @@ island_order <- c(
   "Kalimantan",
   "Papua")
 
-defor_plot <- hti_nonhti_conv %>%
-  filter(conv_type == 2) %>% 
-  ggplot() +
-  aes(y = area_ha, x = year, fill=factor(island,levels=rev(island_order)),color=factor(island,levels=rev(island_order))) +
-  geom_col() +
-  xlab("\nYear") +
-  ylab("Pulp-driven deforestation (ha)") + 
-  scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
-  scale_x_continuous(expand=c(0,1),breaks=seq(2001,2023,by=1),labels = seq(2001,2023,by=1)) +
+# merge deforestation df's and pulp prices
+defor_price_comb <- hti_nonhti_conv %>%
+  left_join(pulp_prices_clean,by="year") %>%
+  filter(year < 2023 & conv_type == 2) %>%
+  group_by(year,island) %>%
+  summarize(area_ha = sum(area_ha),PPI=max(PPI))
+
+# scale factor to match axis'
+pa_scale_factor <- 0.5
+
+defor_pp_plot <- ggplot(data = defor_price_comb, aes(x = year))+
+  geom_bar(stat="identity",position = "stack",aes(y = area_ha/1000,
+                                                  fill=factor(island,levels=rev(island_order)))) +
+  geom_line(aes(y = PPI*pa_scale_factor,color="Producer Price Index")) +
+  geom_point(aes(y = PPI*pa_scale_factor,color="Producer Price Index")) +
+  ylab("Pulp-drive deforestation (Kha)\n") +
+  xlab("") +
   scale_fill_manual(values=c(colorBlind8[7],colorBlind8[3],colorBlind8[5]),
                     breaks=island_order,labels=island_order)+ 
-  scale_color_manual(values=c(colorBlind8[7],colorBlind8[3],colorBlind8[5]),
-                     breaks=island_order,labels=island_order)+ 
-  guides(fill = guide_legend(nrow = 1,reverse = FALSE),color = guide_legend(nrow = 1,reverse = FALSE),keyheight = 10) +
-  #facet_wrap(~supplier_label,ncol=1,scales="free") +
-  theme_plot
+  scale_color_manual(values=c("black"))+ 
+  scale_x_continuous(breaks = seq(from = 2001, to = 2022, by =1),expand=c(0,1)) +
+  scale_y_continuous(sec.axis = sec_axis(~ .*1, labels = number_format(scale=1/pa_scale_factor),
+                                         name="Producer Price Index\n"), 
+                     limits = c(0,150),
+                     expand = c(0,0)) +
+  guides(fill = guide_legend(nrow = 1,reverse = FALSE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
+  theme_plot 
 
-defor_plot
+defor_pp_plot
+
+# defor_plot <- hti_nonhti_conv %>%
+#   filter(conv_type == 2) %>% 
+#   ggplot() +
+#   aes(y = area_ha, x = year, fill=factor(island,levels=rev(island_order)),color=factor(island,levels=rev(island_order))) +
+#   geom_col() +
+#   xlab("\nYear") +
+#   ylab("Pulp-driven deforestation (ha)") + 
+#   scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
+#   scale_x_continuous(expand=c(0,1),breaks=seq(2001,2023,by=1),labels = seq(2001,2023,by=1)) +
+#   scale_fill_manual(values=c(colorBlind8[7],colorBlind8[3],colorBlind8[5]),
+#                     breaks=island_order,labels=island_order)+ 
+#   scale_color_manual(values=c(colorBlind8[7],colorBlind8[3],colorBlind8[5]),
+#                      breaks=island_order,labels=island_order)+ 
+#   guides(fill = guide_legend(nrow = 1,reverse = FALSE),color = guide_legend(nrow = 1,reverse = FALSE),keyheight = 10) +
+#   #facet_wrap(~supplier_label,ncol=1,scales="free") +
+#   theme_plot
+# 
+# defor_plot
 
 # Panel B - Wood supply transition -------------------------------------
 
@@ -360,7 +400,7 @@ tl_plot <- ggplot(tl_df,aes(x=year,y=0, col=type, label=type,shape=direction)) +
 tl_plot
 
 # merge plot using patchwork
-comb_plot <- defor_plot / wt_plot / tl_plot
+comb_plot <- defor_pp_plot / wt_plot / tl_plot
 comb_plot <- comb_plot +
   plot_annotation(tag_levels="A") & 
   theme(plot.tag = element_text(face = 'bold', size=12))
@@ -368,4 +408,4 @@ comb_plot
 
 ##ggsave(comb_plot,file="D:/comb_plot.png", dpi=400, w=11, h=14,type="cairo-png") 
 ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=12, h=15,type="cairo-png") 
-ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_rev1.svg"), dpi=400, w=12, h=15) 
+ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_rev4.svg"), dpi=400, w=12, h=15) 
