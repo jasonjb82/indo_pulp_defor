@@ -39,6 +39,9 @@ library(WDI)
 
 ## read data -------------------------------------------------------------------
 
+# define working data directory
+wdir <- "remote/"
+
 # deforestation
 hti_nonhti_conv <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\idn_deforestation_hti_nonhti_treemap.csv"))
 
