@@ -37,13 +37,17 @@ library(dtplyr)
 library(WDI)
 
 
-## read data -------------------------------------------------------------------
-
 # define working data directory
-wdir <- "remote/"
+wdir <- "remote"
+
+## read data -------------------------------------------------------------------
 
 # deforestation
 hti_nonhti_conv <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\idn_deforestation_hti_nonhti_treemap.csv"))
+
+# Bleached Hardwood Kraft, Acacia, from Indonesia (net price) from RISI
+risi_prices <- readxl::read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\Fastmarkets_2025_01_14-103617.xlsx"),skip=4) %>%
+  clean_names() %>% select(date,net_price=mid_3)
 
 # pulp prices (PPI) (FRED)
 fred_prices_annual <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\WPU0911_annual.csv")) %>%
@@ -51,21 +55,28 @@ fred_prices_annual <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\WPU0911_an
          year = year(date)) %>%
   select(year,prices = WPU0911) 
 
-# Fetch CPI data for Indonesia (indicator: "FP.CPI.TOTL")
-cpi_data <- WDI(country = "ID", indicator = "FP.CPI.TOTL", start = 2001, end = 2025)
+# Fetch CPI data for US (indicator: "FP.CPI.TOTL")
+cpi_data <- WDI(country = "US", indicator = "FP.CPI.TOTL", start = 2001, end = 2025)
 
 # select required columns
 cpi_data <- cpi_data %>%
   select(year,cpi=FP.CPI.TOTL)
 
-#risi_prices_annual <- risi_prices_clean %>%
-#  group_by(year) %>%
-#  summarize(prices = mean(risi_monthly_net_price))
+# RISI annual pulp prices
+risi_prices_annual <- risi_prices %>%
+  mutate(date = as.Date(date,format="%m/%d/%Y"),
+         year = year(date),
+         month = month(date)) %>%
+  group_by(year,month) %>%
+  summarize(risi_monthly_net_price = mean(net_price)) %>%
+  filter(year <= 2023 & !is.na(risi_monthly_net_price)) %>%
+  group_by(year) %>%
+  summarize(prices = mean(risi_monthly_net_price))
 
 # clean data -------------------------------------------------------------------
 
-adjusted_data <- merge(fred_prices_annual, cpi_data, by = "year") %>% select(year,prices,cpi)
-#adjusted_data <- merge(risi_prices_annual, cpi_data, by = "year")
+#adjusted_data <- merge(fred_prices_annual, cpi_data, by = "year") %>% select(year,prices,cpi)
+adjusted_data <- merge(risi_prices_annual, cpi_data, by = "year")
 
 # set base year
 base_year <- 2023
@@ -99,3 +110,4 @@ pulp_defor_prices <- adjusted_data %>%
   left_join(pulp_deforestation,by="year") %>%
   select(year,defor_ha,real_price) %>%
   print()
+
