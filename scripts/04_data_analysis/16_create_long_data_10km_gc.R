@@ -143,7 +143,7 @@ tbl_long <- pixel_id_tbl %>%
   print()
 
 # export data to csv
-write_csv(tbl_long,paste0(wdir,"\\01_data\\02_out\\tables\\tbl_long.csv"))
+write_csv(tbl_long,paste0(wdir,"\\01_data\\02_out\\tables\\tbl_long_pulp_clearing_gfc_forest.csv"))
   
 
 
