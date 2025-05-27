@@ -20,12 +20,17 @@ input_gdb = path + "odmatrix.gdb"
 env.workspace = path + "odmatrix.gdb"
 env.overwriteOutput = True
 
+# Set workspace environment
+input_gdb = "D:/trase/palm/ucsb/logistics/transportation/pulp_odmatrix.gdb"
+env.workspace = "D:/trase/palm/ucsb/logistics/transportation/pulp_odmatrix.gdb"
+env.overwriteOutput = True
+
 # Specify island for create OD matrix analysis
 # Options: kalimantan, sumatera, sulawesi, papua and jawa
 island = "sumatera"
 
 # Set inputs (mills, ports, etc)
-origins = os.path.join(input_gdb, "centroids")
+origins = os.path.join(input_gdb, "suma_pts")
 destinations = os.path.join(input_gdb, "mills")
 network = os.path.join(input_gdb, island, island + "_ND")
 
@@ -109,7 +114,7 @@ def calcDistances(origins, network, destinations, outLoc):
         origLayerName,
         origins,
         oriField,
-        "30 Kilometers",
+        "300 Kilometers",
         "",
         "",
         # search_criteria,
@@ -173,9 +178,9 @@ def calcDistances(origins, network, destinations, outLoc):
 
 
 outFile = (
-     dropbox_dir
-     + "indo_pulp_defor/01_data/02_out/tables/"
-    #"D:/trase/palm/ucsb/logistics/transportation/outputs/"
+    # dropbox_dir
+    # + "indo_pulp_defor/01_data/02_out/tables/"
+    "D:/trase/palm/ucsb/logistics/transportation/outputs/"
     + island
     + "_"
     + Path(origins).name
