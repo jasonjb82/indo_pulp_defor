@@ -45,7 +45,7 @@ wdir <- "remote"
 ## read data -------------------------------------------------------------------
 
 # deforestation
-hti_nonhti_conv <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\idn_deforestation_hti_nonhti_treemap.csv"))
+hti_nonhti_conv <- read_csv(paste0(wdir,"/01_data/02_out/tables/idn_deforestation_hti_nonhti_treemap.csv"))
 
 # pulp expansion
 pulp_exp <- read_csv(paste0(wdir, '/01_data/01_in/gaveau/pulp_expansion.csv')) %>% 
@@ -53,12 +53,12 @@ pulp_exp <- read_csv(paste0(wdir, '/01_data/01_in/gaveau/pulp_expansion.csv')) %
   mutate(year = year + 2000)
 
 # Bleached Hardwood Kraft, Acacia, from Indonesia (net price) from RISI
-risi_prices <- readxl::read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\Fastmarkets_2025_01_14-103617.xlsx"),skip=4) %>%
+risi_prices <- readxl::read_excel(paste0(wdir,"/01_data/01_in/wwi/Fastmarkets_2025_01_14-103617.xlsx"),skip=4) %>%
   clean_names() %>% 
   select(date,net_price=mid_3, sa_net_price = mid_2)
 
 # pulp prices (PPI) (FRED)
-fred_prices_annual <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\WPU0911_annual.csv")) %>%
+fred_prices_annual <- read_csv(paste0(wdir,"/01_data/01_in/tables/WPU0911_annual.csv")) %>%
   mutate(date = as.Date(observation_date,format="%d/%m/%Y"),
          year = year(date)) %>%
   select(year,prices = WPU0911) 
@@ -186,7 +186,6 @@ mod <- lm(ln_defor ~ ln_real_price * period, data = pulp_defor_prices)
 summary(mod)
 
 # summary(glht(mod, linfct = c("ln_fred_price + ln_fred_price:p1TRUE = 0")))
-
 
 pulp_exp_prices <- pulp_exp_prices %>% 
   mutate(
