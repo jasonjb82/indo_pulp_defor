@@ -42,8 +42,17 @@ wdir <- "remote"
 
 ## read data -------------------------------------------------
 
+# choose projection: Cylindrical Equal Area
+indonesian_crs <- "+proj=cea +lon_0=115.0 +lat_ts=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
+
 # load color palette
 source("scripts\\001_misc\\001_color_palettes.R")
+
+# kabupaten
+kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
+kab_slim <- kab %>%
+  select(kab, prov_code, kab_code, kab, prov) %>%
+  st_transform(crs = indonesian_crs)
 
 # deforestation and forest cover (hansen)
 gfw_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\explore_deforestation_Indonesia.csv"))
@@ -58,6 +67,14 @@ pulp_nonfor_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\pulp_annual_defo
 pulp_for_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\pulp_annual_defor_forest_kalisuma.csv"))
 
 ## clean data ------------------------------------------------
+
+# grid admin info
+grid_adm_tbl <- grid_10km_sf %>%
+  st_transform(crs = indonesian_crs) %>%
+  st_intersection(kab_slim) %>%
+  st_drop_geometry() %>%
+  select(pixel_id,kab_code,kab,prov_code,prov) %>%
+  print()
 
 # convert to areas and subset to selected attributes
 gfw_areas_long <- gfw_df %>%
@@ -144,7 +161,5 @@ tbl_long <- pixel_id_tbl %>%
 
 # export data to csv
 write_csv(tbl_long,paste0(wdir,"\\01_data\\02_out\\tables\\tbl_long_pulp_clearing_gfc_forest.csv"))
-  
-
-
+write_csv(grid_adm_tbl,paste0(wdir,"\\01_data\\02_out\\tables\\grid_10km_adm_prov_kab.csv"))
                         
