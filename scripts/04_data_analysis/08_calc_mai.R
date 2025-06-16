@@ -41,17 +41,17 @@ harvest_df <- read_csv(harvest_csv)
 
 
 # wood production
-ws_2015_2019 <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\RPBBI_2015_2019_compiled.xlsx")) %>%
+ws_2015_2019 <- read_excel(paste0(wdir,"/01_data/01_in/wwi/RPBBI_2015_2019_compiled.xlsx")) %>%
   select(YEAR,SUPPLIER_ID,VOLUME_M3) %>%
   group_by(YEAR,SUPPLIER_ID) %>%
   summarize(VOLUME_M3 = sum(VOLUME_M3))
 
-ws_2020 <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\RPBBI_2020_compiled.xlsx")) %>%
+ws_2020 <- read_excel(paste0(wdir,"/01_data/01_in/wwi/RPBBI_2020_compiled.xlsx")) %>%
   select(YEAR,SUPPLIER_ID,VOLUME_M3) %>%
   group_by(YEAR,SUPPLIER_ID) %>%
   summarize(VOLUME_M3 = sum(VOLUME_M3))
 
-ws_2021 <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\RPBBI_2021_compiled.xlsx")) %>%
+ws_2021 <- read_excel(paste0(wdir,"/01_data/01_in/wwi/RPBBI_2021_compiled.xlsx")) %>%
   select(YEAR,SUPPLIER_ID,VOLUME_M3) %>%
   group_by(YEAR,SUPPLIER_ID) %>%
   summarize(VOLUME_M3 = sum(VOLUME_M3))
@@ -211,6 +211,21 @@ year_mai %>%
 mai_2021 <- year_mai %>% filter(harvest_year == 2021) %>% pull(year_mai) %>% print()
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Calculate hti-level average MAI -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+hti_mai <- mai_df %>% 
+  group_by(supplier_id) %>% 
+  summarise(volume_m3 = sum(volume_m3, na.rm = TRUE),
+            ha_y = sum(ha_y, na.rm = TRUE)) %>% 
+  filter(volume_m3 > 0,
+         ha_y > 0) %>% 
+  mutate(dmai = volume_m3 / ha_y,
+         dmai_winsorized  = map_dbl(dmai, winsorize_mai))
+
+hti_mai %>% write_csv(paste0(wdir, "/01_data/02_out/tables/hti_mai.csv"))
+
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Regressions to describe trends in MAI -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 nona_mai_df <- nona_mai_df %>% 
@@ -368,8 +383,8 @@ write_csv(output, paste0(wdir, "/01_data/04_results/key_parameters.csv"))
 # # Check David's raw data to see proportion of harvests occurring without prior harvest data
 # 
 # # Load davids data
-# itp_hv <- read_sf(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_ITPHarvesting_V20220208\\IDN_ITPHarvesting_V20220208.shp"))
-# hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
+# itp_hv <- read_sf(paste0(wdir,"/01_data/01_in/gaveau/IDN_ITPHarvesting_V20220208/IDN_ITPHarvesting_V20220208.shp"))
+# hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HT_proj.shp"))
 # itp_hv <- st_make_valid(itp_hv) 
 # itp_hv_proj <- st_transform(itp_hv, crs = st_crs(hti)) 
 # ## Question for David - why do some plantations have no Harvest1, but do have a Harvest2?

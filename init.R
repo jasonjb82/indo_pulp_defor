@@ -8,10 +8,12 @@
 # NOTE: Must be run with administrator permission
 
 # Define the path to your local code directory
-code_dir <- 'D:\\dev\\indonesia\\indo_pulp_defor\\'
+code_dir <- '/Users/rheilmayr/dev/indonesia/indo_pulp_defor/'
+dir.exists(code_dir)
 
 # Define the path to your local google drive Treeconomics\\Data directory 
-data_dir <- 'D:\\cloud\\Dropbox\\collaborations\\indonesia\\indo_pulp_defor\\'
+data_dir <- '/Users/rheilmayr/Dropbox/collaborations/indonesia/indo_pulp_defor/'
+dir.exists(data_dir)
 
 library(R.utils)
-createLink(paste0(code_dir, 'remote\\'), data_dir, overwrite = FALSE)
+createLink(paste0(code_dir, 'remote'), data_dir, overwrite = FALSE)
