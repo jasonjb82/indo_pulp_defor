@@ -96,7 +96,6 @@ kali_grid_10km_sf <- grid_10km_sf %>%
   filter(pulau == "KALIMANTAN") %>%
   st_drop_geometry()
 
-
 ## check data ------------------------------------------------
 
 suma_links <- suma_cm_clean_df %>%
@@ -115,6 +114,7 @@ kali_links <- kali_cp_clean_df %>%
   distinct() 
 
 kali_links_check <- kali_links %>%
+  distinct(orig,linked) %>%
   full_join(kali_grid_10km_sf,by=c("orig"="pixel_id")) %>%
   mutate(linked = ifelse(is.na(linked),0,1)) %>%
   print()
@@ -146,16 +146,25 @@ kali_mill_dist <- kali_cp_clean_df %>%
   filter(dist_km == min(dist_km)) %>%
   left_join(kali_suma_pts_clean_df,by="dest") %>%
   left_join(suma_pm_clean_df,by=c("orig.y"="orig")) %>%
-  mutate(dist_land_km = dist_km.x+dist_km,dist_sea_km=dist_km.y) %>%
-  select(id=orig.x,mill=dest.y,dist_land_km,dist_sea_km) %>%
+  mutate(dist_land_kalimantan_km = dist_km.x,dist_land_sumatera_km=dist_km,dist_sea_km=dist_km.y) %>%
+  select(id=orig.x,mill=dest.y,dist_land_kalimantan_km,dist_land_sumatera_km,dist_sea_km) %>%
   print()
 
 suma_mill_dist <- suma_cm_clean_df %>%
-  select(id=orig,mill=dest,dist_land_km=dist_km) %>%
+  select(id=orig,mill=dest,dist_land_sumatera_km=dist_km) %>%
   print()
 
 cm_dist_df <- kali_mill_dist %>%
   bind_rows(suma_mill_dist) %>%
   print()
 
-## combine with cost numbers ----------------------------------
+cm_dist_final_df <- cm_dist_df %>%
+  replace(is.na(.), 0) %>%
+  mutate(total_dist = dist_land_kalimantan_km + dist_land_sumatera_km + dist_sea_km) %>%
+  group_by(id) %>%
+  slice_min(total_dist, n = 1, with_ties = FALSE) %>%
+  select(-total_dist)
+
+## export to csv ----------------------------------
+
+write_csv(cm_dist_final_df,paste0(wdir,"\\01_data\\02_out\\tables\\centroids_mills_od_output.csv"))

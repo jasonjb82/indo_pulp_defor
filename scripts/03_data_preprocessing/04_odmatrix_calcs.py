@@ -30,7 +30,7 @@ env.overwriteOutput = True
 island = "sumatera"
 
 # Set inputs (mills, ports, etc)
-origins = os.path.join(input_gdb, "suma_pts")
+origins = os.path.join(input_gdb, "centroids")
 destinations = os.path.join(input_gdb, "mills")
 network = os.path.join(input_gdb, island, island + "_ND")
 
@@ -114,7 +114,7 @@ def calcDistances(origins, network, destinations, outLoc):
         origLayerName,
         origins,
         oriField,
-        "300 Kilometers",
+        "30 Kilometers",
         "",
         "",
         # search_criteria,
