@@ -58,10 +58,10 @@ fred_idn_cpi <- read_csv(paste0(wdir,"/01_data/01_in/tables/FRED_IDNCPIALLAINMEI
          year = year(date)) %>% 
   select(year, idn_cpi = IDNCPIALLAINMEI)
 
-# Transport costs (robustness test)
-# TODO: confirm with jason on the units of the transport cost data
+# Transport costs (2006 USD / m3, used for robustness test)
 trnsprt_cst_df <- read_csv(paste0(wdir, "/01_data/02_out/tables/centroids_mills_cost.csv")) %>% 
-  rename(pixel_id = id)
+  rename(pixel_id = id) %>% 
+  mutate(year = 2006)
 
 # Data about grid cell composition along GAEZ classes
 grid_gaez <- read_csv(paste0(wdir, "/01_data/02_out/tables/gaez_grid_share.csv"))
@@ -113,8 +113,14 @@ risi_prices_annual <- risi_prices_annual %>%
   left_join(fred_idn_cpi, by = "year") %>%
   mutate(sa_prices_real = sa_prices_idr / idn_cpi * 100) # Adjust for inflation - reference year is 2015
 
-
-
+# Adjust transport costs for currency and inflation
+trnsprt_cst_df <- trnsprt_cst_df %>% 
+  left_join(fred_idr_usd, by = "year") %>%
+  left_join(fred_idn_cpi, by = "year") %>%
+  mutate(cost_kidr_perton = cost_usd_perton * idr_usd / 1000,  # Convert from USD to thousand IDR
+         cost_kidr_perton_real = cost_kidr_perton / idn_cpi * 100, # Adjust for inflation, reference year is 2015
+         trnsprt_cost_real = cost_kidr_perton_real / 1.142) %>%  # Convert from USD/tonne to USD/m3 (assuming 1.142 m3 per tonne)
+  select(pixel_id, trnsprt_cost_real)
 
 # # Explore similarity to FRED data
 # fred_prices_annual <- read_csv(paste0(wdir,"/01_data/01_in/tables/WPU0911_annual.csv")) %>%
@@ -163,7 +169,7 @@ defor_df <- defor_df %>%
 # Calculate prices net of transport costs
 # TODO: Still need to adjust transport prices to IDR
 defor_df <- defor_df %>%
-  mutate(net_prices = sa_prices_real - cost_usd_perton)
+  mutate(net_prices = sa_prices_real - trnsprt_cost_real)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -232,7 +238,6 @@ summary(mod)
 grid_pot_mai <- grid_gaez %>% 
   mutate(pot_mai = predict(mod, newdata = grid_gaez),
          pot_mai = ifelse(pot_mai < 0, 0, pot_mai)) %>%  # winsorize negative potential production to 0
-         # pot_mai = pot_mai / 2.75) %>%  # Convert m3 to tonnes of pulp
   select(pixel_id, pot_mai)
 
 # Join productivity data back to defor_df
@@ -245,12 +250,21 @@ defor_df <- defor_df %>%
          pot_net_revenues = (net_prices * pot_mai) / 1000,
          post_2015 = year > 2015)
 
+# ,
+# time_periods = case_when(
+#   year <2005 ~ "2001-2005",
+#   year >= 2005 & year < 2010 ~ "2005-2010",
+#   year >= 2010 & year < 2015 ~ "20120-2015",
+#   year >= 2015 & year < 2020 ~ "2015-2020",
+#   year >= 2020 ~ "2020-2022")
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Estimate elasticity of deforestation  --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 mod_1 <- feols(pulp_forest_ha ~ pot_revenues | pixel_id + year, data = defor_df)
 summary(mod_1)
+
 
 null_mod <- feols(pulp_forest_ha ~ 1 | pixel_id + year, data = defor_df)
 summary(null_mod)
@@ -286,7 +300,7 @@ msummary(
 
 ### Robustness tests
 # Add transport costs
-rmod <- feols(pulp_forest_ha ~ post_2015:pot_net_revenues  | pixel_id + year, data = defor_df)
+rmod <- feols(pulp_forest_ha ~ post_2015:pot_net_revenues | pixel_id + year, data = defor_df)
 summary(rmod)
 
 # Add interact between suitability and time trend
@@ -294,7 +308,7 @@ rmod <- feols(pulp_forest_ha ~ post_2015:pot_revenues + pot_mai * year  + factor
 summary(rmod)
 
 # Log outcome (but drop 0s)
-rmod <- feols(log(pulp_forest_ha) ~ post_2015:pot_revenues | pixel_id + year, data = defor_df)
+rmod <- feols(log(pulp_forest_ha) ~ post_2015:pot_revenues  | pixel_id + year, data = defor_df)
 summary(rmod)
 
 ## TODO: Pickup from here
