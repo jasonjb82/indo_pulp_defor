@@ -75,21 +75,12 @@ hti_mai <- read_csv(paste0(wdir, "/01_data/02_out/tables/hti_mai.csv"))
 
 # Add administrative labels
 grid_admin <- read_csv(paste0(wdir, "/01_data/02_out/tables/grid_10km_adm_prov_kab.csv"))
-test_df <- test_df %>%
-  left_join(grid_admin, by = "pixel_id")
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# clean and merge data --------------
+# clean price data --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Join transport cost data to defor_df
-defor_df <- defor_df %>%
-  left_join(trnsprt_cst_df, by = "pixel_id")
-
-# Add total pulp expansion variable
-defor_df <- defor_df %>%
-  mutate(pulp_exp_ha = pulp_forest_ha + pulp_non_forest_ha) 
-
-# RISI annual pulp prices
+# Clean RISI annual pulp prices
 risi_prices_annual <- risi_prices %>%
   mutate(date = as.Date(date,format="%m/%d/%Y"),
          year = year(date),
@@ -107,42 +98,20 @@ risi_prices_annual <- risi_prices %>%
 # Convert longer SA pulp price series (USD/tonne) into Indonesian pulpwood prices (USD/m3)
 wrq_prices <- wrq_prices %>% 
   left_join(risi_prices_annual, by = "year")
-
 price_conversion_mod <- lm(wrq_indo_prices ~ sa_prices + 0, data = wrq_prices)
 summary(price_conversion_mod)
-
 risi_prices_annual <- risi_prices_annual %>%
   mutate(sa_prices = predict(price_conversion_mod, newdata = risi_prices_annual))
 
-
-# Convert currency?
+# Convert currency
 risi_prices_annual <- risi_prices_annual %>%
   left_join(fred_idr_usd, by = "year") %>%
   mutate(sa_prices_idr = sa_prices * idr_usd / 1000)  # Convert from USD to thousand IDR
-
 
 # Adjust for inflation
 risi_prices_annual <- risi_prices_annual %>%
   left_join(fred_idn_cpi, by = "year") %>%
   mutate(sa_prices_real = sa_prices_idr / idn_cpi * 100) # Adjust for inflation - reference year is 2015
-
-
-# calculate deviation in pulp prices from last five year rolling average
-risi_prices_annual <- risi_prices_annual %>%
-  mutate(sa_prices_dev = sa_prices_real - zoo::rollmean(sa_prices_real, k = 5, fill = NA, align = "right")) %>%
-  filter(!is.na(sa_prices))
-
-# Add RISI prices to defor_df
-defor_df <- defor_df %>%
-  left_join(risi_prices_annual, by = "year")
-
-# Calculate interaction between prices and transport costs
-# defor_df <- defor_df %>%
-#   mutate(plant_prices_dev = sa_prices_dev  * (1/cost_usd_perton))
-defor_df <- defor_df %>%
-  mutate(net_prices = sa_prices_real - cost_usd_perton,
-         net_prices_dev = net_prices - zoo::rollmean(net_prices, k = 5, fill = NA, align = "right"))
-
 
 
 
@@ -171,37 +140,60 @@ defor_df <- defor_df %>%
 #   geom_line(aes(y = indo_prices, color = "RISI Indonesia")) +
 #   geom_line(aes(y = sa_prices, color = "RISI South America"))
 
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# integrate productivity variations  --------------
+# merge datasets --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-grid_gaez <- grid_gaez %>% 
-  mutate(noLimitations = (class_3_pct + class_6_pct) / 100,
-         hydromorphic = (class_27_pct + class_28_pct) / 100,
-         terrain = (class_25_pct + class_26_pct) / 100, 
-         other = (class_32_pct + class_33_pct)) %>% 
-  select(pixel_id, noLimitations, hydromorphic, terrain, other)
-# TODO: add check that we're getting 100% areas
+# Add administrative unit labels
+defor_df <- defor_df %>%
+  left_join(grid_admin, by = "pixel_id")
 
-# Report out proportions in grouped classes
-grid_gaez %>% 
-  summary()
+# Join transport cost data to defor_df
+defor_df <- defor_df %>%
+  left_join(trnsprt_cst_df, by = "pixel_id")
 
-# Recalculate removing other class (water and developed)
-grid_gaez <- grid_gaez %>% 
-  mutate(no_other_sum = noLimitations + hydromorphic + terrain,
-         noLimitations = noLimitations / no_other_sum,
-         hydromorphic = hydromorphic / no_other_sum,
-         terrain = terrain / no_other_sum) %>% 
-  select(pixel_id, noLimitations, hydromorphic, terrain)
+# Add total pulp expansion variable
+defor_df <- defor_df %>%
+  mutate(pulp_exp_ha = pulp_forest_ha + pulp_non_forest_ha) 
+
+# Add prices to defor_df
+defor_df <- defor_df %>%
+  left_join(risi_prices_annual, by = "year")
+
+# Calculate prices net of transport costs
+# TODO: Still need to adjust transport prices to IDR
+defor_df <- defor_df %>%
+  mutate(net_prices = sa_prices_real - cost_usd_perton)
 
 
-
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Estimate cross-sectional variation in productivity  --------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Re-assign GAEZ into aggregated classes
 hti_gaez <- hti_gaez %>% 
   mutate(class_noLimitations = class_2 + class_3 + class_6, # tropic lowlands; sub-humid tropic lowlands; humid topic highlands  
          class_hydromorphic = class_27 + class_28, # land with ample irrigated soils, dominantly hydromorphic soils
          class_terrain = class_25 + class_26, # very steep terrain, land with severe soil/terrain limitations, 
          class_other = class_32 + class_33) %>%  # water and developed, to be dropped
   select(supplier_id, class_noLimitations, class_hydromorphic, class_terrain, class_other)
+grid_gaez <- grid_gaez %>% 
+  mutate(noLimitations = (class_3_pct + class_6_pct) / 100,
+         hydromorphic = (class_27_pct + class_28_pct) / 100,
+         terrain = (class_25_pct + class_26_pct) / 100, 
+         other = (class_32_pct + class_33_pct)) %>% 
+  select(pixel_id, noLimitations, hydromorphic, terrain, other)
+
+# Report out proportions in grouped classes
+grid_gaez %>% 
+  summary()
+
+# Recalculate removing "other" class (water and developed)
+grid_gaez <- grid_gaez %>% 
+  mutate(no_other_sum = noLimitations + hydromorphic + terrain,
+         noLimitations = noLimitations / no_other_sum,
+         hydromorphic = hydromorphic / no_other_sum,
+         terrain = terrain / no_other_sum) %>% 
+  select(pixel_id, noLimitations, hydromorphic, terrain)
 
 hti_gaez <- hti_gaez %>% 
   pivot_longer(cols = starts_with("class_"),
@@ -229,83 +221,47 @@ hti_gaez <- hti_gaez %>%
   left_join(hti_mai, by = "supplier_id") %>% 
   drop_na()
 
-
+# Model DMAI as a function of GAEZ shares
 weighted_mod <- lm(dmai_winsorized ~ 0 + noLimitations + hydromorphic + terrain, data = hti_gaez, weights = ha_y)
 summary(weighted_mod)
 
 mod <- lm(dmai_winsorized ~ 0 + noLimitations + hydromorphic + terrain, data = hti_gaez)
 summary(mod)
 
+# Predict potential DMAI for all grid cells
 grid_pot_mai <- grid_gaez %>% 
   mutate(pot_mai = predict(mod, newdata = grid_gaez),
-         pot_mai = ifelse(pot_mai < 0, 0, pot_mai), # winsorize negative potential production to 0
-         pot_mai = pot_mai / 2.75) %>%  # Convert m3 to tonnes of pulp
+         pot_mai = ifelse(pot_mai < 0, 0, pot_mai)) %>%  # winsorize negative potential production to 0
+         # pot_mai = pot_mai / 2.75) %>%  # Convert m3 to tonnes of pulp
   select(pixel_id, pot_mai)
 
-
-# hti_gaez <- hti_gaez %>% 
-#   mutate(maj_noLimitations = ifelse(noLimitations > 0.5, 1, 0),
-#          maj_hydromorphic = ifelse(hydromorphic > 0.5, 1, 0),
-#          maj_steep = ifelse(steep > 0.5, 1, 0))
-# 
-# hti_gaez %>% 
-#   filter(maj_noLimitations==1) %>% 
-#   pull(dmai) %>% 
-#   quantile(0.9)
-# 
-# hti_gaez %>% 
-#   filter(maj_hydromorphic==1) %>% 
-#   pull(dmai) %>% 
-#   quantile(0.9)
-# 
-# hti_gaez %>% 
-#   filter(maj_steep==1) %>% 
-#   pull(dmai) %>% 
-#   quantile(0.9)
-
-test_df <- defor_df %>% 
+# Join productivity data back to defor_df
+defor_df <- defor_df %>% 
   left_join(grid_pot_mai, by = "pixel_id")
-test_df <- test_df %>%
-  mutate(pot_revenues = (sa_prices_dev * pot_mai) / 1000,
+
+# Calculate potential revenues and net revenues
+defor_df <- defor_df %>%
+  mutate(pot_revenues = (sa_prices_real * pot_mai) / 1000,
          pot_net_revenues = (net_prices * pot_mai) / 1000,
-         pot_revenues_ndev = sa_prices_real * pot_mai / 1000)
-test_df <- test_df %>% 
-  mutate(post_2015 = year > 2015,
-         time_period = ifelse(year<=2011, "p1", 
-                              ifelse(year<=2018, "p2", "p3")))
+         post_2015 = year > 2015)
 
 
-
-# mod_1 <- feols(pulp_forest_ha ~ pot_revenues | year + pixel_id, data = test_df, vcov = "twoway")
-# summary(mod_1)
-# 
-# mod_2 <- feols(pulp_forest_ha ~ post_2015:pot_revenues | year + pixel_id, data = test_df, vcov = "twoway")
-# summary(mod_3)
-# 
-# mod_3 <- feols(pulp_non_forest_ha ~ pot_revenues | year + pixel_id, data = test_df, vcov = "twoway")
-# summary(mod_2)
-# 
-# mod_4 <- feols(pulp_non_forest_ha ~ post_2015:pot_revenues | year + pixel_id, data = test_df, vcov = "twoway")
-# summary(mod_4)
-
-mod_1 <- feols(pulp_forest_ha ~ pot_revenues_ndev | pixel_id + year, data = test_df)
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Estimate elasticity of deforestation  --------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+mod_1 <- feols(pulp_forest_ha ~ pot_revenues | pixel_id + year, data = defor_df)
 summary(mod_1)
 
-## Notes on interpretation of importance of this elasticity:
-# Interpret change in R2 - only shifts by ~0.025 relative to model with all fixed effects
-# Percent of decline in deforestation between XX and XX explained by price deviation
-# Percent of increase in deforestation between XX and XX explained by price deviation
-# Interpret coefficient - how big of a price increase would you need to see?
-null_mod <- feols(pulp_forest_ha ~ 1 | pixel_id + year, data = test_df)
+null_mod <- feols(pulp_forest_ha ~ 1 | pixel_id + year, data = defor_df)
 summary(null_mod)
 
-mod_2 <- feols(pulp_forest_ha ~ post_2015:pot_revenues_ndev | pixel_id + year, data = test_df)
+mod_2 <- feols(pulp_forest_ha ~ post_2015:pot_revenues  | pixel_id + year, data = defor_df)
 summary(mod_2)
 
-mod_3 <- feols(pulp_non_forest_ha ~ pot_revenues_ndev | pixel_id + year, data = test_df)
+mod_3 <- feols(pulp_non_forest_ha ~ pot_revenues | pixel_id + year, data = defor_df)
 summary(mod_3)
 
-mod_4 <- feols(pulp_non_forest_ha ~ post_2015:pot_revenues_ndev | pixel_id + year, data = test_df)
+mod_4 <- feols(pulp_non_forest_ha ~ post_2015:pot_revenues | pixel_id + year, data = defor_df)
 summary(mod_4)
 
 
@@ -330,22 +286,19 @@ msummary(
 
 ### Robustness tests
 # Add transport costs
-rmod <- feols(pulp_forest_ha ~ post_2015:pot_net_revenues  | pixel_id + year, data = test_df)
-summary(rmod)
-
-# Use raw prices instead of price deviation
-rmod <- feols(pulp_forest_ha ~ post_2015:pot_revenues_ndev  | pixel_id + year, data = test_df)
-summary(rmod)
-
-# Add province time trends
-rmod <- feols(pulp_forest_ha ~ post_2015:pot_revenues + factor(prov) * year | pixel_id + year, data = test_df)
+rmod <- feols(pulp_forest_ha ~ post_2015:pot_net_revenues  | pixel_id + year, data = defor_df)
 summary(rmod)
 
 # Add interact between suitability and time trend
-rmod <- feols(pulp_forest_ha ~ post_2015:pot_revenues + pot_mai * year  + factor(prov) * year | pixel_id + year, data = test_df)
+rmod <- feols(pulp_forest_ha ~ post_2015:pot_revenues + pot_mai * year  + factor(prov) * year | pixel_id + year, data = defor_df)
 summary(rmod)
 
-# Deforestation as a share?
+# Log outcome (but drop 0s)
+rmod <- feols(log(pulp_forest_ha) ~ post_2015:pot_revenues | pixel_id + year, data = defor_df)
+summary(rmod)
+
+## TODO: Pickup from here
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # plot basic trends --------------
@@ -372,62 +325,23 @@ ggplot(total_pulp_exp %>% filter(year > 2000, year < 2023), aes(x = year, y = pu
   theme_minimal()
 
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# run regressions --------------
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Look at variation explained by price series
-mod <- feols(pulp_forest_ha ~ sa_prices_dev | pixel_id, data = defor_df)
-summary(mod)
-mod <- feols(pulp_exp_ha ~ sa_prices_dev | pixel_id, data = defor_df)
-summary(mod)
 
-# Look at variation explained by cross-sectional variation in transport costs
-mod <- feols(pulp_forest_ha ~ cost_usd_perton | year, data = defor_df)
-summary(mod)
-mod <- feols(pulp_exp_ha ~ cost_usd_perton | year, data = defor_df)
-summary(mod)
-
-# Look at variation explained by their interaction
-mod <- feols(pulp_forest_ha ~ cost_usd_perton | year + pixel_id, data = defor_df)
-summary(mod)
-mod <- feols(pulp_exp_ha ~ cost_usd_perton | year + pixel_id, data = defor_df)
-summary(mod)
-
-
-# Look at variation explained by price series (logged)
-mod <- feols(log(pulp_forest_ha) ~ sa_prices_dev | pixel_id, data = defor_df)
-summary(mod)
-mod <- feols(log(pulp_exp_ha) ~ sa_prices_dev | pixel_id, data = defor_df)
-summary(mod)
-
-# Look at variation explained by cross-sectional variation in transport costs  (logged)
-mod <- feols(log(pulp_forest_ha) ~ cost_usd_perton | year, data = defor_df)
-summary(mod)
-mod <- feols(log(pulp_exp_ha) ~ cost_usd_perton | year, data = defor_df)
-summary(mod)
-
-# Look at variation explained by their interaction (logged)
-mod <- feols(log(pulp_forest_ha) ~ plant_prices_dev | year + pixel_id, data = defor_df)
-summary(mod)
-mod <- feols(log(pulp_exp_ha) ~ plant_prices_dev | year + pixel_id, data = defor_df)
-summary(mod)
-
-
-# Interaction model, but exploring different time periods
-mod <- feols(pulp_forest_ha ~ plant_prices_dev | year + pixel_id, data = defor_df %>% filter(year <=2013))
-summary(mod)
-mod <- feols(pulp_exp_ha ~ plant_prices_dev | year + pixel_id, data = defor_df %>% filter(year <=2013))
-summary(mod)
-
-
-mod <- feols(pulp_forest_ha ~ plant_prices_dev | year + pixel_id, data = defor_df %>% filter(year > 2013))
-summary(mod)
-mod <- feols(pulp_exp_ha ~ plant_prices_dev | year + pixel_id, data = defor_df %>% filter(year > 2013))
-summary(mod)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# predict deforestation with no price deviation --------------
+# Interpretation --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# How big of an impact does an increase in prices have?
+defor_df$sa_prices_real %>% summary()
+defor_df$sa_prices_real %>% sd()
+defor_df$pulp_forest_ha %>% summary()
+defor_df$pulp_forest_ha %>% sd()
+summary(mod_1)
+defor_df$sa_prices_real %>% sd() * mod_1$coefficients[1]
+defor_df$sa_prices_real %>% sd() * mod_2$coefficients[1]
+# Interpretation: A 1 sd increase in prices (87.5 thousand IDR) would result in 
+# an extra 78 ha of pulp deforestation in a grid cell. This effect is much 
+# smaller in model 2.
+
 ## Notes on interpretation of importance of this elasticity:
 # Interpret change in R2 - only shifts by ~0.025 relative to model with all fixed effects
 r2(mod_1)
