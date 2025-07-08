@@ -46,6 +46,10 @@ library(khroma) # palettes for color blindness
 wdir <- "remote"
 
 ## read data -------------------------------------------------
+
+# choose projection: Cylindrical Equal Area
+indonesian_crs <- "+proj=cea +lon_0=115.0 +lat_ts=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
+
 '%ni%' <- Negate('%in%') # filter out function
 
 # hti concessions
@@ -53,6 +57,20 @@ hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_TRASE_20230314_pr
 
 # wood supply
 ws <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv"))
+
+# add islands
+islands <- kab %>%
+  st_drop_geometry() %>%
+  mutate(island = str_sub(prov_code, 1, 1)) %>%
+  mutate(
+    island = case_when(
+      island == 1 ~ "SUMATRA", island == 2 ~ "RIAU ARCHIPELAGO",
+      island == 3 ~ "JAVA", island == 5 ~ "BALI AND NUSA TENGGARA",
+      island == 6 ~ "KALIMANTAN", island == 7 ~ "SULAWESI",
+      island == 8 ~ "MALUKU", island == 9 ~ "PAPUA"
+    )
+  ) %>%
+  distinct(prov_code, island)
 
 # pulpwood supply in 2022 
 pw_supply_2022 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx')) %>%
@@ -490,4 +508,22 @@ hti_conc_lu_areas <- zdc_hti_conv %>%
   group_by(class) %>%
   summarize(area_Mha = sum(area_ha)/1000000) %>%
   print()
-  
+
+## We restrict our analysis to these two islands since they produce more than 
+## XX% of all pulpwood throughout our study period  
+pulp_share_island <- gaveau_annual_pulp %>%
+  left_join(hti,by=c("supplier_id"="ID")) %>%
+  mutate(island = str_sub(kode_prov, 1, 1)) %>%
+  mutate(
+    island = case_when(
+      island == 1 ~ "SUMATRA", island == 2 ~ "RIAU ARCHIPELAGO",
+      island == 3 ~ "JAVA", island == 5 ~ "BALI AND NUSA TENGGARA",
+      island == 6 ~ "KALIMANTAN", island == 7 ~ "SULAWESI",
+      island == 8 ~ "MALUKU", island == 9 ~ "PAPUA"
+    )
+  ) %>%
+  group_by(island,gav_class) %>%
+  summarize(n = sum(n)) %>%
+  group_by() %>%
+  mutate(share = prop.table(n)*100) %>%
+  print()
