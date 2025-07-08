@@ -89,6 +89,8 @@ annual_conv <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 l
 pw_area_hti <- read_csv(paste0(wdir, "\\01_data\\02_out\\gee\\pulp_annual_area_hti_only.csv")) %>%
    select(ID,pulp_2022) 
 
+pw_annual_area_id <- read_csv(paste0(wdir, "\\01_data\\02_out\\gee\\pulp_annual_area_id.csv")) 
+
 pw_area_id <- read_csv(paste0(wdir, "\\01_data\\02_out\\gee\\pulp_annual_area_id.csv")) %>%
   select(prov,pulp_2022) 
 
@@ -511,9 +513,9 @@ hti_conc_lu_areas <- zdc_hti_conv %>%
 
 ## We restrict our analysis to these two islands since they produce more than 
 ## XX% of all pulpwood throughout our study period  
-pulp_share_island <- gaveau_annual_pulp %>%
-  left_join(hti,by=c("supplier_id"="ID")) %>%
-  mutate(island = str_sub(kode_prov, 1, 1)) %>%
+
+pulp_share_island <- pw_annual_area_id %>%
+  mutate(island = str_sub(prov_code, 1, 1)) %>%
   mutate(
     island = case_when(
       island == 1 ~ "SUMATRA", island == 2 ~ "RIAU ARCHIPELAGO",
@@ -522,8 +524,15 @@ pulp_share_island <- gaveau_annual_pulp %>%
       island == 8 ~ "MALUKU", island == 9 ~ "PAPUA"
     )
   ) %>%
-  group_by(island,gav_class) %>%
-  summarize(n = sum(n)) %>%
+  select(island,contains("pulp_")) %>%
+  pivot_longer(cols = -c(island),
+               names_to = 'year',
+               values_to = 'area_ha') %>%
+  mutate(year = str_extract(year, "(?<=_).*"),
+         year = as.integer(year)) %>%
+  filter(area_ha > 0) %>%
+  group_by(island) %>%
+  summarize(area_ha = sum(area_ha)) %>%
   group_by() %>%
-  mutate(share = prop.table(n)*100) %>%
+  mutate(share = prop.table(area_ha)*100) %>%
   print()
