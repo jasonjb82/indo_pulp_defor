@@ -52,6 +52,9 @@ indonesian_crs <- "+proj=cea +lon_0=115.0 +lat_ts=0 +x_0=0 +y_0=0 +ellps=WGS84 +
 
 '%ni%' <- Negate('%in%') # filter out function
 
+# kabupaten
+kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
+
 # hti concessions
 hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_TRASE_20230314_proj.shp"))
 
@@ -79,9 +82,15 @@ pw_supply_2022 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_com
 # pulpwood conversion from forest and non-forest within and outside hti concessions
 hti_nonhti_conv <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\idn_pulp_conversion_hti_nonhti_gaveau.csv"))
 
-# temporary areas converted to pulp
-annual_conv <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="PULPWOOD EXPANSION",skip=90) %>% clean_names() %>%
-  select(year,area_ha=area_of_forest_converted_to_pulpwood_pw_each_year_ha) %>%
+# pulp expansion
+id_annual_pulp_stats <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="PULPWOOD EXPANSION",skip=90) %>% clean_names() %>%
+  select(year,total_forest_loss_ha=total_forest_loss,total_forest_loss_pulp_ha=area_of_forest_converted_to_pulpwood_pw_each_year_ha) %>%
+  mutate(year=year+2000) %>%
+  drop_na(year)
+
+# palm expansion
+id_annual_palm_stats <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="OIL PALM EXPANSION",skip=172) %>% clean_names() %>%
+  select(year,total_forest_loss_ha=total_forest_loss,total_forest_loss_palm_ha=area_of_forest_converted_to_oil_palm_pw_each_year_ha) %>%
   mutate(year=year+2000) %>%
   drop_na(year)
 
@@ -124,6 +133,25 @@ mai_df <- read_csv(paste0(wdir, "/01_data/04_results/key_parameters.csv"))
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Overarching trends in pulp expansion, deforestation, peat conversion -------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# Share of pulp deforestation over total annual deforestation (2001-2011)
+pulp_def_share_2001_2011 <- id_annual_pulp_stats %>%
+  filter(year < 2012) %>%
+  group_by() %>%
+  summarize(total_forest_loss_palm_ha = sum(total_forest_loss_pulp_ha),
+            total_forest_loss_ha = sum(total_forest_loss_ha)) %>%
+  mutate(shr_palm_forest_loss = total_forest_loss_palm_ha/total_forest_loss_ha*100) %>%
+  print()
+
+# Share of palm deforestation over total annual deforestation (2001-2011)
+palm_def_share_2001_2011 <- id_annual_palm_stats %>%
+  filter(year < 2012) %>%
+  group_by() %>%
+  summarize(total_forest_loss_palm_ha = sum(total_forest_loss_palm_ha),
+            total_forest_loss_ha = sum(total_forest_loss_ha)) %>%
+  mutate(shr_palm_forest_loss = total_forest_loss_palm_ha/total_forest_loss_ha*100) %>%
+  print()
+
 annual_conv <- hti_nonhti_conv %>%
   group_by(year,conv_type) %>%
   summarize(area_ha = sum(area_ha)) %>%
@@ -536,3 +564,14 @@ pulp_share_island <- pw_annual_area_id %>%
   group_by() %>%
   mutate(share = prop.table(area_ha)*100) %>%
   print()
+
+## Area of expansion and plantation
+
+ann_pulp_exp <- hti_nonhti_conv %>%
+  mutate(conv_type = ifelse(conv_type == 1,"Other_pulp_expansion","Pulp_driven_deforestation")) %>%
+  group_by(year,conv_type) %>%
+  summarize(area_ha = sum(area_ha)) %>%
+  pivot_wider(names_from = conv_type,values_from=area_ha) %>%
+  mutate('Aggregate_pulp_expansion' = Other_pulp_expansion + Pulp_driven_deforestation) %>%
+  print()
+
