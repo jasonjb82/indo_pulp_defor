@@ -567,11 +567,16 @@ pulp_share_island <- pw_annual_area_id %>%
 
 ## Area of expansion and plantation
 
+# pulp area in 2000
+pulp_area_2000 <- 1130615
+
 ann_pulp_exp <- hti_nonhti_conv %>%
   mutate(conv_type = ifelse(conv_type == 1,"Other_pulp_expansion","Pulp_driven_deforestation")) %>%
   group_by(year,conv_type) %>%
   summarize(area_ha = sum(area_ha)) %>%
   pivot_wider(names_from = conv_type,values_from=area_ha) %>%
   mutate('Aggregate_pulp_expansion' = Other_pulp_expansion + Pulp_driven_deforestation) %>%
+  group_by() %>%
+  mutate('Pulpwood_planted_area' = cumsum(Aggregate_pulp_expansion) + pulp_area_2000) %>%
   print()
 
