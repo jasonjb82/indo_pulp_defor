@@ -92,8 +92,13 @@ wood_species <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\SILK_PULP_WOOD_SPE
 policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline_cats_rev1.csv")) %>%
   mutate(year_col = as.Date(year_proper,format="%d/%m/%Y"))
 
-# deforestation within concessions
-hti_nonhti_conv <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\idn_deforestation_hti_nonhti_treemap.csv"))
+# pulp conversion from forest (Indonesia wide) - TreeMap
+pulp_for_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_annual_defor_forest_id.csv")) %>%
+  select(-`system:index`,-constant,-.geo)
+
+# pulp conversion from non-forest (Indonesia wide) - TreeMap
+pulp_nonfor_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_annual_defor_non-forest_id.csv")) %>%
+  select(-`system:index`,-constant,-.geo)
 
 # timber for pulp production (Obidzinski Dermawan)
 timber_for_pulp <- read_csv(paste0(wdir,"\\01_data\\01_in\\obidzinski_dermawan\\plot_data.csv"))
@@ -112,12 +117,53 @@ kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
 prov_slim <- kab %>% select(prov,prov_code) %>% st_drop_geometry() %>% distinct() %>%
   mutate(prov_code = ifelse(prov == "PAPUA",92,prov_code))
 
+# get table of islands
+islands <- kab %>%
+  st_drop_geometry() %>%
+  mutate(island = str_sub(prov_code, 1, 1)) %>%
+  mutate(
+    island = case_when(
+      island == 1 ~ "Sumatera",
+      island == 6 ~ "Kalimantan",
+      island == 9 ~ "Papua"
+    )
+  ) %>%
+  distinct(prov_code,island) %>%
+  drop_na(island)
+
 # mills
 mills <- s3read_using(read_excel, object = "indonesia/wood_pulp/logistics/out/mills/MILLS_EXPORTERS_20200405.xlsx", bucket = bucket)
 
 ############################################################################
 # Clean / prep data --------------------------------------------------------
 ############################################################################
+
+id_pulp_conv_for <- pulp_for_id %>%
+  left_join(islands,by="prov_code") %>%
+  select(-prov,-kab,-kab_code,-prov_code,-type) %>%
+  dt_pivot_longer(cols = -c(island),
+                  names_to = 'year',
+                  values_to = 'area_ha') %>%
+  as_tibble() %>%
+  filter(area_ha != "0") %>%
+  mutate(year = str_replace(year,"deforestation_", ""),year = as.double(year)) %>%
+  group_by(island,year) %>%
+  summarize(area_ha = sum(area_ha)) %>%
+  mutate(conv_type = "forest") 
+
+id_pulp_conv_nonfor <- pulp_nonfor_id %>%
+  left_join(islands,by="prov_code") %>%
+  select(-prov,-kab,-kab_code,-prov_code,-type) %>%
+  dt_pivot_longer(cols = -c(island),
+                  names_to = 'year',
+                  values_to = 'area_ha') %>%
+  as_tibble() %>%
+  filter(area_ha != "0") %>%
+  mutate(year = str_replace(year,"deforestation_", ""),year = as.double(year)) %>%
+  group_by(island,year) %>%
+  summarize(area_ha = sum(area_ha)) %>%
+  mutate(conv_type = "non-forest") 
+
 
 pulp_prices_clean <- pulp_prices %>%
   select(DATE,PPI=WPU0911) %>%
@@ -165,9 +211,10 @@ island_order <- c(
   "Papua")
 
 # merge deforestation df's and pulp prices
-defor_price_comb <- hti_nonhti_conv %>%
+defor_price_comb <- id_pulp_conv_for %>%
+  bind_rows(id_pulp_conv_nonfor) %>%
   left_join(pulp_prices_clean,by="year") %>%
-  filter(year < 2023 & conv_type == 2) %>%
+  filter(year < 2023 & conv_type == "forest") %>%
   group_by(year,island) %>%
   summarize(area_ha = sum(area_ha),PPI=max(PPI))
 
