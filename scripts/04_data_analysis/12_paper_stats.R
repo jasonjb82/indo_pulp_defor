@@ -99,6 +99,11 @@ pw_area_hti <- read_csv(paste0(wdir, "\\01_data\\02_out\\gee\\pulp_annual_area_h
 
 pw_annual_area_id <- read_csv(paste0(wdir, "\\01_data\\02_out\\gee\\pulp_annual_area_id.csv")) 
 
+pw_2000 <- pw_annual_area_id %>%
+  select(pulp_2000) %>%
+  group_by() %>%
+  summarize(area_ha = sum(pulp_2000))
+
 # reclasses ownership groups
 groups_reclass_hti <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\ALIGNED_NAMES_GROUP_HTI_reclassed.csv"))
 
@@ -137,12 +142,13 @@ annual_pulp_areas <- pw_annual_area_id %>%
                names_to = 'year',values_to = 'area_ha') %>%
   mutate(year = as.double(str_replace(year,"pulp_",""))) %>%
   group_by(year) %>%
-  summarize(area_ha = sum(area_ha)) %>%
+  summarize(area_ha = sum(area_ha)-5000) %>% # GEE calculations adjustment
   mutate(annual_pulp_area = area_ha - lag(area_ha, default = first(area_ha))) %>%
   left_join(id_annual_pulp_stats, by="year") %>%
   select(year,annual_pulp_expansion_area_ha=annual_pulp_area,forest_loss_ha,forest_loss_pulp_ha,nonforest_loss_pulp_ha,annual_pulp_area_ha=area_ha) %>%
   print()
-  
+
+
 # Share of pulp deforestation over total annual deforestation (2001-2011)
 pulp_def_share_2001_2011 <- id_annual_pulp_stats %>%
   filter(year < 2012) %>%
