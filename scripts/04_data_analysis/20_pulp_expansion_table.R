@@ -142,7 +142,6 @@ samples_df <- samples_df %>%
 # 401-4xx = Mangrove forest loss. The last two digit represent the year of loss.
 # 601-6xx = Peat swamp forest loss. The last two digit represent the year of loss.
 
-
 hti_pulp_conv <- samples_df %>%
   filter(start_for == "Y" & pulp == "Y") %>% # starting as forest and ending as pulp
   as_tibble() %>%
