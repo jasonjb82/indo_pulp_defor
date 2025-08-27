@@ -232,6 +232,18 @@ overall_pulp_change <- (pulp_conv_2022 - pulp_conv_2017) / pulp_conv_2017
 overall_pulp_change %>% print()
 
 
+# The expansion of pulp processing infrastructure into Kalimantan is particularly important 
+#since the region has been responsible for XX%  of pulp-driven deforestation since 2017
+kali_pulp_driven_defor <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="PULPWOOD EXPANSION",skip=5,n_max =22 ) %>% 
+  clean_names() %>%
+  select(year,kali_forest_loss_ha=area_of_forest_converted_to_pulpwood_pw_each_year_ha) %>%
+  mutate(year=as.double(year)+2000) %>%
+  left_join(annual_conv,by="year") %>%
+  filter(year >= 2017) %>%
+  group_by() %>%
+  summarize(shr_kali_pulp_defor = sum(kali_forest_loss_ha)/sum(area_ha)*100) %>%
+  print()
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Plantation yield changes -----------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
