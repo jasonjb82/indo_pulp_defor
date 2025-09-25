@@ -53,13 +53,13 @@ indonesian_crs <- "+proj=cea +lon_0=115.0 +lat_ts=0 +x_0=0 +y_0=0 +ellps=WGS84 +
 '%ni%' <- Negate('%in%') # filter out function
 
 # kabupaten
-kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
+kab <- read_sf(paste0(wdir,"/01_data/01_in/big/idn_kabupaten_big.shp"))
 
 # hti concessions
-hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_TRASE_20230314_proj.shp"))
+hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp"))
 
 # wood supply
-ws <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv"))
+ws <- read_csv(paste0(wdir,"/01_data/01_in/wwi/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv"))
 
 # add islands
 islands <- kab %>%
@@ -76,28 +76,28 @@ islands <- kab %>%
   distinct(prov_code, island)
 
 # pulpwood supply in 2022 
-pw_supply_2022 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx')) %>%
+pw_supply_2022 <- read_excel(paste0(wdir, '/01_data/01_in/wwi/RPBBI_2022_compiled.xlsx')) %>%
   select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
 
 # pulpwood conversion from forest and non-forest within and outside hti concessions
-hti_nonhti_conv <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\idn_pulp_conversion_hti_nonhti_gaveau.csv"))
+hti_nonhti_conv <- read_csv(paste0(wdir,"/01_data/02_out/tables/idn_pulp_conversion_hti_nonhti_gaveau.csv"))
 
 # pulp expansion
-id_annual_pulp_stats <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="PULPWOOD EXPANSION",skip=90) %>% clean_names() %>%
+id_annual_pulp_stats <- read_excel(paste0(wdir,"/01_data/01_in/gaveau/IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="PULPWOOD EXPANSION",skip=90) %>% clean_names() %>%
   select(year,forest_loss_ha=total_forest_loss,forest_loss_pulp_ha=area_of_forest_converted_to_pulpwood_pw_each_year_ha,nonforest_loss_pulp_ha=non_forest_to_pulpwood) %>%
   mutate(year=year+2000) %>%
   drop_na(year)
 
 # palm expansion
-id_annual_palm_stats <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="OIL PALM EXPANSION",skip=172) %>% clean_names() %>%
+id_annual_palm_stats <- read_excel(paste0(wdir,"/01_data/01_in/gaveau/IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="OIL PALM EXPANSION",skip=172) %>% clean_names() %>%
   select(year,forest_loss_ha=total_forest_loss,forest_loss_palm_ha=area_of_forest_converted_to_oil_palm_pw_each_year_ha) %>%
   mutate(year=year+2000) %>%
   drop_na(year)
 
 # pulpwood areas (Indonesia and within HTI)
-pw_area_hti <- read_csv(paste0(wdir, "\\01_data\\02_out\\gee\\pulp_annual_area_hti_only.csv")) 
+pw_area_hti <- read_csv(paste0(wdir, "/01_data/02_out/gee/pulp_annual_area_hti_only.csv")) 
 
-pw_annual_area_id <- read_csv(paste0(wdir, "\\01_data\\02_out\\gee\\pulp_annual_area_id.csv")) 
+pw_annual_area_id <- read_csv(paste0(wdir, "/01_data/02_out/gee/pulp_annual_area_id.csv")) 
 
 pw_2000 <- pw_annual_area_id %>%
   select(pulp_2000) %>%
@@ -105,7 +105,7 @@ pw_2000 <- pw_annual_area_id %>%
   summarize(area_ha = sum(pulp_2000))
 
 # reclasses ownership groups
-groups_reclass_hti <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\ALIGNED_NAMES_GROUP_HTI_reclassed.csv"))
+groups_reclass_hti <- read_csv(paste0(wdir,"/01_data/01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv"))
 
 # hti pulp conversion with timing information
 zdc_hti_conv <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_zdc_pulp_conv_areas.csv'))
@@ -114,13 +114,13 @@ zdc_hti_conv <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_zdc_pulp_
 gaveau_annual_pulp <- read_csv(paste0(wdir, '/01_data/02_out/tables/gaveau_annual_pulp_areas.csv'))
 
 # Expansion on soil type (Gaveau)
-pulp_ttm_soil_type <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\idn_pulp_annual_expansion_peat_mineral_soils.csv"))
+pulp_ttm_soil_type <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaveau/idn_pulp_annual_expansion_peat_mineral_soils.csv"))
 
 # pulp production data (MoEF)
-pulp_production <- read_excel(paste0(wdir,"\\01_data\\01_in\\tables\\annual_pulp_shr_prod.xlsx"))
+pulp_production <- read_excel(paste0(wdir,"/01_data/01_in/tables/annual_pulp_shr_prod.xlsx"))
 
 ## GFC deforestation (modified by TreeMap)
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_ttm\\"),
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gfc_ttm/"),
                  pattern = "*.csv",
                  full.names= TRUE)
 
@@ -199,14 +199,14 @@ annual_conv %>%
 ## TODO: Jason, could you help get the denominator for this stat? Is David's forest basemap primary forest? If so, we'd want to take that, combine it with Hansen through 2011, to calculate total primary forest clearing in the same years
 
 # Line 14 / 100: Over the following six years, pulp-driven deforestation declined by 95% 
-conv_2011 = annual_conv %>% filter(year == 2011) %>% pull(area_ha)
-conv_2017 = annual_conv %>% filter(year==2017) %>% pull(area_ha)
+conv_2011 = annual_conv %>% filter(year == 2011) %>% pull(area_ha) %>% print()
+conv_2017 = annual_conv %>% filter(year==2017) %>% pull(area_ha) %>% print()
 early_change <- (conv_2017 - conv_2011) / conv_2011
 early_change %>% print()
 
 # Line 16 / 101: Indonesia has since seen ... a 372% increase in pulp-driven deforestation... 
 # Between 2017 and 2022, the annual rate of conversion of primary forests to pulp plantations increased 372%
-conv_2022 = annual_conv %>% filter(year==2022) %>% pull(area_ha)
+conv_2022 = annual_conv %>% filter(year==2022) %>% pull(area_ha) %>% print()
 late_change <- (conv_2022 - conv_2017) / conv_2017
 late_change %>% print()
 
@@ -226,8 +226,8 @@ annual_pulp_conv <- pulp_ttm_soil_type %>%
   group_by(year,class) %>%
   summarize(area_ha = sum(area_ha))
 
-pulp_conv_2017 = annual_pulp_conv %>% filter(class == "peat" & year==2017) %>% pull(area_ha)
-pulp_conv_2022 = annual_pulp_conv %>% filter(class == "peat" & year==2022) %>% pull(area_ha)
+pulp_conv_2017 = annual_pulp_conv %>% filter(class == "peat" & year==2017) %>% pull(area_ha) %>% print()
+pulp_conv_2022 = annual_pulp_conv %>% filter(class == "peat" & year==2022) %>% pull(area_ha) %>% print()
 overall_pulp_change <- (pulp_conv_2022 - pulp_conv_2017) / pulp_conv_2017
 overall_pulp_change %>% print()
 
