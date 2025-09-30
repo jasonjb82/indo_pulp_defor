@@ -167,7 +167,7 @@ hti_pulp_conv_license <- hti_pulp_conv %>%
   summarize(pulp_permit_area_ha = n()) %>%
   print()
 
-# Annual conversion to pulp from forest in hhti
+# Annual conversion to pulp from forest in hti
 hti_pulp_driven_defor <- hti_nonhti_conv %>%
   filter(conv_type == 2 & !is.na(supplier_id)) %>%
   group_by(year) %>%
