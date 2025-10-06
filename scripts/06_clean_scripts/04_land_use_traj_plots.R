@@ -196,6 +196,7 @@ concession_forest_traj <- ttm_gc %>%
 concession_pulp_traj <- ioppitp_conversion %>%
   filter(id != "") %>%
   as_tibble() %>%
+  mutate(year = as.integer(year)) %>%
   filter(comm_desc == "Pulp") %>%
   group_by(year,id,comm_desc) %>%
   summarize(pulp_area_ha = sum(as.double(Area_Ha))) %>%
@@ -238,7 +239,7 @@ lu_expanded_tbl <- concession_fnf_traj %>%
 lu_expanded_tbl$landuse <- factor(lu_expanded_tbl$landuse, levels = c("Forest", "Non Forest", "Pulp"))
 
 # Create plots
-ggplot(lu_expanded_tbl %>% filter(id == "H-0416"),aes(year,area_ha)) +
+ggplot(lu_expanded_tbl %>% filter(id == "H-0316"),aes(year,area_ha)) +
   geom_area(aes(fill= as.factor(landuse)), position = position_stack(reverse = F)) +
   scale_x_continuous(expand=c(0,0),breaks=seq(2001,2024,by=1),limits = c(2001,2024)) +
   scale_y_continuous(labels = d3_format(".2~s",suffix = "ha"),expand = c(0,0)) +
