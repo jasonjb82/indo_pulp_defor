@@ -346,7 +346,73 @@ output <- list("dmai" = sector_mai,
 
 write_csv(output, paste0(wdir, "/01_data/04_results/key_parameters.csv"))
 
- 
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Adding reviewer TFP check -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Reviewer 2 comment 1(b): diagnostic sequence to support the productivity trend claim.
+## We implement equations (2), (3), and (5) from the reviewer's note.
+## Equation (4) (climate controls) is skipped: no time-varying climate data exists
+## at the concession level to include as annual controls.
+
+# --- Step a: Raw yearly averages of ln(DMAI) ---
+nona_mai_df %>%
+  group_by(harvest_year) %>%
+  summarise(mean_ln = mean(ln_mai_w),
+            se_ln   = sd(ln_mai_w) / sqrt(n()),
+            ci_lo   = mean_ln - 1.96 * se_ln,
+            ci_hi   = mean_ln + 1.96 * se_ln) %>%
+  ggplot(aes(x = harvest_year, y = mean_ln)) +
+  geom_ribbon(aes(ymin = ci_lo, ymax = ci_hi), alpha = 0.2) +
+  geom_line() + geom_point() +
+  theme_bw() +
+  labs(x = "Harvest year", y = "Mean ln(DMAI)",
+       title = "Raw yearly averages of ln(DMAI)")
+
+# --- Step b: Equation (2) — supplier FE only; plot year-averaged residuals ---
+eq2_mod <- feols(ln_mai_w ~ 1 | Supplier, data = nona_mai_df)
+
+resid_df <- nona_mai_df %>%
+  ungroup() %>%
+  mutate(resid = residuals(eq2_mod)) %>%
+  group_by(harvest_year) %>%
+  summarise(mean_r = mean(resid),
+            se_r   = sd(resid) / sqrt(n()),
+            ci_lo  = mean_r - 1.96 * se_r,
+            ci_hi  = mean_r + 1.96 * se_r)
+
+ggplot(resid_df, aes(x = harvest_year, y = mean_r)) +
+  geom_ribbon(aes(ymin = ci_lo, ymax = ci_hi), alpha = 0.2) +
+  geom_line() + geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_bw() +
+  labs(x = "Harvest year", y = "Year-avg residual (supplier FE removed)",
+       title = "Eq.(2): Year-averaged residuals after supplier FE")
+
+# --- Step c: Equation (3) — year FEs + supplier FE; plot year FEs with CIs ---
+# Use i(harvest_year) so fixest returns per-year coefficients with SEs
+ref_year <- min(nona_mai_df$harvest_year)
+eq3_mod <- feols(ln_mai_w ~ i(harvest_year, ref = ref_year) | Supplier,
+                 data = nona_mai_df)
+summary(eq3_mod)
+
+iplot(eq3_mod,
+      xlab = "Harvest year",
+      main = "Eq.(3): Year FEs (supplier FE absorbed)")
+
+# --- Step d: Equation (5) — post-estimation trend test on year FEs ---
+eq3_twoway <- feols(ln_mai_w ~ 1 | Supplier + harvest_year, data = nona_mai_df)
+year_fes   <- fixef(eq3_twoway)$harvest_year
+
+fe_df <- tibble(
+  harvest_year = as.numeric(names(year_fes)),
+  fe           = year_fes
+)
+
+eq5_mod <- feols(fe ~ harvest_year, data = fe_df)
+summary(eq5_mod)
+
+
 # ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # ## clean data -------------------------------------
 # ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
