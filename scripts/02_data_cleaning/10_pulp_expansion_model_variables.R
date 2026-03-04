@@ -41,20 +41,23 @@ wdir <- "remote"
 grid_10km_sf <- read_sf(paste0(wdir,"\\01_data\\01_in\\ucsb\\kalisuma_10km_grid_centroids_proj.shp"))
 
 # landuse variables
-lu_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\pulp_expansion_modelling\\kalisuma_for_pulp_peat_hti_op_pa.csv"))
+lu_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\pulp_expansion_modelling\\kalisuma_for_pulp_peat_hti_op_pa.csv")) %>%
+   replace(is.na(.), 0)
 
 # climate, topo and soil
 bio_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\pulp_expansion_modelling\\kalisuma_topo_climate_soil.csv"))
 
 # alpha earth embeddings
-aee_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\pulp_expansion_modelling\\kalisuma_AEE_emb_cosine_sim_2017_2022.csv")) %>%
+aee_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\pulp_expansion_modelling\\kalisuma_AEE_emb_2017_2022.csv")) %>%
   clean_names()
 
 # river distance
 river_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\pulp_expansion_modelling\\kalisuma_riverdist.csv"))
 
 # closest mill cost
-mill_cost_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\centroids_mills_cost.csv")) 
+#mill_cost_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\centroids_mills_cost.csv")) 
+mill_dist_2017_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\centroids_mills_dist_2017.csv")) 
+mill_dist_2022_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\centroids_mills_dist_2022.csv"))
 
 ## extract additional data ------------------------------------
 
@@ -76,6 +79,18 @@ kh_df <- grid_joined %>%
   mutate(kh = as.character(kh)) %>%
   st_drop_geometry() 
 
+mill_dist_2017_clean <- mill_dist_2017_df %>%
+  mutate(mill_dist_km_2017=dist_land_kalimantan_km + dist_land_sumatera_km + dist_sea_km) %>%
+  select(pixel_id=id,mill_dist_km_2017) 
+
+mill_dist_2022_clean <- mill_dist_2022_df %>%
+  mutate(mill_dist_km_2022=dist_land_kalimantan_km + dist_land_sumatera_km + dist_sea_km) %>%
+  select(pixel_id=id,mill_dist_km_2022) 
+
+mill_dist_df <- mill_dist_2017_clean %>%
+  left_join(mill_dist_2022_clean,by=c("pixel_id")) %>%
+  print()
+
 ## clean data -------------------------------------------------
 
 full_df <- lu_df %>%
@@ -83,27 +98,20 @@ full_df <- lu_df %>%
   left_join(aee_df,by="pixel_id") %>%
   left_join(kh_df,by="pixel_id") %>%
   left_join(river_df,by="pixel_id") %>%
-  left_join(mill_cost_df,by="pixel_id")
+  left_join(mill_dist_df,by="pixel_id")
 
 # separate according to time period ----------------------------
 
 # variables for 2017
 var_2017 <- full_df %>%
-  select(-matches("2022")) %>%
-  select(-similarity_17_22)
+  select(-matches("2022")) 
 
 # variables for 2022
 var_2022 <- full_df %>%
-  select(-matches("2016|2017")) %>%
-  select(-similarity_17_22)
+  select(-matches("2016|2017")) 
 
-# aee similarity table
-aee_sim_2017_2022 <- aee_df %>%
-  select(pixel_id,similarity_17_22) %>%
-  print()
 
 ## write to csv --------------------------------------------------
 
 write_csv(var_2017,paste0(wdir,"\\01_data\\02_out\\tables\\pulp_exp_model_var_2017.csv"))
 write_csv(var_2022,paste0(wdir,"\\01_data\\02_out\\tables\\pulp_exp_model_var_2022.csv"))
-write_csv(var_2022,paste0(wdir,"\\01_data\\02_out\\tables\\pulp_exp_model_sim_2017_2022.csv"))
