@@ -107,7 +107,7 @@ rf_spec <- rand_forest(
   mtry  = tune(),
   min_n = tune()
 ) %>%
-  set_engine("ranger", importance = "permutation", class.weights = class_wts) %>%
+  set_engine("ranger", importance = "permutation", class.weights = !!class_wts) %>%
   set_mode("classification")
 
 # --- 5. Workflow ---
@@ -122,7 +122,7 @@ rf_grid <- grid_regular(
   levels = 4  # 4x4 = 16 combinations
 )
 
-# plan(multisession, workers = parallel::detectCores() - 1)
+plan(multisession, workers = parallel::detectCores() - 1)
 rf_tune <- tune_grid(
   rf_workflow,
   resamples = cv_folds,
