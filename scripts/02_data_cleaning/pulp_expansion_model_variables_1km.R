@@ -92,6 +92,16 @@ final_combined <- grid_1km_df %>%
   left_join(river_dist_data, by = "pixel_id") %>%
   left_join(mill_dist_data, by = "pixel_id") 
 
+
+# check data -----------------------------------------------
+
+zero_columns <- final_combined %>%
+  select(where(~ is.numeric(.x) && all(.x == 0, na.rm = TRUE))) %>%
+  names()
+
+# print the list of offending column names
+print(zero_columns)
+
 # split data into the 2 required files ---------------------
 
 # variables for 2017
