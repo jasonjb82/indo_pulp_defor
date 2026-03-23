@@ -60,6 +60,17 @@ ws_df <- rbind(ws_2015_2019, ws_2020, ws_2021) %>%
   clean_names() %>% 
   rename(harvest_year = year)
 
+weather_df <- read_csv(paste0(wdir, "/01_data/02_out/tables/id_pulp_concessions_climate_2000_2024.csv"))
+weather_df <- weather_df %>%
+  rename(supplier_id = ID) %>%
+  mutate(tmean = (tmmx + tmmn) / 2) %>%
+  group_by(supplier_id, year) %>%
+  summarise(tmmx = mean(tmmx),
+            tmean = mean(tmean),
+            tmmn = mean(tmmn),
+            pr = sum(pr),
+            pet = sum(pet)) %>%
+  ungroup()
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## clean data -------------------------------------
@@ -83,11 +94,25 @@ mai_df <- mai_df %>%
 mai_df <- mai_df %>% 
   arrange(supplier_id, harvest_year)
 
-
+# Add weather data
+mai_df <- mai_df %>%
+  left_join(weather_df, by = c("supplier_id", "harvest_year" = "year"))
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Explore missing data -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Confirm that concessions with missing weather data aren't actually harvesting
+missing_weather <- mai_df %>%
+  group_by(supplier_id) %>%
+  summarise(missing_weather = all(is.na(pr))) %>%
+  filter(missing_weather) %>%
+  pull(supplier_id)
+
+mai_df %>%
+  filter(supplier_id %in% missing_weather) %>%
+  summarise(sum(ha_y, na.rm = TRUE))
+
+
 # Confirm that large majority of reported production has associated harvest data
 mai_df %>% 
   mutate(missing_harvests = is.na(ha_y)) %>% 
@@ -241,8 +266,11 @@ nona_mai_df <- nona_mai_df %>%
 # Result to report in appendix
 nona_mai_df %>% group_by(outlier) %>% summarise(volume_m3 = sum(volume_m3)) %>% mutate(shr = prop.table(volume_m3))
 
-ols_mod <- feols(ln_mai_w ~ harvest_year, cluster = nona_mai_df$Supplier, data = nona_mai_df)
+ols_mod <- feols(ln_mai_w ~ tmean + pr + pet + harvest_year, cluster = nona_mai_df$Supplier, data = nona_mai_df)
 summary(ols_mod)
+
+fe_mod <- feols(ln_mai_w ~  harvest_year | Supplier, cluster = nona_mai_df$Supplier, data = nona_mai_df)
+summary(fe_mod)
 
 
 # multi_harv <- mai_df %>% 
@@ -264,56 +292,57 @@ grow_yield <- function(current_mai, growth_mod, nyears){
 }
 
 nyears <- 10
-base_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = nona_mai_df)
+base_mod <- feols(ln_mai_w ~ tmean + pr + pet + harvest_year | Supplier, data = nona_mai_df)
 summary(base_mod)
 grow_yield(sector_mai, base_mod, nyears)
 
-trim_mod <- feols(ln_mai_w ~ harvest_year | Supplier, data = nona_mai_df %>% filter(outlier == 0))
+trim_mod <- feols(ln_mai_w ~ tmean + pr + pet + harvest_year | Supplier, data = nona_mai_df %>% filter(outlier == 0))
 summary(trim_mod)
 grow_yield(sector_mai, trim_mod, nyears)
 
-nowin_mod <- feols(ln_mai ~ harvest_year | Supplier, data = nona_mai_df)
+nowin_mod <- feols(ln_mai ~ tmean + pr + pet + harvest_year | Supplier, data = nona_mai_df)
 summary(nowin_mod)
 
 
 # # Show these coefficient estimates fall within 95% confidence interval of base model
 # confint(base_mod, "harvest_year", level = 0.95)
 
-rw_mod <- feols(ln_rw ~ harvest_year | Supplier, data = nona_mai_df)
+rw_mod <- feols(ln_rw ~ tmean + pr + pet + harvest_year | Supplier, data = nona_mai_df)
 summary(rw_mod)
 rw_mai
 grow_yield(rw_mai, rw_mod, nyears)
 
-if_mod <- feols(ln_if ~ harvest_year | Supplier, data = nona_mai_df)
+if_mod <- feols(ln_if ~ tmean + pr + pet + harvest_year | Supplier, data = nona_mai_df)
 summary(if_mod)
 if_mai
 grow_yield(if_mai, if_mod, nyears)
 
-mf_mod <- feols(ln_mf ~ harvest_year | Supplier, data = nona_mai_df)
+mf_mod <- feols(ln_mf ~ tmean + pr + pet + harvest_year | Supplier, data = nona_mai_df)
 summary(mf_mod)
 grow_yield(mf_mai, mf_mod, nyears)
 
-hf_mod <- feols(ln_hf ~ harvest_year | Supplier, data = nona_mai_df)
+hf_mod <- feols(ln_hf ~ tmean + pr + pet + harvest_year | Supplier, data = nona_mai_df)
 summary(hf_mod)
 hf_mai
 grow_yield(hf_mai, hf_mod, nyears)
 
 
 
-models <- list(ols_mod, base_mod, trim_mod, nowin_mod, rw_mod, if_mod, hf_mod)
+models <- list(ols_mod, fe_mod, base_mod, trim_mod, nowin_mod, rw_mod, if_mod, hf_mod)
 # models <- list(ols_mod, base_mod, noimpute_mod, noburn_mod)
 # models <- list(ols_mod, base_mod)
 
-rows <- tribble(~term,          ~OLS,  ~F.E., ~Trimmed, ~NoWins, ~ShortenRot, ~IgFire, ~DropFire,
-                'Treatment of outliers', 'Winsorize',   'Winsorize', 'Drop', 'Keep', 'Winsorize', 'Winsorize', 'Winsorize',
-                'Shorten long rotations', 'False', 'False', 'False', 'False', 'True', 'False', 'False',
-                'Treatment of fires', 'Impute', 'Impute', 'Impute', 'Impute', 'Impute', 'Keep', 'Drop')
-attr(rows, 'position') <- c(4, 5, 6)
+rows <- tribble(~term,          ~OLS,  ~F.E., ~Base, ~Trimmed, ~NoWins, ~ShortenRot, ~IgFire, ~DropFire,
+                'Treatment of outliers', 'Winsorize',  'Winsorize', 'Winsorize', 'Drop', 'Keep', 'Winsorize', 'Winsorize', 'Winsorize',
+                'Shorten long rotations', 'False', 'False', 'False', 'False', 'False', 'True', 'False', 'False',
+                'Treatment of fires', 'Impute', 'Impute', 'Impute', 'Impute', 'Impute', 'Impute', 'Keep', 'Drop',
+                'Weather controls', '', '', 'X', 'X', 'X', 'X', 'X', 'X')
+attr(rows, 'position') <- c(4, 5, 6, 7)
 
 
 modelsummary(models, 
              fmt = 3, 
-             coef_omit = 1, 
+             coef_omit = c(1, 2, 3, 4), 
              stars = c('*' = .1, '**' = .05, '***' = 0.01),
              coef_rename = c("harvest_year" = "Year"),
              gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE|Log|Std',
@@ -321,7 +350,7 @@ modelsummary(models,
 
 modelsummary(models, 
              fmt = 3, 
-             coef_omit = 1, 
+             coef_omit =  c(1, 2, 3, 4), 
              stars = c('*' = .1, '**' = .05, '***' = 0.01),
              coef_rename = c("harvest_year" = "Year"),
              gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE|Log|Std',
@@ -391,7 +420,7 @@ ggplot(resid_df, aes(x = harvest_year, y = mean_r)) +
 
 # --- Step c: Equation (3) — year FEs + supplier FE; plot year FEs with CIs ---
 # Use i(harvest_year) so fixest returns per-year coefficients with SEs
-ref_year <- min(nona_mai_df$harvest_year)
+ref_year <- 2018
 eq3_mod <- feols(ln_mai_w ~ i(harvest_year, ref = ref_year) | Supplier,
                  data = nona_mai_df)
 summary(eq3_mod)
@@ -400,8 +429,22 @@ iplot(eq3_mod,
       xlab = "Harvest year",
       main = "Eq.(3): Year FEs (supplier FE absorbed)")
 
-# --- Step d: Equation (5) — post-estimation trend test on year FEs ---
-eq3_twoway <- feols(ln_mai_w ~ 1 | Supplier + harvest_year, data = nona_mai_df)
+# --- Step d: Equation (4) — year FEs + supplier FE + weather controls ---
+eq4_mod <- feols(ln_mai_w ~ tmean + pr + pet + harvest_year | Supplier,
+                 data = nona_mai_df)
+summary(eq4_mod)
+
+ref_year4 <- 2018
+eq4_iplot_mod <- feols(ln_mai_w ~ tmean + pr + pet + i(harvest_year, ref = ref_year4) | Supplier,
+                       data = nona_mai_df)
+
+iplot(eq4_iplot_mod,
+      xlab = "Harvest year",
+      main = "Eq.(4): Year FEs after controlling for weather (supplier FE absorbed)")
+
+
+# --- Step e: Equation (5) — post-estimation trend test on year FEs ---
+eq3_twoway <- feols(ln_mai_w ~ tmean + pr + pet | Supplier + harvest_year, data = nona_mai_df)
 year_fes   <- fixef(eq3_twoway)$harvest_year
 
 fe_df <- tibble(
