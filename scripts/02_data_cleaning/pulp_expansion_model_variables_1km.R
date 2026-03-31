@@ -62,7 +62,7 @@ merge_gee_batch <- function(folder_path, file_prefix) {
 # merge datasets -------------------------------------------
 climate_data  <- merge_gee_batch(data_path, "kalisuma_topo") %>% select(-source_file)
 landuse_data  <- merge_gee_batch(data_path, "kalisuma_landuse") %>% select(-source_file) %>%
-  mutate(across(everything(), ~replace(., . == -9999, 0))) # value can only be 1/0 - presence/absence 
+  mutate(across(everything(), ~replace(., . == -9999, 0))) 
 river_dist_data  <- merge_gee_batch(data_path, "kalisuma_riverdist") %>% select(-source_file)
 mill_dist_data  <- merge_gee_batch(data_path, "mill_dist") %>% select(-source_file)
 aee_embed_data  <- merge_gee_batch(data_path, "kalisuma_aee_embed") %>% select(-source_file)
