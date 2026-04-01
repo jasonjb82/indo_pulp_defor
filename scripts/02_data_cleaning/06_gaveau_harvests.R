@@ -32,19 +32,19 @@ library(janitor)
 library(lubridate)
 library(sf)
 library(scales)
-library(aws.s3)
+# library(aws.s3)
 library(dtplyr)
 library(testthat)
-library(d3.format)
+# library(d3.format)
 library(tidyfast)
 library(patchwork)
 
 options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
-## credentials
-aws.signature::use_credentials()
-bucket <- "trase-storage"
-Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
+# ## credentials
+# aws.signature::use_credentials()
+# bucket <- "trase-storage"
+# Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 ## set working directory
 wdir <- "remote"
@@ -54,7 +54,7 @@ wdir <- "remote"
 # Load data ------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # itp harvest years
-itp_hv <- read_sf(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_ITPHarvesting_V20220208\\IDN_ITPHarvesting_V20220208.shp"))
+itp_hv <- read_sf(paste0(wdir,"/01_data/01_in/gaveau/IDN_ITPHarvesting_V20220208/IDN_ITPHarvesting_V20220208.shp"))
 
 # itp harvest years corrections
 itp_hv_updates <- read_sf(paste0(wdir, "/01_data/03_qc/long_rotations_Checked_20240503/long_rotations_Checked_20240503.shp"))
@@ -68,7 +68,7 @@ itp_hv_updates %>%   filter(`Pre2010Hrv` == 0, `1Harvst` %in% c(2019, 2020, 2021
 
 
 # hti concessions
-hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
+hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HT_proj.shp"))
 
 # # wood supply
 # ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2019.csv", bucket), delim = ",")
@@ -383,6 +383,12 @@ hti_itp_hv_df <- rbind(burned_rows_l, burned_rows_nl, unburned_rows)
 #          burned_harv4 = 0)
 
 hti_itp_hv_df %>% group_by(burn_flag, burn_ylabel) %>% summarize(area = sum(area_ha)) %>% ungroup() %>% mutate(prop = prop.table(area))
+
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Add peat information -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## convert to long -------------------------------------
