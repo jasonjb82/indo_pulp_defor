@@ -34,20 +34,13 @@ library(sf)
 library(terra)
 library(exactextractr)
 library(scales)
-# library(aws.s3)
 library(dtplyr)
 library(testthat)
-# library(d3.format)
 library(tidyfast)
 library(patchwork)
 library(units)
 
 options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
-
-# ## credentials
-# aws.signature::use_credentials()
-# bucket <- "trase-storage"
-# Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 ## set working directory
 wdir <- "remote"
@@ -61,14 +54,7 @@ itp_hv <- read_sf(paste0(wdir,"/01_data/01_in/gaveau/IDN_ITPHarvesting_V20220208
 
 # itp harvest years corrections
 itp_hv_updates <- read_sf(paste0(wdir, "/01_data/03_qc/long_rotations_Checked_20240503/long_rotations_Checked_20240503.shp"))
-
-# gut check - still lots of very long rotations in the revised data...
-# itp_hv_updates <- itp_hv_updates %>% 
-#   st_transform(itp_hv, crs = st_crs(hti)) %>% 
-#   st_make_valid() %>% 
-#   mutate(area_ha = st_area(.) * 0.0001)
 itp_hv_updates %>%   filter(`Pre2010Hrv` == 0, `1Harvst` %in% c(2019, 2020, 2021, 2022), is.na(Ket))  %>% arrange(desc(area_ha)) %>% select(FCODE, block_d, area_ha, estab_year = yearint, `Pre2010Hrv`, `1Harvst`, `2Harvst`, `3Harvst`, Ket)
-
 
 # hti concessions
 hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HT_proj.shp"))
@@ -81,26 +67,7 @@ weather_df <- read_csv(paste0(wdir, "/01_data/02_out/tables/treemap_long_rotatio
 weather_df <- weather_df %>%
   select(block_id, var_year, tmmx, tmmn, pet, pr, def) %>%
   mutate(tmean  = (tmmx + tmmn) / 2)
-# weather_df <- weather_df %>%
-#   rename(supplier_id = ID) %>%
-#   mutate(tmean = (tmmx + tmmn) / 2) %>%
-#   group_by(supplier_id, year) %>%
-#   summarise(tmmx = mean(tmmx),
-#             tmean = mean(tmean),
-#             tmmn = mean(tmmn),
-#             pr = sum(pr),
-#             pet = sum(pet)) %>%
-#   ungroup()
 
-
-# # wood supply
-# ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2019.csv", bucket), delim = ",")
-# 
-# # supplier groups
-# groups <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.csv"))
-#   
-# # psdh
-# psdh <- read_csv(paste0(wdir,"\\01_data\\01_in\\klhk\\psdh\\02_out\\PSDH_HTI_ID_COMBINED.csv"))
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -239,14 +206,6 @@ hti_itp_hv_df <- hti_itp_hv %>%
          Harvest1 = as.integer(Harvest1),
          Harvest2 = as.integer(Harvest2),
          Harvest3 = as.integer(Harvest3))
-# %>%
-#pivot_longer(c(-SUPPLIER_ID,-yearint,-Ket,-year,-Class,-area_ha), names_to="var", values_to="vals") 
-# filter(is.na(Ket)) %>% ## JASON - Why are we filtering these?
-# mutate(hv_age1 = Harvest1 - year,hv_age2 = Harvest2 - Harvest1, hv_age3 = Harvest3 - Harvest2) %>%
-# mutate(hv_age1 = ifelse(hv_age1 <0,0,hv_age1),hv_age2 = ifelse(hv_age2 <0,0,hv_age2),hv_age3 = ifelse(hv_age3 <0,0,hv_age3))
-# mutate(hv_age3 = ifelse(hv_age3 > 2000, Harvest3 - Harvest1,hv_age3),hv_age2 = ifelse(hv_age2 > 2000, Harvest2 - yearint,hv_age2))
-
-
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -288,7 +247,7 @@ hti_itp_hv_df <- hti_itp_hv_df %>%
 
 ## NOTE: There are some pulp plantations established after their first observed harvest.
 # test <- hti_itp_hv_df %>% filter(estab_year>Harvest1, !is.na(Harvest1))
-## Current solution: Assume the harvest is invalid is wrong. Remove pre-establishment harvests
+## Current solution: Assume the harvest is invalid. Remove pre-establishment harvests
 hti_itp_hv_df <- hti_itp_hv_df %>% 
   mutate(error_estab = (estab_year>=Harvest1) %>% replace_na(FALSE),
          Harvest1 = ifelse(error_estab, Harvest2, Harvest1),
@@ -443,14 +402,6 @@ burned_rows_l <- burned_rows_l %>%
 # Re-bind the three dataframes
 hti_itp_hv_df <- rbind(burned_rows_l, burned_rows_nl, unburned_rows)
 
-# hti_itp_hv_df <- hti_itp_hv_df %>% 
-#   mutate(burn_flag = 0,
-#          burn_ylabel = 0,
-#          burned_harv1 = 0,
-#          burned_harv2 = 0,
-#          burned_harv3 = 0,
-#          burned_harv4 = 0)
-
 hti_itp_hv_df %>% group_by(burn_flag, burn_ylabel) %>% summarize(area = sum(area_ha)) %>% ungroup() %>% mutate(prop = prop.table(area))
 
 
@@ -469,13 +420,6 @@ hti_itp_hv_df_long <- hti_itp_hv_df %>%
   pivot_longer(cols = starts_with("Harvest"), 
                names_to = "rotation", names_prefix = "Harvest", values_to = "harvest_year") %>% 
   select(block_id, supplier_id, rotation, harvest_year, area_ha, peat_pct, burn_flag, burn_ylabel)
-# select(block_id, supplier_id, estab_year, rotation, harvest_year, area_ha, burn_flag)
-
-# hti_itp_hv_df_long <- hti_itp_hv_df %>% 
-#   pivot_longer(cols = c(starts_with("Harvest"), starts_with("hv_age")), 
-#                names_to = "rotation", names_prefix = c("Harvest", "hv_age"), values_to = c("harvest_year", "rotation_length")) %>% 
-#   select(block_id, supplier_id, estab_year, rotation, harvest_year, area_ha, burn_flag) %>% 
-#   drop_na()
 
 rot_length <- hti_itp_hv_df %>% 
   pivot_longer(cols = starts_with("hv_age"), 
@@ -487,7 +431,6 @@ failed_rotations <- hti_itp_hv_df %>%
                names_to = "rotation", names_prefix = "burned_harv", values_to = "burned_harv") %>% 
   select(block_id, rotation, burned_harv)
 
-
 # Merge back long datasets
 harvest_df <- hti_itp_hv_df_long %>% 
   left_join(rot_length, by = c("block_id", "rotation")) %>%
@@ -498,10 +441,7 @@ harvest_df <- harvest_df %>%
   filter(!is.na(harvest_year),
          harvest_year>=2015)
 
-# Add weather variables for harvest year and average over rotation period
-# XX_harvest: value in the harvest year; XX_rotation: mean over rotation (hv_start to harvest_year - 1)
-# hv_start is derived as harvest_year - rotation_length (= Harvest - hv_age)
-
+# Add weather variables for harvest year
 weather_harvest <- harvest_df %>%
   filter(!is.na(harvest_year)) %>%
   select(block_id, rotation, harvest_year) %>%
@@ -514,52 +454,34 @@ weather_harvest <- harvest_df %>%
          tmmx_harvest = tmmx,
          tmmn_harvest = tmmn)
 
-weather_rotation <- harvest_df %>%
-  mutate(hv_start = harvest_year - rotation_length) %>%
-  filter(!is.na(hv_start)) %>%
-  select(block_id, rotation, harvest_year, hv_start) %>%
-  rowwise() %>%
-  mutate(year = list(seq(hv_start, harvest_year))) %>%
-  ungroup() %>%
-  unnest(year) %>%
-  left_join(weather_df %>% select(block_id, var_year, pr, pet, def, tmean, tmmx, tmmn),
-            by = c("block_id", "year" = "var_year")) %>%
-  group_by(block_id, rotation) %>%
-  summarise(pr_rotation    = mean(pr,    na.rm = TRUE),
-            pet_rotation   = mean(pet,   na.rm = TRUE),
-            cwd_rotation   = mean(def,   na.rm = TRUE),
-            tmean_rotation = mean(tmean, na.rm = TRUE),
-            tmmx_rotation = mean(tmmx, na.rm = TRUE),
-            tmmn_rotation = mean(tmmn, na.rm = TRUE),
-            .groups = "drop")
+## Nice idea to add rotation weather, but within concession variability across repeat harvests
+## was almost non-existent. Created problems in the fixed effects regressions.
+# weather_rotation <- harvest_df %>%
+#   mutate(hv_start = harvest_year - rotation_length) %>%
+#   filter(!is.na(hv_start)) %>%
+#   select(block_id, rotation, harvest_year, hv_start) %>%
+#   rowwise() %>%
+#   mutate(year = list(seq(hv_start, harvest_year))) %>%
+#   ungroup() %>%
+#   unnest(year) %>%
+#   left_join(weather_df %>% select(block_id, var_year, pr, pet, def, tmean, tmmx, tmmn),
+#             by = c("block_id", "year" = "var_year")) %>%
+#   group_by(block_id, rotation) %>%
+#   summarise(pr_rotation    = mean(pr,    na.rm = TRUE),
+#             pet_rotation   = mean(pet,   na.rm = TRUE),
+#             cwd_rotation   = mean(def,   na.rm = TRUE),
+#             tmean_rotation = mean(tmean, na.rm = TRUE),
+#             tmmx_rotation = mean(tmmx, na.rm = TRUE),
+#             tmmn_rotation = mean(tmmn, na.rm = TRUE),
+#             .groups = "drop")
 
 harvest_df <- harvest_df %>%
-  left_join(weather_harvest,  by = c("block_id", "rotation", "harvest_year")) %>%
-  left_join(weather_rotation, by = c("block_id", "rotation"))
+  left_join(weather_harvest,  by = c("block_id", "rotation", "harvest_year"))
 
 test <- harvest_df %>%
   group_by(rotation_length) %>% 
   summarize(area_harvest = sum(area_ha)) %>% 
   print(n = 30)
-
-
-# ## NEED TO EXPORT OVERLY LONG ROTATIONS FOR DAVID TO DIG INTO POTENTIAL ERRORS
-# harvest_df %>% 
-#   filter(harvest_year>=2015) %>% 
-#   pull(area_ha) %>% 
-#   sum()
-# 
-# long_rotations <- harvest_df %>% 
-#   filter(harvest_year>=2015) %>% 
-#   filter(rotation_length>7)
-# 
-# long_rotations_sp <- hti_itp_hv %>% 
-#   right_join(long_rotations, by = "block_id")
-# 
-# long_rotations_sp$rotation_length %>% summary()
-# long_rotations_sp$area_ha %>% sum()
-# 
-# st_write(long_rotations_sp %>% select(-c("FID_", "OBJECTID")), paste0(wdir,"/01_data/03_qc/long_rotations.shp"), append=FALSE)
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -615,16 +537,6 @@ concession_harvests <- harvest_df %>%
   group_by(supplier_id, harvest_year) %>%
   summarise(pr_harvest    = weighted.mean(pr_harvest,    area_ha, na.rm = TRUE), # Weather in harvest year, weighted by area across blocks
             pet_harvest   = weighted.mean(pet_harvest,   area_ha, na.rm = TRUE),
-            cwd_harvest   = weighted.mean(cwd_harvest,   area_ha, na.rm = TRUE),
-            tmean_harvest = weighted.mean(tmean_harvest, area_ha, na.rm = TRUE),
-            tmmn_harvest = weighted.mean(tmmn_harvest, area_ha, na.rm = TRUE),
-            tmmx_harvest = weighted.mean(tmmx_harvest, area_ha, na.rm = TRUE),
-            pr_rotation    = weighted.mean(pr_rotation,    area_ha, na.rm = TRUE), # Mean weather over rotation period, weighted by area across blocks
-            pet_rotation   = weighted.mean(pet_rotation,   area_ha, na.rm = TRUE),
-            cwd_rotation   = weighted.mean(cwd_rotation,   area_ha, na.rm = TRUE),
-            tmean_rotation = weighted.mean(tmean_rotation, area_ha, na.rm = TRUE),
-            tmmn_rotation = weighted.mean(tmmn_rotation, area_ha, na.rm = TRUE),
-            tmmx_rotation = weighted.mean(tmmx_rotation, area_ha, na.rm = TRUE),
             rotation_length = weighted.mean(rotation_length, area_ha, na.rm = TRUE), # Average rotation age to capture age-related growth effects
             ha_y = sum(ha_y),
             ha_y_rw = sum(ha_y_rw), # Add column for specification with winsorized long rotations
