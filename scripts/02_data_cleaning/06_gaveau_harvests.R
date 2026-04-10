@@ -27,7 +27,6 @@ library(visdat)
 library(tidyverse)
 library(readxl)
 library(tidylog)
-library(data.table)
 library(janitor)
 library(lubridate)
 library(sf)
@@ -100,14 +99,18 @@ itp_hv_updates <- itp_hv_updates %>%
   distinct()
 
 # some conflicting second harvest dates - correct and remove remaining duplicates
-itp_hv_updates %>% 
-  group_by(block_id, geometry) %>% 
-  tally() %>% 
-  filter(n>1)
-itp_hv_updates <- itp_hv_updates %>% 
-  mutate(Harvest2 = ifelse(block_id == "B032115", 2020, 
-                           ifelse(block_id == "B083053", 2018, Harvest2))) %>% 
+itp_hv_updates <- itp_hv_updates %>%
+  mutate(Harvest2 = ifelse(block_id == "B032115", 2020,   # B032115 had conflicting Harvest2; corrected to 2020
+                           ifelse(block_id == "B083053", 2018, Harvest2))) %>%  # B083053 had conflicting Harvest2; corrected to 2018
   distinct()
+
+n_remaining_dups <- itp_hv_updates %>%
+  group_by(block_id, geometry) %>%
+  tally() %>%
+  filter(n > 1) %>%
+  nrow()
+test_that("No duplicate block_id entries remain after corrections",
+          expect_equal(n_remaining_dups, 0))
 
 # some impossible harvests in Husna's updates - drop Harvest1 that pre-dates Harvest2 by a year
 itp_hv_updates <- itp_hv_updates %>% 
@@ -170,7 +173,7 @@ peat_proj <- peat_df %>%
   st_crop(st_bbox(hti_itp_hv)) %>%     # drop polygons outside harvest block extent
   st_make_valid()
 
-# Rasterize peat at 100m resolution (1 = peat, 0 = no peat)
+# Rasterize peat at 30m resolution (matching Landsat; 1 = peat, 0 = no peat)
 bb <- st_bbox(hti_itp_hv)
 peat_rast <- rast(ext(bb["xmin"], bb["xmax"], bb["ymin"], bb["ymax"]), resolution = 30, crs = st_crs(hti_itp_hv)$wkt)
 peat_rast <- rasterize(vect(peat_proj), peat_rast, field = 1, background = 0)
@@ -220,12 +223,15 @@ hti_itp_hv_df <- hti_itp_hv_df %>%
 
 
 ## Add Husna's pre-2010 rotation into the mix
-hti_itp_hv_df <- hti_itp_hv_df %>% 
+# For blocks with a pre-2010 harvest (Harvest0), shift all existing Harvest columns up by one
+# position (Harvest1 → Harvest2, etc.) and insert Harvest0 as the new Harvest1. This treats
+# the pre-2010 event as the first rotation in the sequence.
+hti_itp_hv_df <- hti_itp_hv_df %>%
   mutate(early_harvest_flag = (!is.na(Harvest0)),
          Harvest4 = ifelse(early_harvest_flag, Harvest3, NA),
          Harvest3 = ifelse(early_harvest_flag, Harvest2, Harvest3),
          Harvest2 = ifelse(early_harvest_flag, Harvest1, Harvest2),
-         Harvest1 = ifelse(early_harvest_flag, Harvest0, Harvest1)) %>% 
+         Harvest1 = ifelse(early_harvest_flag, Harvest0, Harvest1)) %>%
   select(block_id, supplier_id, Class, estab_year, Harvest1, Harvest2, Harvest3, Harvest4, Ket, area_ha, peat_pct)
 
 
@@ -255,8 +261,9 @@ hti_itp_hv_df <- hti_itp_hv_df %>%
          Harvest3 = ifelse(error_estab, Harvest4, Harvest3),
          Harvest4 = ifelse(error_estab, NA, Harvest4))
 
-# Repeat to capture a few remaining records
-hti_itp_hv_df <- hti_itp_hv_df %>% 
+# Repeat once more: dropping an invalid Harvest1 in the first pass promotes Harvest2 to Harvest1,
+# which may itself pre-date estab_year and need to be removed.
+hti_itp_hv_df <- hti_itp_hv_df %>%
   mutate(error_estab2 = (estab_year>=Harvest1) %>% replace_na(FALSE),
          Harvest1 = ifelse(error_estab2, Harvest2, Harvest1),
          Harvest2 = ifelse(error_estab2, Harvest3, Harvest2),
@@ -360,6 +367,8 @@ burned_rows_l <- hti_itp_hv_df %>%
          burn_ylabel == TRUE)
 
 # Identify failed harvests that occur at the same time as a fire
+# A harvest is invalid if it co-occurs with fire (rot_end == burn_year) or happens in the year
+# immediately after fire (rot_end == burn_year + 1), capturing delayed productivity losses.
 id_invalid_harvests <- function(rot_end, b1, b2, b3){
   burn_list <- c(b1, b1 + 1, b2, b2 + 1, b3, b3 + 1)
   burned_harv <- (rot_end %in% burn_list)
@@ -441,18 +450,13 @@ harvest_df <- harvest_df %>%
   filter(!is.na(harvest_year),
          harvest_year>=2015)
 
-# Add weather variables for harvest year
+# Add weather variables for harvest year (pr and pet only; other variables not used downstream)
 weather_harvest <- harvest_df %>%
-  filter(!is.na(harvest_year)) %>%
   select(block_id, rotation, harvest_year) %>%
-  left_join(weather_df %>% select(block_id, var_year, pr, pet, def, tmean, tmmx, tmmn),
+  left_join(weather_df %>% select(block_id, var_year, pr, pet),
             by = c("block_id", "harvest_year" = "var_year")) %>%
-  rename(pr_harvest    = pr,
-         pet_harvest   = pet,
-         cwd_harvest   = def,
-         tmean_harvest = tmean,
-         tmmx_harvest = tmmx,
-         tmmn_harvest = tmmn)
+  rename(pr_harvest  = pr,
+         pet_harvest = pet)
 
 ## Nice idea to add rotation weather, but within concession variability across repeat harvests
 ## was almost non-existent. Created problems in the fixed effects regressions.
@@ -478,9 +482,18 @@ weather_harvest <- harvest_df %>%
 harvest_df <- harvest_df %>%
   left_join(weather_harvest,  by = c("block_id", "rotation", "harvest_year"))
 
-test <- harvest_df %>%
-  group_by(rotation_length) %>% 
-  summarize(area_harvest = sum(area_ha)) %>% 
+# Diagnostic: check for blocks that failed to match weather_df (block_id mismatch after st_intersection)
+# NA weather indicates block_id changed when HTI boundaries split a harvest block
+weather_missing <- harvest_df %>%
+  filter(is.na(pr_harvest)) %>%
+  group_by(supplier_id) %>%
+  summarise(n_blocks = n_distinct(block_id), area_ha = sum(area_ha, na.rm = TRUE))
+cat("Concessions with missing weather:", nrow(weather_missing),
+    "| Total area (ha):", sum(weather_missing$area_ha), "\n")
+
+harvest_df %>%
+  group_by(rotation_length) %>%
+  summarize(area_harvest = sum(area_ha)) %>%
   print(n = 30)
 
 
@@ -552,9 +565,10 @@ if_concession_harvests <- harvest_df %>%
   summarise(ha_y_if = sum(ha_y))
 
 # Alternate specification: (1) Use corrected fire data when year is labeled;
-# (2) keep harvests in blocks with unspecified fires
-mf_concession_harvests <- harvest_df %>% 
-  filter((burned_harv == FALSE) | (burn_ylabel == FALSE)) %>% 
+# (2) keep harvests in blocks with unspecified fires (burn_ylabel == FALSE keeps unlabeled-burn rows,
+# since those have burned_harv == TRUE and would otherwise be dropped by the first condition)
+mf_concession_harvests <- harvest_df %>%
+  filter((burned_harv == FALSE) | (burn_ylabel == FALSE)) %>%
   group_by(supplier_id, harvest_year) %>% 
   summarise(ha_y_mf = sum(ha_y))
 
