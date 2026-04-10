@@ -309,22 +309,6 @@ defor_df <- defor_df %>%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Estimate elasticity of deforestation  --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# mod_1 <- feols(pulp_forest_ha ~ pot_revenues + pot_mai * year  | pixel_id + year + prov[year], data = defor_df)
-# summary(mod_1)
-# 
-# null_mod <- feols(pulp_forest_ha ~ 1 + pot_mai * year  + factor(prov) * year | pixel_id + year, data = defor_df)
-# summary(null_mod)
-# 
-# mod_2 <- feols(pulp_forest_ha ~ pot_revenues:post_2015  + pot_mai * year | pixel_id + year + prov[year], data = defor_df)
-# summary(mod_2)
-# 
-# mod_3 <- feols(pulp_non_forest_ha ~ pot_revenues  + pot_mai * year  | pixel_id + year + prov[year], data = defor_df)
-# summary(mod_3)
-# 
-# mod_4 <- feols(pulp_non_forest_ha ~ pot_revenues:post_2015  + pot_mai * year  | pixel_id + year + prov[year] , data = defor_df)
-# summary(mod_4)
-
-
 mod_1 <- feols(pulp_forest_ha ~ pot_revenues | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(mod_1)
 
@@ -341,6 +325,7 @@ mod_4 <- feols(pulp_non_forest_ha ~ post_2015:pot_revenues | pixel_id + year, da
 summary(mod_4)
 
 
+### Format summary table
 # glance_custom.fixest injects n_clusters into modelsummary's GOF machinery
 glance_custom.fixest <- function(x, ...) {
   data.frame(n_clusters = length(unique(defor_df$kec_code[obs(x)])))
@@ -368,50 +353,42 @@ tbl_args <- list(
 )
 
 do.call(msummary, tbl_args)  # display
-do.call(msummary, c(tbl_args, list(output = paste0(wdir, "/01_data/04_results/defor_elast_main.docx"))))  # save
+do.call(msummary, c(tbl_args, list(output = paste0(wdir, "/01_data/04_results/tables/defor_elast_main.docx"))))  # save
 
 
-
-### Robustness tests
-# # Add transport costs
-# defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues_net)
-# rmod_1 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 | pixel_id + year, data = defor_df)
-# summary(rmod_1)
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Robustness table  --------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Re-run base model with same coefficients
+defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues)
+rmod_0 <- feols(pulp_forest_ha ~ post_2015:pot_revenues_r | pixel_id + year, data = defor_df, vcov = ~kec_code)
 
 # Add suitability time trend
-defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues)
-rmod_1 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 + pot_mai * year  | pixel_id + year, data = defor_df, vcov = ~kec_code)
+rmod_1 <- feols(pulp_forest_ha ~ post_2015:pot_revenues_r + pot_mai * year  | pixel_id + year, 
+  data = defor_df, vcov = ~kec_code)
 summary(rmod_1)
-
-# Use Indonesian pulpwood price series instead of SA
-defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues_indo)
-rmod_2 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 | pixel_id + year, data = defor_df, vcov = ~kec_code)
-summary(rmod_2)
-
-# # Use FRED price series
-# defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues_fred)
-# rmod_4 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 | pixel_id + year, data = defor_df)
-# summary(rmod_4)
-
-# Price deviation
-defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues_dev)
-rmod_3 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 | pixel_id + year, data = defor_df, vcov = ~kec_code)
-summary(rmod_3)
 
 # Lagged rents
 defor_df <- defor_df %>% 
   group_by(pixel_id) %>% 
   arrange(pixel_id, year) %>% 
   mutate(pot_revenues_r = lag(pot_revenues))
-rmod_4 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 | pixel_id + year, data = defor_df, vcov = ~kec_code)
-summary(rmod_4)
+rmod_2 <- feols(pulp_forest_ha ~ post_2015:pot_revenues_r | pixel_id + year, 
+  data = defor_df, vcov = ~kec_code)
+summary(rmod_2)
 
-# IHS outcome
-defor_df <- defor_df %>% 
-  mutate(asinh_pulp_forest_ha = asinh(pulp_forest_ha))
-defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues)
-rmod_5 <- feols(asinh_pulp_forest_ha ~ pot_revenues_r:post_2015  | pixel_id + year, data = defor_df, vcov = ~kec_code)
-summary(rmod_5)
+# Price deviation
+defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues_dev)
+rmod_3 <- feols(pulp_forest_ha ~ post_2015:pot_revenues_r | pixel_id + year, 
+  data = defor_df, vcov = ~kec_code)
+summary(rmod_3)
+
+
+# Use Indonesian pulpwood price series instead of SA
+defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues_indo)
+rmod_4 <- feols(pulp_forest_ha ~ post_2015:pot_revenues_r | pixel_id + year, 
+  data = defor_df, vcov = ~kec_code)
+summary(rmod_4)
 
 
 # Variable labels
@@ -422,22 +399,19 @@ attr(rows, 'position') <- c(10, 11)
 
 
 # Custom summary table
-msummary(
-  list(rmod_1, rmod_2, rmod_3, rmod_4, rmod_5),
-  # list("Pulp deforestation" = list("(1)" = mod_1, "(2)" = mod_2),
-  #      "Other pulp expansion" = list("(3)" = mod_3, "(4)" = mod_4)),
-  # output = "html",
-  output = paste0(wdir, "/01_data/04_results/defor_elast_robust.docx"),
+rtbl_args <- list(
+  list(rmod_0, rmod_1, rmod_2, rmod_3, rmod_4),
   stars = c('*' = .1, '**' = .05, '***' = .01) ,
-  # coef_map = coef_map,
   coef_omit = "^(?!.*revenues)",
   coef_rename = c("pot_revenues_r" = "Potential revenues",
                   "post_2015FALSE" = "y<=2015",
                   "post_2015TRUE" = "y>2015"),
-  gof_omit = "R2|Adj|Within|Pseudo|Log|AIC|BIC|RMSE"  # remove R2 and Adj R2 and more if desired
-  # shape = "cbind",
-  # add_rows = rows
+  gof_omit = "R2|Adj|Within|Pseudo|Log|AIC|BIC|RMSE|FE"  # remove R2, fit stats, and FE indicators
 )
+
+do.call(msummary, rtbl_args)  # display
+do.call(msummary, c(rtbl_args, 
+  list(output = paste0(wdir, "/01_data/04_results/tables/defor_elast_robust.docx"))))  # save
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
