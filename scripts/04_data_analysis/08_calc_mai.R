@@ -298,26 +298,46 @@ grow_yield(hf_mai, coef(hf_mod)["harvest_year"], nyears)
 models <- list("(1)" = ols_mod, "(2)" = nocntrl_mod, "(3)" = base_mod, "(4)" = trim_mod,
                "(5)" = nowin_mod, "(6)" = rw_mod, "(7)" = if_mod, "(8)" = hf_mod)
 
+# gof_map: show only Num.Obs. and FE: Supplier (Concessions added via add_rows below)
+gof_map_custom <- tribble(
+  ~raw,           ~clean,         ~fmt,
+  "nobs",         "Num.Obs.",     0,
+  "FE: Supplier", "FE: Supplier", NA
+)
+
+# Compute concession count per model.
+# FE models: use fixef() which counts exactly the suppliers included in the fixed effects.
+# OLS (no FE, fit on full nona_mai_df): use obs() to index into nona_mai_df directly.
+get_n_concessions <- function(m) {
+  fe <- tryCatch(fixef(m), error = function(e) NULL)
+  if (!is.null(fe) && "Supplier" %in% names(fe)) as.character(length(fe$Supplier))
+  else as.character(n_distinct(nona_mai_df$Supplier[obs(m)]))
+}
+n_conc <- sapply(models, get_n_concessions)
+
 rows <- tribble(~term, ~OLS,  ~NoCntrls, ~Base, ~Trimmed, ~NoWins, ~ShortenRot, ~IgFire, ~DropFire,
                 'Treatment of outliers', 'Winsorize',  'Winsorize', 'Winsorize', 'Drop', 'Keep', 'Winsorize', 'Winsorize', 'Winsorize',
                 'Shorten long rotations', 'False', 'False', 'False', 'False', 'False', 'True', 'False', 'False',
                 'Treatment of fires', 'Impute', 'Impute', 'Impute', 'Impute', 'Impute', 'Impute', 'Keep', 'Drop',
-                'Controls', 'X', '', 'X', 'X', 'X', 'X', 'X', 'X')
-attr(rows, 'position') <- c(4, 5, 6, 7)
+                'Controls', 'X', '', 'X', 'X', 'X', 'X', 'X', 'X') %>%
+  bind_rows(tibble(term = "Concessions", !!!setNames(as.list(n_conc), names(.)[-1])))
+# Table layout: 1=Year, 2=(SE), 3=Num.Obs., 4=FE: Supplier (from gof_map).
+# add_rows positions: Concessions inserted at 4 (pushing FE: Supplier to 5), descriptors after.
+attr(rows, 'position') <- c(5, 6, 7, 8, 4)
 
 
-modelsummary(models, 
-             fmt = 3, 
+modelsummary(models,
+             fmt = 3,
              coef_map = c("harvest_year" = "Year"),
              stars = c('*' = .1, '**' = .05, '***' = 0.01),
-             gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE|Log|Std',
+             gof_map = gof_map_custom,
              add_rows = rows)
 
 modelsummary(models,
              fmt = 3,
              coef_map = c("harvest_year" = "Year"),
              stars = c('*' = .1, '**' = .05, '***' = 0.01),
-             gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE|Log|Std',
+             gof_map = gof_map_custom,
              stars_note = FALSE,
              add_rows = rows,
              notes = "Standard errors clustered by concession. * p < 0.1, ** p < 0.05, *** p < 0.01",
