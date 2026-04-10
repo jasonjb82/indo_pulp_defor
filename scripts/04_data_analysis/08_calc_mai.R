@@ -295,7 +295,8 @@ summary(hf_mod)
 hf_mai
 grow_yield(hf_mai, coef(hf_mod)["harvest_year"], nyears)
 
-models <- list(ols_mod, nocntrl_mod, base_mod, trim_mod, nowin_mod, rw_mod, if_mod, hf_mod)
+models <- list("(1)" = ols_mod, "(2)" = nocntrl_mod, "(3)" = base_mod, "(4)" = trim_mod,
+               "(5)" = nowin_mod, "(6)" = rw_mod, "(7)" = if_mod, "(8)" = hf_mod)
 
 rows <- tribble(~term, ~OLS,  ~NoCntrls, ~Base, ~Trimmed, ~NoWins, ~ShortenRot, ~IgFire, ~DropFire,
                 'Treatment of outliers', 'Winsorize',  'Winsorize', 'Winsorize', 'Drop', 'Keep', 'Winsorize', 'Winsorize', 'Winsorize',
@@ -317,7 +318,9 @@ modelsummary(models,
              coef_map = c("harvest_year" = "Year"),
              stars = c('*' = .1, '**' = .05, '***' = 0.01),
              gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE|Log|Std',
+             stars_note = FALSE,
              add_rows = rows,
+             notes = "Standard errors clustered by concession. * p < 0.1, ** p < 0.05, *** p < 0.01",
              output =  paste0(wdir, "/01_data/04_results/tables/yield_growth_table.docx"))
 
 
