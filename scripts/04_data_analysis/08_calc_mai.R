@@ -91,7 +91,7 @@ mai_df <- mai_df %>%
 # Confirm that concessions with missing weather data aren't actually harvesting
 missing_weather <- mai_df %>%
   group_by(supplier_id) %>%
-  summarise(missing_weather = all(is.na(pr_rotation))) %>%
+  summarise(missing_weather = all(is.na(pr_harvest))) %>%
   filter(missing_weather) %>%
   pull(supplier_id)
 
@@ -302,11 +302,7 @@ summary(hf_mod)
 hf_mai
 grow_yield(hf_mai, coef(hf_mod)["harvest_year"], nyears)
 
-
-
-models <- list(ols_mod, nocntrl_mod, fe_mod, trim_mod, nowin_mod, rw_mod, if_mod, hf_mod)
-# models <- list(ols_mod, base_mod, noimpute_mod, noburn_mod)
-# models <- list(ols_mod, base_mod)
+models <- list(ols_mod, nocntrl_mod, base_mod, trim_mod, nowin_mod, rw_mod, if_mod, hf_mod)
 
 rows <- tribble(~term, ~OLS,  ~NoCntrls, ~F.E., ~Trimmed, ~NoWins, ~ShortenRot, ~IgFire, ~DropFire,
                 'Treatment of outliers', 'Winsorize',  'Winsorize', 'Winsorize', 'Drop', 'Keep', 'Winsorize', 'Winsorize', 'Winsorize',
@@ -353,7 +349,6 @@ write_csv(output, paste0(wdir, "/01_data/04_results/key_parameters.csv"))
 ## Adding reviewer TFP check -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Reviewer 2 asked for a series of diagnostic plots to illustrate DMAI trends
-
 # --- Step i: Raw annual DMAI across the sector
 p1 = year_mai %>% 
   ggplot(aes(x = harvest_year, y = year_mai)) +
@@ -470,7 +465,7 @@ p6 <- ggplot(eq6_fe_df, aes(x = harvest_year, y = estimate)) +
        title = "(iv): Year FEs (controlling for supplier\nFE and all controls)") +
   geom_smooth(method = "lm", se = FALSE)
 
-
+# Create combined diagnostic plot
 library(patchwork)
 combined_plot <- (p1 + p2) / (p3 + p4) / (p5 + p6)
 # combined_plot & theme(plot.margin = margin(4, 4, 4, 4))
