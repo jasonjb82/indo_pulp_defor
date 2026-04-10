@@ -318,7 +318,7 @@ modelsummary(models,
              stars = c('*' = .1, '**' = .05, '***' = 0.01),
              gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE|Log|Std',
              add_rows = rows,
-             output =  paste0(wdir, "/01_data/04_results/yield_growth_table.docx"))
+             output =  paste0(wdir, "/01_data/04_results/tables/yield_growth_table.docx"))
 
 
 yield_growth <- base_mod$coefficients['harvest_year']
@@ -467,3 +467,22 @@ ggsave(paste0(wdir, "/01_data/04_results/figures/mai_diagnostic_plots.png"),
        plot = combined_plot, height = 10, width = 7, units = "in")
 
 combined_plot
+
+
+# For response to reviewer, compare our final model against their proposed model
+eq6ln_mod <- feols(ln_mai_w ~ rotation_length + peat_pct + pr_harvest + pet_harvest + 
+  i(harvest_year, ref = ref_year) | Supplier,
+                       data = nona_mai_df)
+
+eq6ln_fe_df <- tibble(
+  harvest_year = as.numeric(gsub("harvest_year::", "", names(coef(eq6ln_mod)))),
+  estimate     = coef(eq6ln_mod),
+  conf.low     = confint(eq6ln_mod)[, 1],
+  conf.high    = confint(eq6ln_mod)[, 2]
+) %>%
+  filter(grepl("harvest_year::", names(coef(eq6_mod)))) %>%
+  add_row(harvest_year = ref_year, estimate = 0, conf.low = NA, conf.high = NA)
+
+rev_mod <- feols(estimate ~ harvest_year, data = eq6ln_fe_df)
+rev_mod %>% summary()
+base_mod %>% summary()
