@@ -14,6 +14,8 @@ library(janitor)
 library(modelsummary)
 library(WDI)
 library(patchwork)
+library(sf)
+library(testthat)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -75,7 +77,7 @@ hti_gaez <- read_csv(paste0(wdir, "/01_data/02_out/tables/gaez_hti_areas.csv")) 
 hti_mai <- read_csv(paste0(wdir, "/01_data/02_out/tables/hti_mai.csv"))
 
 # Add administrative labels
-grid_admin <- read_csv(paste0(wdir, "/01_data/02_out/tables/grid_10km_adm_prov_kab.csv"))
+grid_admin <- read_csv(paste0(wdir, "/01_data/02_out/tables/grid_10km_adm_prov_kab_kec.csv"))
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -323,44 +325,50 @@ defor_df <- defor_df %>%
 # summary(mod_4)
 
 
-mod_1 <- feols(pulp_forest_ha ~ pot_revenues | pixel_id + year, data = defor_df)
+mod_1 <- feols(pulp_forest_ha ~ pot_revenues | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(mod_1)
 
-null_mod <- feols(pulp_forest_ha ~ 1 | pixel_id + year, data = defor_df)
+null_mod <- feols(pulp_forest_ha ~ 1 | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(null_mod)
 
-mod_2 <- feols(pulp_forest_ha ~ post_2015:pot_revenues | pixel_id + year, data = defor_df)
+mod_2 <- feols(pulp_forest_ha ~ post_2015:pot_revenues | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(mod_2)
 
-mod_3 <- feols(pulp_non_forest_ha ~ pot_revenues  | pixel_id + year, data = defor_df)
+mod_3 <- feols(pulp_non_forest_ha ~ pot_revenues  | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(mod_3)
 
-mod_4 <- feols(pulp_non_forest_ha ~ post_2015:pot_revenues | pixel_id + year, data = defor_df)
+mod_4 <- feols(pulp_non_forest_ha ~ post_2015:pot_revenues | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(mod_4)
 
 
-# Variable labels
-rows <- tribble(~term, ~a,  ~b, ~c,  ~d,
-                'Productivity time trends', 'X',   'X', 'X', 'X',
-                'Province time trends', 'X',   'X', 'X', 'X')
-attr(rows, 'position') <- c(10, 11)
+# glance_custom.fixest injects n_clusters into modelsummary's GOF machinery
+glance_custom.fixest <- function(x, ...) {
+  data.frame(n_clusters = length(unique(defor_df$kec_code[obs(x)])))
+}
+
+# gof_map: Num.Obs. then Num. Clusters; FE rows excluded
+gof_map_defor <- tribble(
+  ~raw,          ~clean,          ~fmt,
+  "nobs",        "Num.Obs.",      0,
+  "n_clusters",  "Num. Clusters", 0
+)
 
 # Custom summary table
-msummary(
+tbl_args <- list(
   list("Pulp deforestation" = list("(1)" = mod_1, "(2)" = mod_2),
        "Other pulp expansion" = list("(3)" = mod_3, "(4)" = mod_4)),
-  # output = "html",
-  output = paste0(wdir, "/01_data/04_results/defor_elast_main.docx"),
-  stars = c('*' = .1, '**' = .05, '***' = .01) ,
-  # coef_map = coef_map,
+  stars = c('*' = .1, '**' = .05, '***' = .01),
   coef_omit = "^(?!.*revenues)",
   coef_rename = c("pot_revenues" = "Potential revenues",
                   "post_2015FALSE" = "y<=2015",
                   "post_2015TRUE" = "y>2015"),
-  gof_omit = "R2|Adj|Within|Pseudo|Log|AIC|BIC|RMSE",  # remove R2 and Adj R2 and more if desired
+  gof_map = gof_map_defor,
+  notes = "Standard errors clustered by concession. * p < 0.1, ** p < 0.05, *** p < 0.01",
   shape = "cbind"
-  # add_rows = rows
 )
+
+do.call(msummary, tbl_args)  # display
+do.call(msummary, c(tbl_args, list(output = paste0(wdir, "/01_data/04_results/defor_elast_main.docx"))))  # save
 
 
 
@@ -372,12 +380,12 @@ msummary(
 
 # Add suitability time trend
 defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues)
-rmod_1 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 + pot_mai * year  | pixel_id + year, data = defor_df)
+rmod_1 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 + pot_mai * year  | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(rmod_1)
 
 # Use Indonesian pulpwood price series instead of SA
 defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues_indo)
-rmod_2 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 | pixel_id + year, data = defor_df)
+rmod_2 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(rmod_2)
 
 # # Use FRED price series
@@ -387,7 +395,7 @@ summary(rmod_2)
 
 # Price deviation
 defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues_dev)
-rmod_3 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 | pixel_id + year, data = defor_df)
+rmod_3 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(rmod_3)
 
 # Lagged rents
@@ -395,14 +403,14 @@ defor_df <- defor_df %>%
   group_by(pixel_id) %>% 
   arrange(pixel_id, year) %>% 
   mutate(pot_revenues_r = lag(pot_revenues))
-rmod_4 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 | pixel_id + year, data = defor_df)
+rmod_4 <- feols(pulp_forest_ha ~ pot_revenues_r:post_2015 | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(rmod_4)
 
 # IHS outcome
 defor_df <- defor_df %>% 
   mutate(asinh_pulp_forest_ha = asinh(pulp_forest_ha))
 defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues)
-rmod_5 <- feols(asinh_pulp_forest_ha ~ pot_revenues_r:post_2015  | pixel_id + year, data = defor_df)
+rmod_5 <- feols(asinh_pulp_forest_ha ~ pot_revenues_r:post_2015  | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(rmod_5)
 
 
@@ -542,7 +550,7 @@ change_2011_2017 <- total_pulp_defor %>%
   select(pulp_forest_ha_true, pulp_forest_ha_cf) - 
   total_pulp_defor %>%
   filter(year == 2011) %>%
-  select(pulp_forest_ha_true, pulp_forest_ha_cf)) %>% 
+  select(pulp_forest_ha_true, pulp_forest_ha_cf) %>% 
   print()
 
 
