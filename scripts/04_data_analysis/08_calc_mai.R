@@ -3,6 +3,7 @@
 ## Project: Indonesia pulp deforestation
 ##
 ## Purpose of script: Calculate MAI for HTI concessions
+##    and analyze trends in productivity.
 ##
 ## Author: Robert Heilmayr and Jason Jon Benedict
 ##
@@ -10,7 +11,7 @@
 ## 
 ## ---------------------------------------------------------
 ##
-## Notes: Input datasets
+## Input datasets
 ##        1) 
 ##
 ## ---------------------------------------------------------
@@ -119,8 +120,9 @@ mai_df %>%
 sector_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y, na.rm = TRUE)) %>% print()
 
 # b) if they're invalid, all should be dropped from sectoral calculations
-nona_mai_df <- mai_df %>% 
-  drop_na()
+# Restrict to rows with both volume and harvest area (needed to compute DMAI); weather NAs handled within regressions
+nona_mai_df <- mai_df %>%
+  drop_na(volume_m3, ha_y)
 (sum(nona_mai_df$volume_m3) / sum(nona_mai_df$ha_y)) %>% print()
 
 
@@ -143,28 +145,18 @@ nona_mai_df <- nona_mai_df %>%
          volume_winsorized = mai_winsorized * ha_y,
          dmai_rw = map_dbl(dmai_rw, winsorize_mai),
          dmai_if = map_dbl(dmai_if, winsorize_mai),
-         dmai_mf = map_dbl(dmai_mf, winsorize_mai),
          dmai_hf = map_dbl(dmai_hf, winsorize_mai))
-
-outlier_ids <- mai_df %>% 
-  group_by(supplier_id) %>% 
-  summarize(max_mai = max(dmai)) %>% 
-  filter(max_mai > mai_limit) %>% 
-  pull(supplier_id)
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Calculate sectoral MAI -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## Calculate baseline MAI
-sector_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y, na.rm = TRUE)) %>% print()
+## Calculate baseline MAI (same value computed above in missing data section; reprinted here for reference)
+print(sector_mai)
 
 ## Compare to alternate specifications with different treatments of burned areas:
 ## a) Ignore all fire labels (keep all harvest blocks in dataset)
 if_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y_if, na.rm = TRUE)) %>% print()
-
-## b) (1) Use corrected fire data when year is labeled; (2) keep harvests in blocks with unspecified fires
-mf_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y_mf, na.rm = TRUE)) %>% print()
 
 ## c) Drop all blocks with any recorded fires
 hf_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y_hf, na.rm = TRUE)) %>% print()
@@ -255,7 +247,6 @@ nona_mai_df <- nona_mai_df %>%
          ln_mai_w = log(mai_winsorized),
          ln_rw = log(dmai_rw),
          ln_if = log(dmai_if),
-         ln_mf = log(dmai_mf),
          ln_hf = log(dmai_hf),
          Supplier = supplier_id)
 
@@ -263,6 +254,8 @@ nona_mai_df <- nona_mai_df %>%
 nona_mai_df %>% group_by(outlier) %>% summarise(volume_m3 = sum(volume_m3)) %>% mutate(shr = prop.table(volume_m3))
 
 
+# Controls include rotation characteristics and harvest-year precipitation/PET. Temperature and
+# rotation-period weather are excluded; their effects on MAI are analyzed separately.
 controls <- "rotation_length + peat_pct + pr_harvest + pet_harvest"
 
 ols_mod <- feols(as.formula(paste0("ln_mai_w ~", controls, " + harvest_year")), cluster = ~Supplier, data = nona_mai_df)
@@ -304,7 +297,7 @@ grow_yield(hf_mai, coef(hf_mod)["harvest_year"], nyears)
 
 models <- list(ols_mod, nocntrl_mod, base_mod, trim_mod, nowin_mod, rw_mod, if_mod, hf_mod)
 
-rows <- tribble(~term, ~OLS,  ~NoCntrls, ~F.E., ~Trimmed, ~NoWins, ~ShortenRot, ~IgFire, ~DropFire,
+rows <- tribble(~term, ~OLS,  ~NoCntrls, ~Base, ~Trimmed, ~NoWins, ~ShortenRot, ~IgFire, ~DropFire,
                 'Treatment of outliers', 'Winsorize',  'Winsorize', 'Winsorize', 'Drop', 'Keep', 'Winsorize', 'Winsorize', 'Winsorize',
                 'Shorten long rotations', 'False', 'False', 'False', 'False', 'False', 'True', 'False', 'False',
                 'Treatment of fires', 'Impute', 'Impute', 'Impute', 'Impute', 'Impute', 'Impute', 'Keep', 'Drop',
@@ -319,11 +312,10 @@ modelsummary(models,
              gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE|Log|Std',
              add_rows = rows)
 
-modelsummary(models, 
-             fmt = 3, 
-             coef_omit =  c(1, 2, 3, 4), 
+modelsummary(models,
+             fmt = 3,
+             coef_map = c("harvest_year" = "Year"),
              stars = c('*' = .1, '**' = .05, '***' = 0.01),
-             coef_rename = c("harvest_year" = "Year"),
              gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE|Log|Std',
              add_rows = rows,
              output =  paste0(wdir, "/01_data/04_results/yield_growth_table.docx"))
@@ -339,7 +331,7 @@ yield_growth_confint <- yield_growth - confint(base_mod, "harvest_year", level =
 output <- list("dmai" = sector_mai,
                "dmai_2021" = mai_2021,
                "yield_growth" = yield_growth[1],
-               "yield_gowth_ci" = yield_growth_confint[1,1]) %>% 
+               "yield_growth_ci" = yield_growth_confint[1,1]) %>%
   as_tibble()
 
 write_csv(output, paste0(wdir, "/01_data/04_results/key_parameters.csv"))
@@ -349,6 +341,8 @@ write_csv(output, paste0(wdir, "/01_data/04_results/key_parameters.csv"))
 ## Adding reviewer TFP check -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Reviewer 2 asked for a series of diagnostic plots to illustrate DMAI trends
+## NOTE: Diagnostic models below use mai_winsorized (levels), not ln_mai_w (log), per the reviewer's
+## request. The main regression models use logs; the justification is in the response to reviewers.
 # --- Step i: Raw annual DMAI across the sector
 p1 = year_mai %>% 
   ggplot(aes(x = harvest_year, y = year_mai)) +
@@ -397,7 +391,7 @@ p3 = ggplot(resid_df, aes(x = harvest_year, y = mean_r)) +
   geom_smooth(method = "lm", se = FALSE)
 
 # --- Step iv: year FEs + supplier FE; plot year FEs with CIs ---
-ref_year <- 2018
+ref_year <- 2018  # midpoint of the sample period; chosen to show trend clearly in both directions
 eq4_mod <- feols(mai_winsorized ~ i(harvest_year, ref = ref_year) | Supplier,
                  data = nona_mai_df)
 summary(eq4_mod)
@@ -438,7 +432,7 @@ p5 <- ggplot(eq5_fe_df, aes(x = harvest_year, y = estimate)) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   theme_bw() +
   labs(x = "Harvest year", y = "Year FE",
-       title = "(iv): Year FEs (controlling for supplier\nFE, harvest-year weather)") +
+       title = "(v): Year FEs (controlling for supplier\nFE, harvest-year weather)") +
   geom_smooth(method = "lm", se = FALSE)
 
 
@@ -462,7 +456,7 @@ p6 <- ggplot(eq6_fe_df, aes(x = harvest_year, y = estimate)) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   theme_bw() +
   labs(x = "Harvest year", y = "Year FE",
-       title = "(iv): Year FEs (controlling for supplier\nFE and all controls)") +
+       title = "(vi): Year FEs (controlling for supplier\nFE and all controls)") +
   geom_smooth(method = "lm", se = FALSE)
 
 # Create combined diagnostic plot
