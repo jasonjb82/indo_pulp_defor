@@ -387,7 +387,7 @@ p3 = ggplot(resid_df, aes(x = harvest_year, y = mean_r)) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   theme_bw() +
   labs(x = "Harvest year", y = "Year-avg residual",
-       title = "(iii): Year-averaged residuals after supplier FE") + 
+       title = "(iii): Year-averaged residuals\nafter supplier FE") + 
   geom_smooth(method = "lm", se = FALSE)
 
 # --- Step iv: year FEs + supplier FE; plot year FEs with CIs ---
@@ -410,7 +410,7 @@ p4 = ggplot(eq4_fe_df, aes(x = harvest_year, y = estimate)) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   theme_bw() +
   labs(x = "Harvest year", y = "Year FE",
-       title = "(iv): Year FEs (controlling for supplier FE)") +
+       title = "(iv): Year FEs (controlling for\nsupplier FE)") +
   geom_smooth(method = "lm", se = FALSE)
 
 # --- Step v: year FEs + supplier FE + weather controls ---
