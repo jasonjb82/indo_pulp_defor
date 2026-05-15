@@ -54,6 +54,14 @@ kab_slim <- kab %>%
   select(kab, prov_code, kab_code, kab, prov) %>%
   st_transform(crs = indonesian_crs)
 
+# kecamatan
+kec <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\adm_area_kec_diss_big_10k.shp"))
+kec_slim <- kec %>%
+  select(kec=WADMKC,kec_code=KDCPUM) %>%
+  mutate(kec_code = str_replace_all(kec_code, "\\.", ""),
+  (across(where(is.character), toupper))) %>%
+  st_transform(crs = indonesian_crs)
+
 # deforestation and forest cover (hansen)
 gfw_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\explore_deforestation_Indonesia.csv"))
 
@@ -72,8 +80,9 @@ pulp_for_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\pulp_annual_defor_f
 grid_adm_tbl <- grid_10km_sf %>%
   st_transform(crs = indonesian_crs) %>%
   st_intersection(kab_slim) %>%
+  st_intersection(kec_slim) %>%
   st_drop_geometry() %>%
-  select(pixel_id,kab_code,kab,prov_code,prov) %>%
+  select(pixel_id,kec_code,kec,kab_code,kab,prov_code,prov) %>%
   print()
 
 # convert to areas and subset to selected attributes
@@ -161,5 +170,5 @@ tbl_long <- pixel_id_tbl %>%
 
 # export data to csv
 write_csv(tbl_long,paste0(wdir,"\\01_data\\02_out\\tables\\tbl_long_pulp_clearing_gfc_forest.csv"))
-write_csv(grid_adm_tbl,paste0(wdir,"\\01_data\\02_out\\tables\\grid_10km_adm_prov_kab.csv"))
+write_csv(grid_adm_tbl,paste0(wdir,"\\01_data\\02_out\\tables\\grid_10km_adm_prov_kab_kec.csv"))
                         

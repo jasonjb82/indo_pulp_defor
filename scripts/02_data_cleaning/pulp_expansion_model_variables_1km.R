@@ -62,7 +62,7 @@ merge_gee_batch <- function(folder_path, file_prefix) {
 # merge datasets -------------------------------------------
 climate_data  <- merge_gee_batch(data_path, "kalisuma_topo") %>% select(-source_file)
 landuse_data  <- merge_gee_batch(data_path, "kalisuma_landuse") %>% select(-source_file) %>%
-  mutate(across(everything(), ~replace(., . == -9999, 0))) # value can only be 1/0 - presence/absence 
+  mutate(across(everything(), ~replace(., . == -9999, 0))) 
 river_dist_data  <- merge_gee_batch(data_path, "kalisuma_riverdist") %>% select(-source_file)
 mill_dist_data  <- merge_gee_batch(data_path, "mill_dist") %>% select(-source_file)
 aee_embed_data  <- merge_gee_batch(data_path, "kalisuma_aee_embed") %>% select(-source_file)
@@ -92,6 +92,17 @@ final_combined <- grid_1km_df %>%
   left_join(river_dist_data, by = "pixel_id") %>%
   left_join(mill_dist_data, by = "pixel_id") 
 
+# check data -----------------------------------------------
+
+zero_columns <- final_combined %>%
+  select(where(~ is.numeric(.x) && all(.x == 0, na.rm = TRUE))) %>%
+  names()
+
+skimr::skim(final_combined) %>% mutate(across(where(is.numeric), ~ na_if(.x, -9999)))
+
+# print the list of offending column names
+print(zero_columns)
+
 # split data into the 2 required files ---------------------
 
 # variables for 2017
@@ -105,3 +116,53 @@ var_2022 <- final_combined %>%
 # export to csv files --------------------------------------
 write_csv(var_2017,paste0(wdir,"\\01_data\\02_out\\tables\\pulp_exp_model_var_1km_2017.csv"))
 write_csv(var_2022,paste0(wdir,"\\01_data\\02_out\\tables\\pulp_exp_model_var_1km_2022.csv"))
+
+# get summary stats ----------------------------------------
+summary_stats <- final_combined %>%
+  mutate(across(where(is.numeric), ~ na_if(.x, -9999))) %>%
+  # Only calculate for numeric columns
+  summarise(across(where(is.numeric), list(
+    min  = ~min(.x, na.rm = TRUE),
+    max  = ~max(.x, na.rm = TRUE),
+    sd   = ~sd(.x, na.rm = TRUE),
+    mean = ~mean(.x, na.rm = TRUE)
+  ))) %>%
+  # Pivot the wide result into a neat, readable table
+  pivot_longer(
+    cols = everything(), 
+    names_to = c("variable", ".value"), 
+    names_pattern = "(.*)_(min|max|sd|mean)"
+  )
+
+embeddings_summary_stats <- final_combined %>%
+  select(starts_with("Y20")) %>%  
+  pivot_longer(
+    cols = everything(),
+    names_to = "original_column",
+    values_to = "value"
+  ) %>%
+  summarise(
+    min  = min(value, na.rm = TRUE),
+    max  = max(value, na.rm = TRUE),
+    sd   = sd(value, na.rm = TRUE),
+    mean = mean(value, na.rm = TRUE)
+  ) %>%
+  print()
+
+mill_dist_summary_stats <- final_combined %>%
+  select(starts_with("dist_mill")) %>%  
+  pivot_longer(
+    cols = everything(),
+    names_to = "original_column",
+    values_to = "value"
+  ) %>%
+  summarise(
+    min  = min(value, na.rm = TRUE),
+    max  = max(value, na.rm = TRUE),
+    sd   = sd(value, na.rm = TRUE),
+    mean = mean(value, na.rm = TRUE)
+  ) %>%
+  print()
+
+write_csv(summary_stats,paste0(wdir,"\\01_data\\02_out\\tables\\var_table_summary_stats.csv"))
+

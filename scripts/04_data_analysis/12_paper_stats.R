@@ -76,6 +76,18 @@ islands <- kab %>%
   ) %>%
   distinct(prov_code, island)
 
+# pulpwood supply 2015-2019
+pw_supply_2015_2019 <- read_excel(paste0(wdir, '/01_data/01_in/wwi/RPBBI_2015_2019_compiled.xlsx')) %>%
+  select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
+
+# pulpwood supply 2020
+pw_supply_2020 <- read_excel(paste0(wdir, '/01_data/01_in/wwi/RPBBI_2020_compiled.xlsx')) %>%
+  select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
+
+# pulpwood supply 2021
+pw_supply_2021 <- read_excel(paste0(wdir, '/01_data/01_in/wwi/RPBBI_2021_compiled.xlsx')) %>%
+  select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
+
 # pulpwood supply in 2022 
 pw_supply_2022 <- read_excel(paste0(wdir, '/01_data/01_in/wwi/RPBBI_2022_compiled.xlsx')) %>%
   select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
@@ -621,4 +633,22 @@ ann_pulp_exp <- annual_pulp_areas %>%
   print(Inf)
 
 write_csv(ann_pulp_exp,paste0(wdir,"\\01_data\\02_out\\tables\\pulp_expansion_areas_2001_2022.csv"))
+
+## count of unique plantation concessions that supplied any pulp mills during the period 2015-2021
+## and mean area (ha) of these concessions
+
+hti_supp_to_mills_conc_avg_area <- pw_supply_2015_2019 %>%
+  rbind(pw_supply_2020) %>%
+  rbind(pw_supply_2021) %>%
+  rbind(pw_supply_2022) %>%
+  left_join(select(hti_conc_area, SUPPLIER_ID = supplier_id, area_ha), by = "SUPPLIER_ID") %>%
+  filter(!str_detect(SUPPLIER_ID, "S-")) %>%
+  # ensure uniqueness at the Exporter-Supplier level before summarizing
+  distinct(EXPORTER_ID, SUPPLIER_ID, .keep_all = TRUE) %>% 
+  group_by() %>%
+  summarize(
+    n = n_distinct(SUPPLIER_ID), 
+    mean_conc_area_ha = mean(area_ha, na.rm = TRUE)
+  ) %>%
+  print(n = Inf)
 

@@ -32,6 +32,7 @@ library(d3.format) # to install: devtools::install_github("dreamRs/d3.format")
 library(tidyfast)
 library(showtext)
 library(khroma) # palettes for color blindness
+library(ggbreak)
 
 ## set working directory -------------------------------------
 
@@ -57,11 +58,14 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
                      axis.line.x = element_line(),
                      axis.ticks.x = element_blank(),
                      axis.ticks.y = element_blank(),
-                     panel.spacing = unit(2, "lines"),
+                     panel.spacing = unit(1, "lines"),
                      axis.text.x = element_text(size = 9, color = "grey30"),
                      axis.text.y = element_text(size = 9, color = "grey30"),
                      axis.title.x = element_text(size = 10, color = "grey30"),
                      axis.title.y = element_text(size = 10, color = "grey30"),
+                     axis.text.x.top = element_blank(),
+                     axis.line.x.top = element_blank(),
+                     axis.ticks.x.top = element_blank(),
                      strip.text.x = element_text(size = 12, face = "bold",color="grey30"),
                      strip.background = element_rect(color=NA, fill=NA),
                      legend.key.height = unit(12, "pt"),
@@ -78,7 +82,7 @@ options(crayon.enabled = FALSE)
 ownership_order <- c("Acknowledged ownership",
            "Suspected ownership based on civil society investigations",
            "Third-party suppliers",
-           "Not yet supplying\nto mills")
+           "Not yet\nsupplying\nto mills")
 
 defor_order <- c(
   "Deforestation for pulp after 2015",
@@ -96,26 +100,10 @@ freq_tab <- hti_conv_timing %>%
              linked_group == "APP" & ownership_class == "NGO-linked" ~ "SINAR MAS (NGO-LINKED)",
              linked_group == "APRIL" & ownership_class == "NGO-linked" ~ "ROYAL GOLDEN EAGLE / TANOTO (NGO-LINKED)",
              TRUE ~ supplier_group)) %>%
-  group_by(ownership_class,linked_group,class) %>% 
-  summarize(area_ha = sum(area_ha)) %>% 
-  mutate(freq = area_ha / sum(area_ha)) %>%
-  drop_na(ownership_class) %>%
-  ungroup()
-
-freq_tab
-
-freq_tab <- hti_conv_timing %>%
-  filter(all == 1) %>%
-  filter(conv_type == 2 | is.na(conv_type) | is.na(supplier_group)) %>%
-  mutate(supplier_group = 
-           case_when(
-             linked_group == "APP" & ownership_class == "NGO-linked" ~ "SINAR MAS (NGO-LINKED)",
-             linked_group == "APRIL" & ownership_class == "NGO-linked" ~ "ROYAL GOLDEN EAGLE / TANOTO (NGO-LINKED)",
-             TRUE ~ supplier_group)) %>%
   mutate(ownership_class = 
            case_when(
-             (ownership_class == "Third-party suppliers" | is.na(ownership_class)) & april == 0 & app == 0 & marubeni == 0  ~ "Not yet supplying\nto mills",
-             april == 0 & app == 0 & marubeni == 1 ~ "Not yet supplying\nto mills",
+             (ownership_class == "Third-party suppliers" | is.na(ownership_class)) & april == 0 & app == 0 & marubeni == 0  ~ "Not yet\nsupplying\nto mills",
+             april == 0 & app == 0 & marubeni == 1 ~ "Not yet\nsupplying\nto mills",
               TRUE ~ ownership_class
               )) %>%
   group_by(ownership_class,linked_group,class) %>% 
@@ -133,10 +121,10 @@ defor_plot <- freq_tab %>%
   aes(y = label_order, x = area_ha, fill = factor(class,levels=defor_order)) +
   geom_bar(stat = "identity",position = position_stack(reverse = TRUE)) +
   theme_plot +
-  ylab("Association with\nRGE or Sinar Mas\n") + 
+  ylab("Association with RGE or Sinar Mas") + 
   xlab("") +
-  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
-  scale_x_continuous(labels = d3_format(".3~s",suffix = " ha"),expand = c(0,0)) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 18)) +
+  scale_x_continuous(labels = d3_format(".3~s",suffix = " ha"),expand = c(0,0),breaks= c(0,500000,1000000,1500000,2000000,2500000)) +
   guides(fill = guide_legend(nrow = 2)) +
   scale_fill_manual(values = cols,name ="Group",
                     breaks=defor_order,labels=defor_order) +
@@ -144,6 +132,9 @@ defor_plot <- freq_tab %>%
 
 defor_plot
 
+defor_broken_plot <- defor_plot + scale_x_break(c(1000000, 2500000),space = 0.5)
+defor_broken_plot
+
 # export plot to png file
-ggsave(defor_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev8.png"), dpi=400, w=8, h=4,limitsize = FALSE)
+ggsave(defor_broken_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev9.png"), dpi=400, w=9, h=4,limitsize = FALSE)
 
