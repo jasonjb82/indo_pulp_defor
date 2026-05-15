@@ -20,7 +20,6 @@ library(sf)
 library(terra)
 library(tmap)
 library(cols4all)
-library(gt)
 library(pdp)
 
 
@@ -170,6 +169,7 @@ rf_grid <- grid_regular(
   levels = 4  # 4x4 = 16 combinations
 )
 
+set.seed(5597, kind = "L'Ecuyer-CMRG")  # parallel-safe RNG: streams to each worker reproducibly
 plan(multisession, workers = parallel::detectCores() - 1)
 rf_tune <- tune_grid(
   rf_workflow,
@@ -222,8 +222,14 @@ test_preds <- collect_predictions(last_fit_result) %>%
 # --- 1. Discrimination metrics ---
 collect_metrics(last_fit_result)                             # roc_auc, pr_auc summary
 
-roc_curve(test_preds, truth = pulp_end, .pred_pulp) %>% autoplot()
-pr_curve(test_preds,  truth = pulp_end, .pred_pulp) %>% autoplot()
+p1 <- roc_curve(test_preds, truth = pulp_end, .pred_pulp) %>% autoplot() +
+  ggtitle("Receiver operating characteristic")
+p2 <- pr_curve(test_preds,  truth = pulp_end, .pred_pulp) %>% autoplot() +
+  ggtitle("Precision-recall") +
+  geom_hline(yintercept = mean(test_df$pulp_end == "pulp"), linetype = "dotted", colour = "black")
+combined_plot <- p1 | p2
+combined_plot
+ggsave(paste0(wdir, "01_data/04_results/figures/SI_f4_auc.png"), combined_plot, width = 7, height = 4)
 
 # --- 2. Brier score (combines discrimination + calibration) ---
 brier_class(test_preds, truth = pulp_end, .pred_pulp)
@@ -440,178 +446,20 @@ htmlwidgets::saveWidget(
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# pulp expansion scenarios --------------
+# save predictions for downstream scenario analysis --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-exp_area_1 <- 1523000  # Predicted area of pulp expansion in hectares
-exp_area_2 <- 668000  # Predicted area of pulp expansion in hectares
-exp_area_3 <- 12000  # Predicted area of pulp expansion in hectares
-
-
-# All pixels in predictions2027_df have pulp_start == 0 (enforced by filter in
-# pred2027_input), so the full set is eligible for expansion
-
-# --- 1. Derive island and land type for each candidate pixel ---
-scenario_df <- predictions2027_df %>%
-  mutate(
-    island = case_when(
-      str_sub(as.character(kab_code), 1, 1) == "1" ~ "Sumatera",
-      str_sub(as.character(kab_code), 1, 1) == "6" ~ "Kalimantan"
-    ),
-    land_type = case_when(
-      forest_start == 1 & peat == 1 ~ "Forest on peat",
-      forest_start == 1 & peat == 0 ~ "Forest off peat",
-      forest_start == 0 & peat == 1 ~ "Non-forest on peat",
-      TRUE                           ~ "Other"
-    )
-  ) %>%
-  filter(!is.na(island))  # keep Sumatera + Kalimantan only
-
-# --- 2. Helper functions ---
-# Select top-probability pixels up to the target expansion area
-select_scenario <- function(df, exp_area_ha) {
-  n_px <- exp_area_ha / 100  # 1 pixel = 1 km² = 100 ha
-  df %>%
-    slice_max(.pred_pulp, n = n_px, with_ties = FALSE) %>%
-    mutate(area_ha = 100)
-}
-
-# Summarise selected pixels by island x land type, with island subtotals
-summarise_scenario <- function(scenario_df) {
-  by_type <- scenario_df %>%
-    group_by(island, land_type) %>%
-    summarise(area_ha = sum(area_ha), .groups = "drop")
-
-  bind_rows(
-    by_type,
-    by_type %>%
-      group_by(island) %>%
-      summarise(area_ha = sum(area_ha), .groups = "drop") %>%
-      mutate(land_type = "Island total")
-  ) %>%
-    arrange(island, land_type == "Island total", land_type)
-}
-
-# --- 3. Run all three scenarios ---
-scenario1_df <- select_scenario(scenario_df, exp_area_1)
-scenario2_df <- select_scenario(scenario_df, exp_area_2)
-scenario3_df <- select_scenario(scenario_df, exp_area_3)
-
-# --- 4. Build combined table with one column per scenario ---
-expansion_table <- summarise_scenario(scenario1_df) %>%
-  rename(scenario_1_ha = area_ha) %>%
-  left_join(summarise_scenario(scenario2_df) %>% rename(scenario_2_ha = area_ha),
-            by = c("island", "land_type")) %>%
-  left_join(summarise_scenario(scenario3_df) %>% rename(scenario_3_ha = area_ha),
-            by = c("island", "land_type")) %>%
-  mutate(across(c(scenario_1_ha, scenario_2_ha, scenario_3_ha), ~ replace_na(.x, 0)))
-
-expansion_table %>%
-  gt(groupname_col = "island", rowname_col = "land_type") %>%
-  cols_label(
-    scenario_1_ha = "S1: No productivity growth",
-    scenario_2_ha = "S2: 3.0% annual growth",
-    scenario_3_ha = "S3: 5.9% annual growth"
-  ) %>%
-  fmt_number(columns = c(scenario_1_ha, scenario_2_ha, scenario_3_ha), decimals = 0)
-
-# --- Reorganised table: land type as rows, islands as columns, S2 (S3–S1) cells ---
-fmt_cell <- function(s2, s3, s1) {
-  paste0(formatC(s2, format = "d", big.mark = ","),
-         " (", formatC(s3, format = "d", big.mark = ","),
-         "–", formatC(s1, format = "d", big.mark = ","), ")")
-}
-
-reorg_base <- expansion_table %>%
-  filter(land_type != "Island total") %>%
-  mutate(across(c(scenario_1_ha, scenario_2_ha, scenario_3_ha), ~ round(.x / 1000)))
-
-# Total column: sum across islands for each land type
-reorg_totals_col <- reorg_base %>%
-  group_by(land_type) %>%
-  summarise(across(c(scenario_1_ha, scenario_2_ha, scenario_3_ha), sum), .groups = "drop") %>%
-  mutate(Total = fmt_cell(scenario_2_ha, scenario_3_ha, scenario_1_ha)) %>%
-  select(land_type, Total)
-
-# Total row: sum across land types for each island + overall total
-reorg_totals_row <- reorg_base %>%
-  group_by(island) %>%
-  summarise(across(c(scenario_1_ha, scenario_2_ha, scenario_3_ha), sum), .groups = "drop") %>%
-  mutate(cell = fmt_cell(scenario_2_ha, scenario_3_ha, scenario_1_ha),
-         land_type = "Total") %>%
-  select(land_type, island, cell) %>%
-  pivot_wider(names_from = island, values_from = cell, values_fill = "0 (0–0)") %>%
-  left_join(
-    reorg_base %>%
-      summarise(across(c(scenario_1_ha, scenario_2_ha, scenario_3_ha), sum)) %>%
-      mutate(Total = fmt_cell(scenario_2_ha, scenario_3_ha, scenario_1_ha)) %>%
-      select(Total),
-    by = character()
-  )
-
-reorg_base %>%
-  mutate(cell = fmt_cell(scenario_2_ha, scenario_3_ha, scenario_1_ha)) %>%
-  select(land_type, island, cell) %>%
-  pivot_wider(names_from = island, values_from = cell, values_fill = "0 (0–0)") %>%
-  left_join(reorg_totals_col, by = "land_type") %>%
-  bind_rows(reorg_totals_row) %>%
-  gt(rowname_col = "land_type") %>%
-  tab_header(
-    title    = "Projected pulp expansion area by land type and island",
-    subtitle = "Central estimate (low–high), thousand ha; S2 = 3.0% growth, S3 = 5.9% growth, S1 = no growth"
-  ) %>%
-  cols_label(
-    Kalimantan = "Kalimantan",
-    Sumatera   = "Sumatera",
-    Total      = "Total"
-  ) %>%
-  tab_style(
-    style = cell_text(weight = "bold"),
-    locations = list(cells_body(rows = "Total"), cells_column_labels(columns = "Total"))
-  )
-
-# --- 5. Rasterise scenario expansion pixels and add to map ---
-rasterise_scenario <- function(scenario_df, rast_template, coords_df) {
-  scenario_df %>%
-    left_join(coords_df, by = "pixel_id") %>%
-    drop_na(lon, lat) %>%
-    st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
-    vect() %>%
-    rasterize(rast_template, field = "area_ha", fun = sum)
-}
-
-scenario1_rast <- rasterise_scenario(scenario1_df, rast_template, coords2027_df)
-scenario2_rast <- rasterise_scenario(scenario2_df, rast_template, coords2027_df)
-scenario3_rast <- rasterise_scenario(scenario3_df, rast_template, coords2027_df)
-names(scenario1_rast) <- "scenario1_expansion"
-names(scenario2_rast) <- "scenario2_expansion"
-names(scenario3_rast) <- "scenario3_expansion"
-
-pulp_map <- pulp_map +
-  tm_shape(scenario1_rast, group = "Scenario 1: No productivity growth") +
-  tm_raster(
-    col       = "scenario1_expansion",
-    palette   = "brewer.greens",
-    col_alpha = 0.8,
-    title     = "Low productivity-growth expansion (ha)"
-  ) +
-  tm_shape(scenario2_rast, group = "Scenario 2: 3.0% annual growth") +
-  tm_raster(
-    col       = "scenario2_expansion",
-    palette   = "brewer.greens",
-    col_alpha = 0.8,
-    title     = "Moderate productivity-growth expansion (ha)"
-  ) +
-  tm_shape(scenario3_rast, group = "Scenario 3: 5.9% annual growth") +
-  tm_raster(
-    col       = "scenario3_expansion",
-    palette   = "brewer.greens",
-    col_alpha = 0.8,
-    title     = "High productivity-growth expansion (ha)"
-  )
-
-pulp_map
-htmlwidgets::saveWidget(
-  tmap_leaflet(pulp_map),
-  file          = paste0(wdir, "01_data/04_results/figures/pulp_expansion_map.html"),
-  selfcontained = TRUE
+# lat/lon pre-joined so 22_pulp_expansion_scenarios.R doesn't need to re-read p2_df
+write_csv(
+  predictions2027_df %>%
+    left_join(p2_df %>% select(pixel_id, lat, lon), by = "pixel_id") %>%
+    select(pixel_id, kab_code, forest_start, peat, lat, lon, .pred_pulp),
+  paste0(wdir, "01_data/02_out/tables/pulp_predictions.csv")
 )
+
+
+# CV performance of the best hyperparameter combination
+best_params <- select_best(rf_tune, metric = "roc_auc")
+collect_metrics(rf_tune) %>%
+  inner_join(best_params %>% select(mtry, min_n), by = c("mtry", "min_n")) %>%
+  filter(.metric %in% c("roc_auc", "pr_auc")) %>%
+  select(.metric, mean, std_err)
