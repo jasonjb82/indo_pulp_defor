@@ -34,12 +34,13 @@ library(sf)
 library(scales)
 library(dtplyr)
 library(testthat)
-library(d3.format)
+# library(d3.format)
 library(tidyfast)
 library(patchwork)
 library(rcartocolor)
 library(showtext)
 library(khroma) # palettes for color blindness
+library(patchwork)
 
 ## set working directory -------------------------------------
 
@@ -130,6 +131,10 @@ samples_gfc_ttm <- filenames %>%
 
 # Parameters from MAI analysis
 mai_df <- read_csv(paste0(wdir, "/01_data/04_results/key_parameters.csv"))
+
+# mill capacities
+cap_df <- read_excel(paste0(wdir, "/01_data/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Overarching trends in pulp expansion, deforestation, peat conversion -------------------
@@ -234,7 +239,7 @@ overall_pulp_change %>% print()
 
 # The expansion of pulp processing infrastructure into Kalimantan is particularly important 
 #since the region has been responsible for XX%  of pulp-driven deforestation since 2017
-kali_pulp_driven_defor <- read_excel(paste0(wdir,"\\01_data\\01_in\\gaveau\\IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="PULPWOOD EXPANSION",skip=5,n_max =22 ) %>% 
+kali_pulp_driven_defor <- read_excel(paste0(wdir,"/01_data/01_in/gaveau/IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="PULPWOOD EXPANSION",skip=5,n_max =22 ) %>% 
   clean_names() %>%
   select(year,kali_forest_loss_ha=area_of_forest_converted_to_pulpwood_pw_each_year_ha) %>%
   mutate(year=as.double(year)+2000) %>%
@@ -401,8 +406,12 @@ rapp_exp_mt <- 1.33
 rappbctmp_exp_mt <- 1.3
 phoenix_exp_mt <- 1.7
 total_exp_mt <- oki_exp_mt + rapp_exp_mt + rappbctmp_exp_mt + phoenix_exp_mt
-baseline_production <- pulp_production %>% filter(year == 2022) %>% pull(annual_prod_mtpy) # JASON - why doesnt this number match the production you were drawing on to calculate capacity factors across time? Your table says pulp production in 2022 was 9.9 million tonnes, but here it's only 8.9
-baseline_cap_mt <- 10.9 ## TODO: This should be drawn directly from RPBBI - RPBBI installed capacity in 2022
+baseline_production <- pulp_production %>% filter(year == 2022) %>% pull(annual_prod_mtpy)
+baseline_cap_mt <- cap_df %>%
+  select(MILL_ID, PULP_CAP_MTPY) %>%
+  distinct() %>%
+  pull(PULP_CAP_MTPY) %>%
+  sum()
 
 ## Calculate the prior industry average conversion rate: m3 per tonne of pulp
 wood_pulp_conv <- (current_wood_demand / 1000000) / baseline_production
@@ -435,6 +444,8 @@ new_wood_demand / (current_wood_demand / 1000000)
 ## improvement over the next decade, increased production from existing plantations 
 ## would only meet 62% of the anticipated growth in pulpwood demand"
 yield_growth = (mai_df$yield_growth + 1) %>% print()
+yield_growth = (1.059) %>% print()
+mai_2021 <- mai_df$dmai_2021
 high_yield_mai <- ((yield_growth^7) * mai_2021) %>% print()  # Updated after fixing david's data to account for burns. Was 1.049 growth rate
 assumed_area_plantations <- 3050000
 extra_production <- (high_yield_mai - mai_2021) * assumed_area_plantations / 1000000
