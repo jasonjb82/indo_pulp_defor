@@ -102,11 +102,16 @@ mai_df %>%
 
 
 # Confirm that large majority of reported production has associated harvest data
-mai_df %>% 
+prod_coverage <- mai_df %>% 
   mutate(missing_harvests = is.na(ha_y)) %>% 
   group_by(missing_harvests) %>% 
   summarise(volume_m3 = sum(volume_m3, na.rm = TRUE)) %>% 
-  mutate(prop = prop.table(volume_m3))
+  mutate(prop = prop.table(volume_m3)) %>%
+  print()
+prod_coverage <- prod_coverage %>%
+  filter(missing_harvests == FALSE) %>%
+  pull(prop)
+
 
 # Confirm that large majority of reported harvesting has associated production data
 mai_df %>% 
@@ -351,13 +356,22 @@ yield_growth_confint <- yield_growth - confint(base_mod, "harvest_year", level =
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Export key model parameters -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+median_obs <- nona_mai_df %>%
+  group_by(supplier_id) %>%
+  tally() %>%
+  pull(n) %>%
+  median()
+
 output <- list("dmai" = sector_mai,
                "dmai_2021" = mai_2021,
                "yield_growth" = yield_growth[1],
-               "yield_growth_ci" = yield_growth_confint[1,1]) %>%
+               "yield_growth_ci" = yield_growth_confint[1,1],
+               "production_coverage" = prod_coverage,
+               "median_obs" = median_obs) %>%
   as_tibble()
 
 write_csv(output, paste0(wdir, "/01_data/04_results/key_parameters.csv"))
+
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -509,3 +523,14 @@ eq6ln_fe_df <- tibble(
 rev_mod <- feols(estimate ~ harvest_year, data = eq6ln_fe_df)
 rev_mod %>% summary()
 base_mod %>% summary()
+
+
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Contrast against prior estimates -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Comparing against Section 7 of hardiyanto et al., 2024. 
+# Productivity increased 15% between R-4 (2013) and R-5 (2017). 
+# Under compound growth, this implies ~3.6% growth per year
+cagr <- (1.15)^(1/(2017-2013))-1
+cagr
