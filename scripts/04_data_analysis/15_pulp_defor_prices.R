@@ -35,6 +35,7 @@ library(sf)
 library(scales)
 library(dtplyr)
 library(WDI)
+library(patchwork)
 # library(multcomp)
 
 
@@ -55,7 +56,7 @@ pulp_exp <- read_csv(paste0(wdir, '/01_data/01_in/gaveau/pulp_expansion.csv')) %
 # Bleached Hardwood Kraft, Acacia, from Indonesia (net price) from RISI
 risi_prices <- readxl::read_excel(paste0(wdir,"/01_data/01_in/wwi/Fastmarkets_2025_01_14-103617.xlsx"),skip=4) %>%
   clean_names() %>% 
-  select(date,net_price=mid_3, sa_net_price = mid_2)
+  select(date,indo_net_price=fp_plp_0045, sa_net_price = fp_plp_0056)
 
 # pulp prices (PPI) (FRED)
 fred_prices_annual <- read_csv(paste0(wdir,"/01_data/01_in/tables/WPU0911_annual.csv")) %>%
@@ -76,12 +77,19 @@ risi_prices_annual <- risi_prices %>%
          year = year(date),
          month = month(date)) %>%
   group_by(year,month) %>%
-  summarize(indo_net_price = mean(net_price),
+  summarize(indo_net_price = mean(indo_net_price),
             sa_net_price = mean(sa_net_price)) %>%
   # filter(year <= 2023 & !is.na(risi_monthly_net_price)) %>%
   group_by(year) %>%
   summarize(indo_prices = mean(indo_net_price),
             sa_prices = mean(sa_net_price)) # Note - missing a few observations for SA in 2001
+
+# mill capacities
+cap_df <- read_excel(paste0(wdir, "/01_data/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
+
+# mill-level production
+mill_prod <- read_excel(paste0(wdir, '/01_data/01_in/wwi/MILL_PRODUCTION_2015_2024.xlsx'))
+
 
 # clean data -------------------------------------------------------------------
 
@@ -261,10 +269,6 @@ summary(mod)
 mod <- lm(ln_nodefor ~ ln_real_price, data = pulp_exp_prices %>% filter(year >= 2011))
 summary(mod)
 
-
-
-
-
 pulp_exp_prices %>% 
   ggplot(aes(x = year, y = sa_real_price)) +
   geom_line() +
@@ -272,3 +276,67 @@ pulp_exp_prices %>%
 pulp_exp_prices %>% 
   ggplot(aes(x = year, y = pulp_defor)) +
   geom_line()
+
+
+
+## Illustrate that mill capacity utilization is inelastic 
+# (respond to review round 2, reviewer 2, comment 7) -------------------------------------------------------------------
+mill_prod <- mill_prod %>%
+  select(MILL_ID, YEAR, TOTAL_PROD_KG_NET) %>%
+  group_by(MILL_ID, YEAR) %>%
+  summarize(prod_mtpy = sum(TOTAL_PROD_KG_NET) / 1000000000) %>%
+  left_join(cap_df %>% select(MILL_ID, PULP_CAP_MTPY), by = "MILL_ID")
+
+mill_prod <- mill_prod %>%
+  mutate(PULP_CAP_MTPY = if_else(MILL_ID == "M-0004" & YEAR < 2023, 2.9, PULP_CAP_MTPY)) %>%   # Adjusting RAPP capacity - pre-dates capacity expansion
+  mutate(cap_usage = prod_mtpy / PULP_CAP_MTPY)
+
+cap_usage_trend <- mill_prod %>%
+  filter(!(MILL_ID=="M-0003" & YEAR < 2019),
+         MILL_ID != "M-0007") %>%
+  group_by(YEAR) %>%
+  summarize(cap = sum(PULP_CAP_MTPY),
+            prod = sum(prod_mtpy)) %>%
+  mutate(cap_usage = prod / cap) %>%
+  rename(year = YEAR)
+
+mill_prod %>%
+  filter(!(MILL_ID=="M-0003" & YEAR < 2019),
+         MILL_ID != "M-0007") %>%
+  mutate(all = 1) %>%
+  group_by(all) %>%
+  summarize(cap = sum(PULP_CAP_MTPY),
+            prod = sum(prod_mtpy)) %>%
+  mutate(cap_usage = prod / cap)
+
+cap_usage_trend <- cap_usage_trend %>%
+  left_join(adjusted_data %>% select(year, indo_real_price), by = 'year')
+
+cap_usage_plot <- cap_usage_trend %>%
+  ggplot(aes(x = year, y = cap_usage)) +
+  geom_line() +
+  ylim(0, 1.2) +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Capacity utilization rate (percent)")
+
+price_trend_plot <- cap_usage_trend %>%
+  ggplot(aes(x = year, y = indo_real_price)) +
+  geom_line() +
+  ylim(0, 1000) + 
+  theme_bw() +
+  xlab("Year") +
+  ylab("Indonesian pulp prices\n(year 2023 USD per tonne)")
+
+cap_usage_plot / price_trend_plot
+
+cap_usage_trend$indo_real_price %>% mean()
+cap_usage_trend$indo_real_price %>% min()
+cap_usage_trend$indo_real_price %>% max()
+cap_usage_trend$indo_real_price %>% sd()
+
+cap_usage_trend$cap_usage %>% mean()
+cap_usage_trend$cap_usage %>% min()
+cap_usage_trend$cap_usage %>% max()
+cap_usage_trend$cap_usage %>% sd()
+cap_usage_trend$cap_usage %>% sd() / cap_usage_trend$cap_usage %>% mean()
