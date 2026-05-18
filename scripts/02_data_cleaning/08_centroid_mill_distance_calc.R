@@ -2,7 +2,7 @@
 ## 
 ## Project: Indonesia pulp deforestation
 ##
-## Purpose of script: Clean od-matrix output files
+## Purpose of script: Clean od-matrix output files for grid centroids to mills
 ##
 ## Author: Robert Heilmayr and Jason Jon Benedict
 ##
@@ -32,31 +32,23 @@ library(tidyfast)
 '%ni%' <- Negate('%in%') # filter out function
 
 ## set working directory -------------------------------------
-
 wdir <- "remote"
 
 ## read data -------------------------------------------------
-
 # centroids to mills (sumatera)
 suma_cm_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\sumatera_centroids_mills_odmatrix.csv"))
-
 # centroids to sea transport locations (kalimantan)
 kali_cp_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\kalimantan_centroids_kali_pts_odmatrix.csv"))
-
 # sumatera ports to mills
 suma_pm_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\sumatera_suma_pts_mills_odmatrix.csv"))
-
 # kalimantan - sumatera ports
 kali_suma_pts_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\idn_kali_suma_ports_od.csv"))
-
 # kalimantan - mill
 kali_cm_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\kalimantan_centroids_mills_add_odmatrix.csv"))
-
 # grid centroids covering kalimantan and sumatera
 grid_10km_sf <- read_sf(paste0(wdir,"\\01_data\\01_in\\ucsb\\kalisuma_10km_grid_centroids_proj.shp"))
 
 ## clean data ------------------------------------------------
-
 # get proper columns
 suma_cm_clean_df <- suma_cm_df %>%
   mutate(Name = str_replace(Name," - "," = ")) %>%
@@ -101,7 +93,6 @@ kali_grid_10km_sf <- grid_10km_sf %>%
   st_drop_geometry()
 
 ## check data ------------------------------------------------
-
 suma_links <- suma_cm_clean_df %>%
   select(orig) %>%
   mutate(orig = as.integer(orig),linked=1) %>%
@@ -140,9 +131,7 @@ kali_links_check %>%
   mutate(shr_unlinked = n_unlinked/(n_unlinked+n_linked)*100) %>%
   print()
 
-
 ## merge data -------------------------------------------------
-
 kali_mill_dist <- kali_cp_clean_df %>%
   group_by(orig) %>%
   filter(dist_km == min(dist_km)) %>%
@@ -188,6 +177,5 @@ cm_dist_add_final_df <- cm_dist_df %>%
   select(-total_dist)
 
 ## export to csv ----------------------------------
-
 write_csv(cm_dist_final_df,paste0(wdir,"\\01_data\\02_out\\tables\\centroids_mills_dist_2017.csv"))
 write_csv(cm_dist_add_final_df,paste0(wdir,"\\01_data\\02_out\\tables\\centroids_mills_dist_2022.csv"))
