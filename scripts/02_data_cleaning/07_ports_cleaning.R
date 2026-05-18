@@ -2,7 +2,7 @@
 ## 
 ## Project: Indonesia pulp deforestation
 ##
-## Purpose of script: Create transport cost matrix for regression analysis
+## Purpose of script: Create clean list of ports for OD-matrix
 ##
 ## Author: Robert Heilmayr and Jason Jon Benedict
 ##
@@ -22,17 +22,7 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 library(stringr)
 library(sf)
 library(tidyverse)
-library(tidylog)
 library(janitor)
-library(lubridate)
-library(scales)
-library(dtplyr)
-library(d3.format) # to install: devtools::install_github("dreamRs/d3.format")
-library(tidyfast)
-library(concordance)
-library(extrafont)
-library(showtext)
-library(khroma) # palettes for color blindness
 
 '%ni%' <- Negate('%in%') # filter out function
 
@@ -52,7 +42,6 @@ ports_df <- read_csv(paste0(wdir,"\\01_data\\01_in\\ucsb\\PORT_DICTIONARY_202312
 islands_df <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\KLHK_Kelompok_Pulau_20210308.shp"))
 
 ## clean data ------------------------------------------------
-
 ports_clean_df <- ports_df %>%
   select(ID,PORT,TYPE,LATITUDE,LONGITUDE) %>%
   distinct() %>%
@@ -65,4 +54,5 @@ ports_clean_df <- ports_df %>%
   filter(pulau %in% c("SUMATERA","KALIMANTAN")) %>%
   print()
 
+## export file to csv ------------------------------------------
 write_csv(ports_clean_df,paste0(wdir,"\\01_data\\01_in\\ucsb\\ports_kalisuma.csv"))
