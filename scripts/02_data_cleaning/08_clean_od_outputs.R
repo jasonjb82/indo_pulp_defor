@@ -21,19 +21,12 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 ### Load packages
 library(stringr)
 library(sf)
-library(dlookr)
 library(tidyverse)
 library(tidylog)
 library(janitor)
 library(lubridate)
 library(scales)
-library(dtplyr)
-library(d3.format) # to install: devtools::install_github("dreamRs/d3.format")
 library(tidyfast)
-library(concordance)
-library(extrafont)
-library(showtext)
-library(khroma) # palettes for color blindness
 
 '%ni%' <- Negate('%in%') # filter out function
 
