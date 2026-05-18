@@ -1,6 +1,7 @@
 ## ---------------------------------------------------------
 ##
-## Purpose of script: Get table of samples with HTI IDs
+## Purpose of script: Get table and shapefiles of samples 
+## for data extraction with HTI IDs by island
 ##
 ## Author: Jason Benedict
 ##
@@ -22,22 +23,9 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 library(tidyverse)
 library(readxl)
 library(tidylog)
-library(data.table)
 library(janitor)
 library(lubridate)
 library(sf)
-library(scales)
-library(aws.s3)
-library(showtext)
-library(khroma) # palettes for color blindness
-library(nngeo)
-
-
-## credentials ----------------------------------------------
-
-aws.signature::use_credentials()
-bucket <- "trase-storage"
-Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 ## set working directory -------------------------------------
 
