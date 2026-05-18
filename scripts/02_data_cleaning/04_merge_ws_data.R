@@ -22,29 +22,12 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 
 ### Load packages
 library(stringr)
-library(data.table)
-library(naniar)
-library(visdat)
 library(tidyverse)
 library(readxl)
 library(tidylog)
-library(data.table)
 library(janitor)
 library(lubridate)
-library(sf)
 library(scales)
-library(aws.s3)
-library(dtplyr)
-library(testthat)
-library(d3.format)
-library(tidyfast)
-library(patchwork)
-
-## credentials ----------------------------------------------
-
-aws.signature::use_credentials()
-bucket <- "trase-storage"
-Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 ## set working directory -------------------------------------
 
@@ -62,7 +45,7 @@ ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD
 groups <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.csv"))
 
 # mills
-mills <- s3read_using(read_excel, object = "indonesia/wood_pulp/logistics/out/mills/MILLS_EXPORTERS_20200405.xlsx", bucket = bucket)
+mills <- read_excel(paste0(wdir, "/01_data/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
 
 ## aggregate data -------------------------------------------
 
