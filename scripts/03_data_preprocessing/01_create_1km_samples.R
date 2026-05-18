@@ -79,7 +79,7 @@ grid_adm_df <- grid_kab_sf %>%
   select(-geometry) %>%
   print()
 
-# export files
+# export files ------------------------------------------------
 write_csv(grid_adm_df,paste0(wdir,"\\01_data\\02_out\\samples\\kalisuma_1km_grid_pts.csv"))
 write_sf(grid_adm_df,paste0(wdir,"\\01_data\\02_out\\samples\\kalisuma_1km_grid.shp"))
 
