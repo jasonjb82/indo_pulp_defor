@@ -39,7 +39,6 @@ library(janitor)
 library(lubridate)
 library(sf)
 library(scales)
-library(aws.s3)
 library(dtplyr)
 library(testthat)
 library(d3.format)
@@ -50,12 +49,6 @@ library(rcartocolor)
 library(vistime)
 library(svglite)
 library(khroma) # palettes for color blindness
-
-## credentials ----------------------------------------------
-
-aws.signature::use_credentials()
-bucket <- "trase-storage"
-Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 ## set working directory -------------------------------------
 wdir <- "remote"
@@ -132,7 +125,7 @@ islands <- kab %>%
   drop_na(island)
 
 # mills
-mills <- s3read_using(read_excel, object = "indonesia/wood_pulp/logistics/out/mills/MILLS_EXPORTERS_20200405.xlsx", bucket = bucket)
+mills <- read_excel(paste0(wdir, "/01_data/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
 
 ############################################################################
 # Clean / prep data --------------------------------------------------------
@@ -241,25 +234,6 @@ defor_pp_plot <- ggplot(data = defor_price_comb, aes(x = year))+
 
 defor_pp_plot
 
-# defor_plot <- hti_nonhti_conv %>%
-#   filter(conv_type == 2) %>% 
-#   ggplot() +
-#   aes(y = area_ha, x = year, fill=factor(island,levels=rev(island_order)),color=factor(island,levels=rev(island_order))) +
-#   geom_col() +
-#   xlab("\nYear") +
-#   ylab("Pulp-driven deforestation (ha)") + 
-#   scale_y_continuous(expand=c(0,0),labels = d3_format(".2~s",suffix = ""))+
-#   scale_x_continuous(expand=c(0,1),breaks=seq(2001,2023,by=1),labels = seq(2001,2023,by=1)) +
-#   scale_fill_manual(values=c(colorBlind8[7],colorBlind8[3],colorBlind8[5]),
-#                     breaks=island_order,labels=island_order)+ 
-#   scale_color_manual(values=c(colorBlind8[7],colorBlind8[3],colorBlind8[5]),
-#                      breaks=island_order,labels=island_order)+ 
-#   guides(fill = guide_legend(nrow = 1,reverse = FALSE),color = guide_legend(nrow = 1,reverse = FALSE),keyheight = 10) +
-#   #facet_wrap(~supplier_label,ncol=1,scales="free") +
-#   theme_plot
-# 
-# defor_plot
-
 # Panel B - Wood supply transition -------------------------------------
 
 # Stacked bar breaking pulpwood volumes into MTH / plantation sources (probably simplify categories from current figure). 
@@ -280,38 +254,6 @@ timber_for_pulp_od <- timber_for_pulp %>%
   mutate(ratio = annual_prod_mtpy / sum(annual_prod_mtpy)) %>%
   ungroup() %>%
   select(year,woodtype,ratio)
-
-# plantation_mth_ratio <- timber_plantation_silk %>%
-#   bind_rows(timber_for_pulp_od) %>%
-#   select(year,woodtype,ratio) %>%
-#   filter(year > 2000) %>%
-#   mutate(ratio = ifelse(is.nan(ratio),0,ratio)) %>%
-#   arrange(year) 
-
-# # merge ratio and WITS exports
-# pulp_ratio <- pulp_exports %>%
-#   group_by(year) %>%
-#   summarize(vols_tonnes = sum(exports_kg)/1000) %>%
-#   right_join(plantation_mth_ratio,by="year") %>%
-#   mutate(vols_ton_ratio = vols_tonnes*ratio,
-#          vols_ton_ratio = ifelse(is.na(vols_tonnes),0,vols_ton_ratio))
-
-# # clean pulp ratio (temporary fix using O-D and SILK data ratios)
-# pulp_ratio_clean <- pulp_ratio %>%
-#   drop_na(vols_tonnes) %>%
-#   select(year,woodtype,ratio) %>%
-#   add_row(year = c(2020,2021,2022),woodtype=c("Plantation","Plantation","Plantation"),ratio=c(1,1,1)) %>%
-#   group_by() %>% tidyr::complete(year = min(year):2022, woodtype) %>%
-#   mutate(ratio = ifelse(is.na(ratio) & year > 2016,0,ratio)) %>%
-#   group_by(woodtype) %>%
-#   fill(ratio, .direction = c("down")) %>%
-#  print()
-
-# # modified pulp production
-# pulp_prod_modified <- pulp_ratio_clean %>%
-#   left_join(pulp_production,by="year") %>%
-#   mutate(prod_woodtype = ratio*annual_prod_mtpy) %>%
-#   select(year,woodtype,ratio,annual_prod_mtpy,prod_woodtype)
 
 # pulp production with ratios
 pulp_prod_modified <- pulp_production %>%
@@ -351,9 +293,6 @@ wt_plot <- ggplot(pulp_prod_ratio_merged) +
 wt_plot
 
 # Panel C - Timeline of key developments in the sector & government ----
-
-# We can discuss what all we'd like to include during our call next week, but here are a few ideas to seed the figure
-# https://www.dropbox.com/s/fzy0s7eg62h2r8a/policy_timeline.xlsx?dl=0
 
 df <- policy_tl[with(policy_tl, order(year)), ]
 
@@ -453,6 +392,6 @@ comb_plot <- comb_plot +
   theme(plot.tag = element_text(face = 'bold', size=12))
 comb_plot
 
-##ggsave(comb_plot,file="D:/comb_plot.png", dpi=400, w=11, h=14,type="cairo-png") 
+## save to image format
 ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=12, h=15,type="cairo-png") 
 ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_rev4.svg"), dpi=400, w=12, h=15) 
