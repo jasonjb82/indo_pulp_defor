@@ -79,6 +79,13 @@ hti_mai <- read_csv(paste0(wdir, "/01_data/02_out/tables/hti_mai.csv"))
 # Add administrative labels
 grid_admin <- read_csv(paste0(wdir, "/01_data/02_out/tables/grid_10km_adm_prov_kab_kec.csv"))
 
+# mill capacities
+cap_df <- read_excel(paste0(wdir, "/01_data/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
+
+# mill-level production
+mill_prod <- read_excel(paste0(wdir, '/01_data/01_in/wwi/MILL_PRODUCTION_2015_2024.xlsx'))
+
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # clean price data --------------
@@ -100,6 +107,9 @@ risi_prices_annual <- risi_prices %>%
   select(year, sa_prices, indo_prices, nasc_prices)
 
 
+# Convert global (or indonesian) pulp prices (RISI) into 
+# local pulpwood-equivalent prices (WRQ).
+# Just a constant multiplicative conversion - designed to improve interpretability
 wrq_prices <- wrq_prices %>%
   left_join(risi_prices_annual, by = "year")
 
@@ -110,8 +120,8 @@ indo_price_conversion_mod <- lm(wrq_indo_prices ~ indo_prices + 0, data = wrq_pr
 summary(indo_price_conversion_mod)
 
 risi_prices_annual <- risi_prices_annual %>%
-  mutate(sa_prices = predict(sa_price_conversion_mod, newdata = risi_prices_annual),
-         indo_prices = predict(indo_price_conversion_mod, newdata = risi_prices_annual))
+  mutate(sa_prices_remap = predict(sa_price_conversion_mod, newdata = risi_prices_annual),
+         indo_prices_remap = predict(indo_price_conversion_mod, newdata = risi_prices_annual))
 
 # Add Ind RISI prices to price series
 risi_prices_annual <- risi_prices_annual %>% 
@@ -120,8 +130,8 @@ risi_prices_annual <- risi_prices_annual %>%
 # Convert currency
 risi_prices_annual <- risi_prices_annual %>%
   left_join(fred_idr_usd, by = "year") %>%
-  mutate(sa_prices_idr = sa_prices * idr_usd / 1000000,  # Convert from USD to million IDR
-         indo_prices_idr = indo_prices * idr_usd / 1000000,
+  mutate(sa_prices_idr = sa_prices_remap * idr_usd / 1000000,  # Convert from USD to million IDR
+         indo_prices_idr = indo_prices_remap * idr_usd / 1000000,
          wrq_prices_idr = wrq_prices * idr_usd / 1000000)  
 
 # Adjust for inflation
@@ -129,8 +139,9 @@ risi_prices_annual <- risi_prices_annual %>%
   left_join(fred_idn_cpi, by = "year") %>%
   mutate(sa_prices_real = sa_prices_idr / idn_cpi * 100, # Adjust for inflation - reference year is 2015
          indo_prices_real = indo_prices_idr / idn_cpi * 100, 
+         indo_prices_real_usd = indo_prices / idn_cpi * 100,
          wrq_prices_real = wrq_prices_idr / idn_cpi * 100,
-         sa_prices_dev = (sa_prices - zoo::rollmean(sa_prices, k = 5, fill = NA, align = "right")) / 1000) # Deviation in 1000 USD
+         sa_prices_dev = (sa_prices_remap - zoo::rollmean(sa_prices_remap, k = 5, fill = NA, align = "right")) / 1000) # Deviation in 1000 USD
 
 # Adjust transport costs for currency and inflation
 trnsprt_cst_df <- trnsprt_cst_df %>% 
@@ -445,3 +456,71 @@ defor_plot <- ggplot(total_pulp_defor %>% filter(year > 2000, year < 2023), aes(
   annotate("text", x = 2018, y = 20, label = "Observed deforestation", color = "black")
 defor_plot
 ggsave(paste0(wdir, "/01_data/04_results/figures/SI_f3_elasticity.png"), width = 7, height = 5)
+
+
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Illustrate that mill capacity utilization is inelastic 
+## (respond to review round 2, reviewer 2, comment 7)
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+mill_prod <- mill_prod %>%
+  select(MILL_ID, YEAR, TOTAL_PROD_KG_NET) %>%
+  group_by(MILL_ID, YEAR) %>%
+  summarize(prod_mtpy = sum(TOTAL_PROD_KG_NET) / 1000000000) %>%
+  left_join(cap_df %>% select(MILL_ID, PULP_CAP_MTPY), by = "MILL_ID")
+
+mill_prod <- mill_prod %>%
+  mutate(PULP_CAP_MTPY = if_else(MILL_ID == "M-0004" & YEAR < 2023, 2.9, PULP_CAP_MTPY)) %>%   # Adjusting RAPP capacity - pre-dates capacity expansion
+  mutate(cap_usage = prod_mtpy / PULP_CAP_MTPY)
+
+cap_usage_trend <- mill_prod %>%
+  filter(!(MILL_ID=="M-0003" & YEAR < 2019),
+         MILL_ID != "M-0007") %>%
+  group_by(YEAR) %>%
+  summarize(cap = sum(PULP_CAP_MTPY),
+            prod = sum(prod_mtpy)) %>%
+  mutate(cap_usage = prod / cap) %>%
+  rename(year = YEAR)
+
+mill_prod %>%
+  filter(!(MILL_ID=="M-0003" & YEAR < 2019),
+         MILL_ID != "M-0007") %>%
+  mutate(all = 1) %>%
+  group_by(all) %>%
+  summarize(cap = sum(PULP_CAP_MTPY),
+            prod = sum(prod_mtpy)) %>%
+  mutate(cap_usage = prod / cap)
+
+cap_usage_trend <- cap_usage_trend %>%
+  left_join(risi_prices_annual %>% select(year, indo_prices_real_usd), by = 'year')
+
+cap_usage_plot <- cap_usage_trend %>%
+  ggplot(aes(x = year, y = cap_usage)) +
+  geom_line() +
+  scale_x_continuous(breaks = scales::breaks_width(1), minor_breaks = NULL) +
+  ylim(0, 1.2) +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Capacity utilization rate (percent)")
+
+price_trend_plot <- cap_usage_trend %>%
+  ggplot(aes(x = year, y = indo_prices_real_usd)) +
+  geom_line() +
+  scale_x_continuous(breaks = scales::breaks_width(1), minor_breaks = NULL) +
+  ylim(0, 700) +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Indonesian pulp prices\n(year 2023 USD per tonne)")
+
+cap_usage_plot / price_trend_plot
+
+cap_usage_trend$indo_prices_real_usd %>% mean()
+cap_usage_trend$indo_prices_real_usd %>% min()
+cap_usage_trend$indo_prices_real_usd %>% max()
+cap_usage_trend$indo_prices_real_usd %>% sd()
+
+cap_usage_trend$cap_usage %>% mean()
+cap_usage_trend$cap_usage %>% min()
+cap_usage_trend$cap_usage %>% max()
+cap_usage_trend$cap_usage %>% sd()
+cap_usage_trend$cap_usage %>% sd() / cap_usage_trend$cap_usage %>% mean()

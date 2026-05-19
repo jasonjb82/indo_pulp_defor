@@ -11,7 +11,7 @@
 ## 
 ## ---------------------------------------------------------
 ##
-## Notes: 
+## Notes: I THINK THIS SCRIPT CAN BE DEPRECATED ONCE THE RESPONSE TO REVIEWER IS MOVED TO SCRIPT 17
 ##
 ##
 ##
