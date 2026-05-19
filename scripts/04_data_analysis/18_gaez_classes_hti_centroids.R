@@ -44,10 +44,10 @@ wdir <- "remote"
 ## read data -------------------------------------------------
 
 # GAEZ classes in HTIs
-hti_gaez_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaez_classes_by_conc.csv"))
+hti_gaez_df <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaez_classes_by_conc.csv"))
 
 # GAEZ classes in grids
-grid_gaez_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaez_classes_by_grid_10km.csv"))
+grid_gaez_df <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaez_classes_by_grid_10km.csv"))
 
 # GAEZ classes
 gaez_class <- tibble::tribble(
@@ -131,11 +131,11 @@ grid_gaez_wide_pct <- grid_gaez_wide_df %>%
 # export files to csv ----------------------------------------------------------
 
 # GAZ areas in HTI
-write_csv(hti_gaez_wide_df,paste0(wdir,("\\01_data\\02_out\\tables\\gaez_hti_areas.csv")))
+write_csv(hti_gaez_wide_df,paste0(wdir,("/01_data/02_out/tables/gaez_hti_areas.csv")))
 
 # GAEZ areas in 10km grids
-write_csv(grid_gaez_wide_pct,paste0(wdir,("\\01_data\\02_out\\tables\\gaez_grid_share.csv")))
+write_csv(grid_gaez_wide_pct,paste0(wdir,("/01_data/02_out/tables/gaez_grid_share.csv")))
 
 # GAEZ classes
-write_csv(gaez_class,paste0(wdir,("\\01_data\\02_out\\tables\\gaez_class_codes_desc.csv")))
+write_csv(gaez_class,paste0(wdir,("/01_data/02_out/tables/gaez_class_codes_desc.csv")))
 

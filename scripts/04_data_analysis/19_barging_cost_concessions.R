@@ -44,13 +44,13 @@ wdir <- "remote"
 ## read data -------------------------------------------------
 
 # centroids to mills
-centroid_all_mills_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\centroids_mills_all_od_output.csv"))
+centroid_all_mills_df <- read_csv(paste0(wdir,"/01_data/02_out/tables/centroids_mills_all_od_output.csv"))
 
 # contractor table values
-contr_tbl <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\sm_contractor_rates_simplified.csv"))
+contr_tbl <- read_csv(paste0(wdir,"/01_data/02_out/tables/sm_contractor_rates_simplified.csv"))
 
 # grid points for report concessions
-grid_conc <- read_csv(paste0(wdir,"\\01_data\\01_in\\ucsb\\transport_cost\\concession_grid_pts.csv"))
+grid_conc <- read_csv(paste0(wdir,"/01_data/01_in/ucsb/transport_cost/concession_grid_pts.csv"))
 
 # mills
 mills <- s3read_using(read_excel, object = "indonesia/wood_pulp/logistics/out/mills/MILLS_EXPORTERS_20200405.xlsx", bucket = bucket)
