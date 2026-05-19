@@ -26,16 +26,9 @@ library(tidylog)
 library(janitor)
 library(tidyfast)
 library(fuzzyjoin)
-library(aws.s3)
 library(readxl)
 
 '%ni%' <- Negate('%in%') # filter out function
-
-## credentials ----------------------------------------------
-
-aws.signature::use_credentials()
-bucket <- "trase-storage"
-Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 ## set working directory -------------------------------------
 
@@ -53,7 +46,7 @@ contr_tbl <- read_csv(paste0(wdir,"/01_data/02_out/tables/sm_contractor_rates_si
 grid_conc <- read_csv(paste0(wdir,"/01_data/01_in/ucsb/transport_cost/concession_grid_pts.csv"))
 
 # mills
-mills <- s3read_using(read_excel, object = "indonesia/wood_pulp/logistics/out/mills/MILLS_EXPORTERS_20200405.xlsx", bucket = bucket)
+mills <- read_excel(paste0(wdir, "/01_data/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
 
 ## clean data and create outputs -----------------------------
 
