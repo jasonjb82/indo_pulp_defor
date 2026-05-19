@@ -27,18 +27,11 @@ library(janitor)
 library(lubridate)
 library(sf)
 library(scales)
-library(aws.s3)
 library(showtext)
 library(khroma) # palettes for color blindness
 library(nngeo)
 # library(d3.format)
 library(rmapshaper)
-
-## credentials ----------------------------------------------
-
-aws.signature::use_credentials()
-bucket <- "trase-storage"
-Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 ## set working directory -------------------------------------
 
@@ -140,9 +133,7 @@ hti_peat_not_peat_ba <- hti_ba_peat %>%
 # write to csv
 write_csv(hti_peat_not_peat_ba,paste0(wdir,"\\01_data\\02_out\\tables\\concessions_burned_area_peat.csv"))
 
-
 ### Get areas for APRIL suppliers
-
 ## clean mill supplier
 app_supplier <- ws %>%
   filter(str_detect(SUPPLIER_ID, '^H-')) %>%
