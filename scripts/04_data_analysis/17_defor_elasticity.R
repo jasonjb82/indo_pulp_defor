@@ -100,21 +100,8 @@ risi_prices_annual <- risi_prices %>%
   select(year, sa_prices, indo_prices, nasc_prices)
 
 
-# Explore similarity to FRED data
-fred_prices_annual <- read_csv(paste0(wdir,"/01_data/01_in/tables/WPU0911_annual.csv")) %>%
-  mutate(date = as.Date(observation_date,format="%d/%m/%Y"),
-         year = year(date)) %>%
-  select(year,fred_prices = WPU0911)
-
-risi_prices_annual <- risi_prices_annual %>%
-  left_join(fred_prices_annual, by = "year")
-
 wrq_prices <- wrq_prices %>%
   left_join(risi_prices_annual, by = "year")
-
-# # Convert longer SA pulp price series (USD/tonne) into Indonesian pulpwood prices (USD/m3)
-# wrq_prices <- wrq_prices %>% 
-#   left_join(risi_prices_annual, by = "year")
 
 sa_price_conversion_mod <- lm(wrq_indo_prices ~ sa_prices + 0, data = wrq_prices)
 summary(sa_price_conversion_mod)
@@ -122,17 +109,9 @@ summary(sa_price_conversion_mod)
 indo_price_conversion_mod <- lm(wrq_indo_prices ~ indo_prices + 0, data = wrq_prices)
 summary(indo_price_conversion_mod)
 
-nasc_price_conversion_mod <- lm(wrq_indo_prices ~ nasc_prices + 0, data = wrq_prices)
-summary(nasc_price_conversion_mod)
-
-fred_price_conversion_mod <- lm(wrq_indo_prices ~ fred_prices + 0, data = wrq_prices)
-summary(fred_price_conversion_mod)
-
 risi_prices_annual <- risi_prices_annual %>%
   mutate(sa_prices = predict(sa_price_conversion_mod, newdata = risi_prices_annual),
-         fred_prices = predict(fred_price_conversion_mod, newdata = risi_prices_annual),
-         indo_prices = predict(indo_price_conversion_mod, newdata = risi_prices_annual),
-         nasc_prices = predict(nasc_price_conversion_mod, newdata = risi_prices_annual))
+         indo_prices = predict(indo_price_conversion_mod, newdata = risi_prices_annual))
 
 # Add Ind RISI prices to price series
 risi_prices_annual <- risi_prices_annual %>% 
@@ -143,8 +122,6 @@ risi_prices_annual <- risi_prices_annual %>%
   left_join(fred_idr_usd, by = "year") %>%
   mutate(sa_prices_idr = sa_prices * idr_usd / 1000000,  # Convert from USD to million IDR
          indo_prices_idr = indo_prices * idr_usd / 1000000,
-         nasc_prices_idr = nasc_prices * idr_usd / 1000000,
-         fred_prices_idr = fred_prices * idr_usd / 1000000,
          wrq_prices_idr = wrq_prices * idr_usd / 1000000)  
 
 # Adjust for inflation
@@ -152,8 +129,6 @@ risi_prices_annual <- risi_prices_annual %>%
   left_join(fred_idn_cpi, by = "year") %>%
   mutate(sa_prices_real = sa_prices_idr / idn_cpi * 100, # Adjust for inflation - reference year is 2015
          indo_prices_real = indo_prices_idr / idn_cpi * 100, 
-         nasc_prices_real = nasc_prices_idr / idn_cpi * 100, 
-         fred_prices_real = fred_prices_idr / idn_cpi * 100, 
          wrq_prices_real = wrq_prices_idr / idn_cpi * 100,
          sa_prices_dev = (sa_prices - zoo::rollmean(sa_prices, k = 5, fill = NA, align = "right")) / 1000) # Deviation in 1000 USD
 
@@ -166,29 +141,6 @@ trnsprt_cst_df <- trnsprt_cst_df %>%
          trnsprt_cost_real = cost_kidr_perton_real / 1.142) %>%  # Convert from USD/tonne to USD/m3 (assuming 1.142 m3 per tonne)
   select(pixel_id, trnsprt_cost_real)
 
-# # Explore similarity to FRED data
-# fred_prices_annual <- read_csv(paste0(wdir,"/01_data/01_in/tables/WPU0911_annual.csv")) %>%
-#   mutate(date = as.Date(observation_date,format="%d/%m/%Y"),
-#          year = year(date)) %>%
-#   select(year,prices = WPU0911)
-# 
-# fred_prices_annual <- fred_prices_annual %>%
-#   left_join(risi_prices_annual, by = "year")
-# 
-# mod <- lm(sa_prices ~ prices, data = fred_prices_annual)
-# summary(mod)
-# 
-# mod <- lm(sa_prices ~ indo_prices, data = fred_prices_annual)
-# summary(mod)
-# 
-# mod <- lm(indo_prices ~ prices, data = fred_prices_annual)
-# summary(mod)
-# 
-# fred_prices_annual %>% 
-#   ggplot(aes(x = year)) +
-#   geom_line(aes(y = prices, color = "FRED PPI")) +
-#   geom_line(aes(y = indo_prices, color = "RISI Indonesia")) +
-#   geom_line(aes(y = sa_prices, color = "RISI South America"))
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -209,11 +161,6 @@ defor_df <- defor_df %>%
 # Add prices to defor_df
 defor_df <- defor_df %>%
   left_join(risi_prices_annual, by = "year")
-
-# Calculate prices net of transport costs
-# TODO: Still need to adjust transport prices to IDR
-defor_df <- defor_df %>%
-  mutate(net_prices = sa_prices_real - trnsprt_cost_real)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -292,18 +239,9 @@ defor_df <- defor_df %>%
 defor_df <- defor_df %>%
   mutate(pot_revenues = (sa_prices_real * pot_mai),
          pot_revenues_indo = (indo_prices_real * pot_mai),
-         pot_revenues_nasc = (nasc_prices_real * pot_mai),
-         pot_revenues_fred = (fred_prices_real * pot_mai),
          pot_revenues_wrq = (wrq_prices_real * pot_mai),
-         pot_revenues_net = (net_prices * pot_mai),
          pot_revenues_dev = (sa_prices_dev * pot_mai),
          post_2015 = year > 2015)
-
-# ,
-#          time_periods = case_when(
-#             year < 2010 ~ "2000-2010",
-#             year >= 2010 & year < 2017 ~ "2010-2017",
-#             year >= 2017 & year < 2022 ~ "2017-2022"))
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -311,9 +249,6 @@ defor_df <- defor_df %>%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 mod_1 <- feols(pulp_forest_ha ~ pot_revenues | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(mod_1)
-
-null_mod <- feols(pulp_forest_ha ~ 1 | pixel_id + year, data = defor_df, vcov = ~kec_code)
-summary(null_mod)
 
 mod_2 <- feols(pulp_forest_ha ~ post_2015:pot_revenues | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(mod_2)
@@ -324,6 +259,10 @@ summary(mod_3)
 mod_4 <- feols(pulp_non_forest_ha ~ post_2015:pot_revenues | pixel_id + year, data = defor_df, vcov = ~kec_code)
 summary(mod_4)
 
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Generate summary table (SI Table 9)  --------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 ### Format summary table
 # glance_custom.fixest injects n_clusters into modelsummary's GOF machinery
@@ -357,10 +296,11 @@ do.call(msummary, c(tbl_args, list(output = paste0(wdir, "/01_data/04_results/ta
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Robustness table  --------------
+# Robustness table (SI Table 10)  --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Re-run base model with same coefficients
-defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues)
+defor_df <- defor_df %>% 
+  mutate(pot_revenues_r = pot_revenues)
 rmod_0 <- feols(pulp_forest_ha ~ post_2015:pot_revenues_r | pixel_id + year, data = defor_df, vcov = ~kec_code)
 
 # Add suitability time trend
@@ -378,14 +318,16 @@ rmod_2 <- feols(pulp_forest_ha ~ post_2015:pot_revenues_r | pixel_id + year,
 summary(rmod_2)
 
 # Price deviation
-defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues_dev)
+defor_df <- defor_df %>% 
+  mutate(pot_revenues_r = pot_revenues_dev)
 rmod_3 <- feols(pulp_forest_ha ~ post_2015:pot_revenues_r | pixel_id + year, 
   data = defor_df, vcov = ~kec_code)
 summary(rmod_3)
 
 
 # Use Indonesian pulpwood price series instead of SA
-defor_df <- defor_df %>% mutate(pot_revenues_r = pot_revenues_indo)
+defor_df <- defor_df %>% 
+  mutate(pot_revenues_r = pot_revenues_indo)
 rmod_4 <- feols(pulp_forest_ha ~ post_2015:pot_revenues_r | pixel_id + year, 
   data = defor_df, vcov = ~kec_code)
 summary(rmod_4)
@@ -452,7 +394,7 @@ rev_plot / defor_plot
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Interpretation --------------
+# Interpretation - text in SI --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # How big of an impact does an increase in prices have?
 # every 1000 IDR increase in potential returns (XX% increase relative to mean) 
@@ -461,11 +403,6 @@ rev_plot / defor_plot
 mod_1$coefficients[1]
 mod_1$coefficients[1] / (defor_df$pulp_forest_ha %>% mean())
 
-
-## Notes on interpretation of importance of this elasticity:
-# Interpret change in R2 - tiny shift relative to model with all fixed effects
-r2(mod_1)
-r2(null_mod)
 
 # Percent of decline in deforestation between 2011 and 2017 explained by price deviation
 # Price change
@@ -485,12 +422,11 @@ pot_returns_2022 <- defor_df %>%
   mean()
 
 
-
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Interpretation - SI Figure 3 --------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 defor_cf <- defor_df %>% 
   mutate(defor_price_partial = pot_revenues * mod_1$coefficients[1])
-
-# defor_cf <- test_df %>% 
-#   mutate(defor_price_partial = ((year <= 2015) * pot_revenues * mod_2$coefficients[1]) + ((year > 2015) * pot_revenues * mod_2$coefficients[2]))
 
 total_pulp_defor <- defor_cf %>%
   group_by(year) %>%
