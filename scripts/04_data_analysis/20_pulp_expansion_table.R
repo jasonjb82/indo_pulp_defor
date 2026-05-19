@@ -44,29 +44,29 @@ wdir <- "remote"
 ## read data -------------------------------------------------
 
 # license dates of concessions
-lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
+lic_dates_hti <- readr::read_csv(paste0(wdir,"/01_data/01_in/wwi/HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
 
 # sample IDs and HTI
-samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
+samples_hti <- read_csv(paste0(wdir,"/01_data/02_out/samples/samples_hti_id.csv"))
 
 # hti concessions
-hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_TRASE_20230314_proj.shp"))
+hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp"))
 
 # annual pulp table
-ann_pulp_tbl <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\pulp_expansion_areas_2001_2022.csv"))
+ann_pulp_tbl <- read_csv(paste0(wdir,"/01_data/02_out/tables/pulp_expansion_areas_2001_2022.csv"))
 
 # pulpwood conversion from forest and non-forest within and outside hti concessions
-hti_nonhti_conv <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\idn_pulp_conversion_hti_nonhti_gaveau.csv"))
+hti_nonhti_conv <- read_csv(paste0(wdir,"/01_data/02_out/tables/idn_pulp_conversion_hti_nonhti_gaveau.csv"))
 
 ## read point sample extracted datasets ##
 
 # TreeMap cleared area classes
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),pattern = "*gaveau_classes.csv",full.names= TRUE)
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gaveau/"),pattern = "*gaveau_classes.csv",full.names= TRUE)
 
 samples_treemap_landuse <- filenames %>% map_dfr(read_csv) %>% janitor::clean_names() 
 
 # GFC deforestation (modified by TreeMap)
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_ttm\\"), pattern = "*.csv", full.names= TRUE)
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gfc_ttm/"), pattern = "*.csv", full.names= TRUE)
 
 samples_gfc_ttm <- filenames %>% map_dfr(read_csv) %>%janitor::clean_names() 
 
@@ -185,4 +185,4 @@ merged_table <- ann_pulp_tbl %>%
   mutate(Pulp_expansion_hti_kha=Pulp_expansion_hti_kha/1000,Pulp_expansion_hti_after_permit_year_kha=Pulp_expansion_hti_after_permit_year_kha/1000) %>%
   print()
   
-write_csv(merged_table,paste0(wdir,"\\01_data\\02_out\\tables\\pulp_expansion_areas_all_2001_2022.csv"))
+write_csv(merged_table,paste0(wdir,"/01_data/02_out/tables/pulp_expansion_areas_all_2001_2022.csv"))

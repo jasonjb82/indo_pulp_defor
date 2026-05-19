@@ -59,13 +59,13 @@ wdir <- "remote"
 '%ni%' <- Negate('%in%') # filter out function
 
 ## load color palette
-source("scripts\\001_misc\\001_color_palettes.R")
+source("scripts/001_misc/001_color_palettes.R")
 
 ## HTI and sample IDs
-samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
+samples_hti <- read_csv(paste0(wdir,"/01_data/02_out/samples/samples_hti_id.csv"))
 
 ## hti license dates
-lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
+lic_dates_hti <- readr::read_csv(paste0(wdir,"/01_data/01_in/wwi/HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
 
 ## clean license dates
 hti_dates_clean <- lic_dates_hti %>%
@@ -73,7 +73,7 @@ hti_dates_clean <- lic_dates_hti %>%
   select(supplier_id=HTI_ID,license_year=YEAR)
 
 ## GFC deforestation (modified by TreeMap)
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_ttm\\"),
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gfc_ttm/"),
                  pattern = "*.csv",
                  full.names= TRUE)
 
@@ -82,7 +82,7 @@ samples_gfc_ttm <- filenames %>%
   janitor::clean_names() 
 
 ## GFC deforestation, peat and Margono primary forest
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_peat\\"),
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gfc_peat/"),
                  pattern = "*.csv",
                  full.names= TRUE)
 
@@ -91,17 +91,17 @@ samples_gfc_margono_peat <- filenames %>%
   janitor::clean_names() 
 
 ## Gaveau data
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),pattern = "*gaveau_classes.csv",full.names= TRUE)
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gaveau/"),pattern = "*gaveau_classes.csv",full.names= TRUE)
 
 samples_gaveau_landuse <- filenames %>%
   map_dfr(read_csv) %>%
   janitor::clean_names() 
 
 # expansion on soil type (Gaveau)
-pulp_ttm_soil_type <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\idn_pulp_annual_expansion_peat_mineral_soils.csv"))
+pulp_ttm_soil_type <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaveau/idn_pulp_annual_expansion_peat_mineral_soils.csv"))
 
 # expansion of pulp on peat
-pulp_peat_moa <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gfc_peat\\idn_pulp_annual_expansion_peatland_moa.csv"))
+pulp_peat_moa <- read_csv(paste0(wdir,"/01_data/02_out/gee/gfc_peat/idn_pulp_annual_expansion_peatland_moa.csv"))
 
 ## clean data ------------------------------------------------
 
@@ -250,5 +250,5 @@ pulp_peat_long  %>%
 
 # export data ------------------------------------------------
 
-write_csv(pulp_ttm_st_long,paste0(wdir,"\\01_data\\02_out\\tables\\pulp_expansion_peat_mineral_soils_treemap.csv"))
-write_csv(pulp_peat_long,paste0(wdir,"\\01_data\\02_out\\tables\\pulp_expansion_peat_moa.csv"))
+write_csv(pulp_ttm_st_long,paste0(wdir,"/01_data/02_out/tables/pulp_expansion_peat_mineral_soils_treemap.csv"))
+write_csv(pulp_peat_long,paste0(wdir,"/01_data/02_out/tables/pulp_expansion_peat_moa.csv"))

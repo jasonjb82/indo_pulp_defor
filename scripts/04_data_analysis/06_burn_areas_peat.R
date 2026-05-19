@@ -31,7 +31,7 @@ library(aws.s3)
 library(showtext)
 library(khroma) # palettes for color blindness
 library(nngeo)
-library(d3.format)
+# library(d3.format)
 library(rmapshaper)
 
 ## credentials ----------------------------------------------
@@ -51,13 +51,13 @@ memory.limit(size=65000)
 
 
 # hti concessions
-hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
+hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HT_proj.shp"))
 
 # burn areas
-ba <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\burn_areas\\ba_2015_2019.shp"))
+ba <- read_sf(paste0(wdir,"/01_data/01_in/klhk/burn_areas/ba_2015_2019.shp"))
 
 # peat
-peat <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\peat\\Indonesian_Peat_Map_BBSDLP_MoAgri_2011.shp"))
+peat <- read_sf(paste0(wdir,"/01_data/01_in/klhk/peat/Indonesian_Peat_Map_BBSDLP_MoAgri_2011.shp"))
 
 # wood supply
 ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2019.csv", bucket), delim = ",")

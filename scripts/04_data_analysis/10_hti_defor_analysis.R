@@ -52,31 +52,31 @@ wdir <- "remote"
 '%ni%' <- Negate('%in%') # filter out function
 
 ## load color palette
-source("scripts\\001_misc\\001_color_palettes.R")
+source("scripts/001_misc/001_color_palettes.R")
 
 ## data lookup table
-lu_table <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\data_lookup_table.csv"))
+lu_table <- read_csv(paste0(wdir,"/01_data/02_out/gee/data_lookup_table.csv"))
 
 ## hti license dates
-lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
+lic_dates_hti <- readr::read_csv(paste0(wdir,"/01_data/01_in/wwi/HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
 
 ## supplier groups
-groups <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.csv"))
+groups <- read_csv(paste0(wdir,"/01_data/01_in/wwi/ALIGNED_NAMES_GROUP_HTI.csv"))
 
 ## HTI and sample IDs
-samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
+samples_hti <- read_csv(paste0(wdir,"/01_data/02_out/samples/samples_hti_id.csv"))
 
 # hti concessions
-hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_TRASE_20230314_proj.shp"))
+hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp"))
 
 # wood supply
-ws <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv"))
+ws <- read_csv(paste0(wdir,"/01_data/01_in/wwi/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv"))
 
 # ownership class
-hti_ownership_class <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_company_ownership_reclass.csv"))
+hti_ownership_class <- read_csv(paste0(wdir,"/01_data/02_out/tables/hti_company_ownership_reclass.csv"))
 
 # kabupaten
-kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
+kab <- read_sf(paste0(wdir,"/01_data/01_in/big/idn_kabupaten_big.shp"))
 prov_slim <- kab %>% select(prov,prov_code) %>% st_drop_geometry() %>% distinct() %>%
   mutate(prov_code = ifelse(prov == "PAPUA",92,prov_code))
 
@@ -95,7 +95,7 @@ islands <- kab %>%
   drop_na(island)
 
 # mills
-mills <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\MILLS_EXPORTERS_20200405.xlsx"))
+mills <- read_excel(paste0(wdir,"/01_data/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
 
 ## clean mill supplier
 mill_supplier <- ws %>%
@@ -111,14 +111,14 @@ mill_supplier <- ws %>%
 
 ## JRC
 ## Annual changes 
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\jrc\\annual_changes\\"),pattern = "*.csv",full.names= TRUE)
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/jrc/annual_changes/"),pattern = "*.csv",full.names= TRUE)
 
 samples_jrc_tmf <- filenames %>%
   map_dfr(read_csv) %>%
   janitor::clean_names() 
 
 ## Deforestation year
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\jrc\\deforestation_year\\"),
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/jrc/deforestation_year/"),
                  pattern = "*.csv",
                  full.names= TRUE)
 
@@ -127,14 +127,14 @@ samples_jrc_defyr <- filenames %>%
   janitor::clean_names() 
 
 ## Gaveau data
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),pattern = "*gaveau_classes.csv",full.names= TRUE)
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gaveau/"),pattern = "*gaveau_classes.csv",full.names= TRUE)
 
 samples_gaveau_landuse <- filenames %>%
   map_dfr(read_csv) %>%
   janitor::clean_names() 
 
 ## GFC deforestation, peat and Margono primary forest
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_peat\\"),
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gfc_peat/"),
                  pattern = "*.csv",
                  full.names= TRUE)
 
@@ -143,7 +143,7 @@ samples_gfc_margono_peat <- filenames %>%
   janitor::clean_names() 
 
 ## GFC deforestation (modified by TreeMap)
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_ttm\\"),
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gfc_ttm/"),
                  pattern = "*.csv",
                  full.names= TRUE)
 
@@ -152,11 +152,11 @@ samples_gfc_ttm <- filenames %>%
   janitor::clean_names() 
 
 # pulp conversion from forest (indonesia wide)
-pulp_for_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_annual_defor_forest_id.csv")) %>%
+pulp_for_id <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaveau/pulp_annual_defor_forest_id.csv")) %>%
   select(-`system:index`,-constant,-.geo)
 
 # pulp conversion from non-forest (indonesia wide)
-pulp_nonfor_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_annual_defor_non-forest_id.csv")) %>%
+pulp_nonfor_id <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaveau/pulp_annual_defor_non-forest_id.csv")) %>%
   select(-`system:index`,-constant,-.geo)
 
 ############################################################################
@@ -395,7 +395,7 @@ hti_nonhti_conv <- hti_pulp_conv %>%
   print()
 
 # write to csv
-write_csv(hti_nonhti_conv,paste0(wdir,"\\01_data\\02_out\\tables\\idn_pulp_conversion_hti_nonhti_gaveau.csv"))
+write_csv(hti_nonhti_conv,paste0(wdir,"/01_data/02_out/tables/idn_pulp_conversion_hti_nonhti_gaveau.csv"))
 
 # forest areas in 2022
 hti_for_areas <- samples_gfc_ttm %>%
@@ -448,7 +448,7 @@ hti_conv_timing <- gaveau_annual_pulp %>%
   print()
 
 # write to csv
-write_csv(hti_conv_timing,paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_zdc_pulp_conv_areas.csv"))
+write_csv(hti_conv_timing,paste0(wdir,"/01_data/02_out/tables/hti_grps_zdc_pulp_conv_areas.csv"))
 
 #########################################################################
 # Plotting --------------------------------------------------------------
@@ -675,7 +675,7 @@ freq_plot_1 <- freq_tab %>%
 
 freq_plot_1
 
-ggsave(freq_plot_1,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev5.png"), dpi=400, w=8, h=4,limitsize = FALSE)
+ggsave(freq_plot_1,file=paste0(wdir,"/01_data/02_out/plots/001_figures/supplier_groups_defor_class_plot_rev5.png"), dpi=400, w=8, h=4,limitsize = FALSE)
 
 # stacked percent plot
 freq_conv_perc_plot <- freq_tab %>% 
@@ -704,5 +704,5 @@ freq_comb
 
 
 ## save plot to png
-ggsave(freq_comb,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev3.png"), dpi=400, w=10, h=4,limitsize = FALSE)
-#ggsave(freq_comb_vert,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev2.png"), dpi=400, w=10, h=12,limitsize = FALSE)
+ggsave(freq_comb,file=paste0(wdir,"/01_data/02_out/plots/001_figures/supplier_groups_defor_class_plot_rev3.png"), dpi=400, w=10, h=4,limitsize = FALSE)
+#ggsave(freq_comb_vert,file=paste0(wdir,"/01_data/02_out/plots/001_figures/supplier_groups_defor_class_plot_rev2.png"), dpi=400, w=10, h=12,limitsize = FALSE)

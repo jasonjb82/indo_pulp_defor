@@ -1,5 +1,5 @@
 ## ---------------------------------------------------------
-## 
+##
 ## Project: Indonesia pulp deforestation
 ##
 ## Purpose of script: Calculate MAI for HTI concessions

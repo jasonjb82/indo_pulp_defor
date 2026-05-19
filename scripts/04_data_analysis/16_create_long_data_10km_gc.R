@@ -46,33 +46,33 @@ wdir <- "remote"
 indonesian_crs <- "+proj=cea +lon_0=115.0 +lat_ts=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
 
 # load color palette
-source("scripts\\001_misc\\001_color_palettes.R")
+source("scripts/001_misc/001_color_palettes.R")
 
 # kabupaten
-kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
+kab <- read_sf(paste0(wdir,"/01_data/01_in/big/idn_kabupaten_big.shp"))
 kab_slim <- kab %>%
   select(kab, prov_code, kab_code, kab, prov) %>%
   st_transform(crs = indonesian_crs)
 
 # kecamatan
-kec <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\adm_area_kec_diss_big_10k.shp"))
+kec <- read_sf(paste0(wdir,"/01_data/01_in/big/adm_area_kec_diss_big_10k.shp"))
 kec_slim <- kec %>%
   select(kec=WADMKC,kec_code=KDCPUM) %>%
-  mutate(kec_code = str_replace_all(kec_code, "\\.", ""),
+  mutate(kec_code = str_replace_all(kec_code, "/.", ""),
   (across(where(is.character), toupper))) %>%
   st_transform(crs = indonesian_crs)
 
 # deforestation and forest cover (hansen)
-gfw_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\explore_deforestation_Indonesia.csv"))
+gfw_df <- read_csv(paste0(wdir,"/01_data/02_out/gee/explore_deforestation_Indonesia.csv"))
 
 # grid centroids covering kalimantan and sumatera
-grid_10km_sf <- read_sf(paste0(wdir,"\\01_data\\01_in\\ucsb\\kalisuma_10km_grid_centroids_proj.shp"))
+grid_10km_sf <- read_sf(paste0(wdir,"/01_data/01_in/ucsb/kalisuma_10km_grid_centroids_proj.shp"))
 
 # pulp non-forest conversion
-pulp_nonfor_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\pulp_annual_defor_non-forest_kalisuma.csv"))
+pulp_nonfor_df <- read_csv(paste0(wdir,"/01_data/02_out/gee/pulp_annual_defor_non-forest_kalisuma.csv"))
 
 # pulp forest conversion
-pulp_for_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\pulp_annual_defor_forest_kalisuma.csv"))
+pulp_for_df <- read_csv(paste0(wdir,"/01_data/02_out/gee/pulp_annual_defor_forest_kalisuma.csv"))
 
 ## clean data ------------------------------------------------
 
@@ -169,6 +169,6 @@ tbl_long <- pixel_id_tbl %>%
   print()
 
 # export data to csv
-write_csv(tbl_long,paste0(wdir,"\\01_data\\02_out\\tables\\tbl_long_pulp_clearing_gfc_forest.csv"))
-write_csv(grid_adm_tbl,paste0(wdir,"\\01_data\\02_out\\tables\\grid_10km_adm_prov_kab_kec.csv"))
+write_csv(tbl_long,paste0(wdir,"/01_data/02_out/tables/tbl_long_pulp_clearing_gfc_forest.csv"))
+write_csv(grid_adm_tbl,paste0(wdir,"/01_data/02_out/tables/grid_10km_adm_prov_kab_kec.csv"))
                         

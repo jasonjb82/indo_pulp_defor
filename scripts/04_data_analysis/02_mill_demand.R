@@ -1,4 +1,5 @@
 ## ---------------------------------------------------------
+## CODE REVIEW: I believe this script is deprecated / can be removed from pipeline 
 ##
 ## Purpose of script: Calculate area of planted pulp needed to satisfy a mill's demand
 ##
@@ -47,19 +48,19 @@ wdir <- "remote"
 ## read data and clean ---------------------------------------
 
 # pulp planted area
-pulp_area_hti <- read_csv(paste0(wdir, '\\01_data\\02_out\\gee\\pulp_by_year_hti.csv'))
+pulp_area_hti <- read_csv(paste0(wdir, '/01_data/02_out/gee/pulp_by_year_hti.csv'))
 
 # pulp mill production
-pulp_mill_prod <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\PULP_MILL_PRODUCTION.xlsx'))
+pulp_mill_prod <- read_excel(paste0(wdir, '/01_data/01_in/wwi/PULP_MILL_PRODUCTION.xlsx'))
 
 # wood supply
 pulpwood_supply <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2019.csv", bucket),delim=",") 
 
 # 2020 wood supply
-pw_supply_2020 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2020_compiled.xlsx')) %>%
+pw_supply_2020 <- read_excel(paste0(wdir, '/01_data/01_in/wwi/RPBBI_2020_compiled.xlsx')) %>%
   select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
 
-pw_supply_2022 <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx')) %>%
+pw_supply_2022 <- read_excel(paste0(wdir, '/01_data/01_in/wwi/RPBBI_2022_compiled.xlsx')) %>%
   select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
 
 ## clean data ------------------------------------------------
