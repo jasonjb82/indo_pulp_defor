@@ -129,7 +129,7 @@ grid_gaez_wide_pct <- grid_gaez_wide_df %>%
 
 # export files to csv ----------------------------------------------------------
 
-# GAZ areas in HTI
+# GAEZ areas in HTI
 write_csv(hti_gaez_wide_df,paste0(wdir,("/01_data/02_out/tables/gaez_hti_areas.csv")))
 
 # GAEZ areas in 10km grids
