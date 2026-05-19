@@ -11,13 +11,11 @@
 ## ---------------------------------------------------------
 ##
 ## Notes: Input datasets
-##        1) HTI concessions (boundaries) and concession start year - from KLHK
-##        2) Gaveau landuse change - commodity deforestation (2000 - 2020) (IOPP,ITP and smallholders)
-##        3) JRC deforestation (1990 - 2020)
-##        4) Wood types
-##        5) Pulp mill capacities
-##        6) Wood pulp prices
-##
+##        1) Pulp driven deforestation (TreeMap)
+##        2) Pulp production and share of MTH vs plantation wood sources (RPBBI, KLHK)
+##        3) Pulp mill capacities (RPBBI, company sustainability reports)
+##        4) Wood pulp prices (WDI)
+##        5) Policy events (multiple sources)
 ##
 ##
 ## ---------------------------------------------------------
@@ -41,7 +39,6 @@ library(sf)
 library(scales)
 library(dtplyr)
 library(testthat)
-library(d3.format)
 library(tidyfast)
 library(patchwork)
 library(concordance)
@@ -62,24 +59,6 @@ memory.limit(size=60000)
 source("scripts\\001_misc\\001_color_palettes.R")
 colorBlind8  <- c("#999999", "#E69F00", "#56B4E9", "#009E73", 
                   "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
-## data lookup table
-lu_table <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\data_lookup_table.csv"))
-
-## hti license dates
-lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
-
-## supplier groups
-groups <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.csv"))
-
-# hti concessions
-hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
-
-# wood supply
-ws <- read_delim(get_object(object="indonesia/wood_pulp/production/out/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2015_2022.csv", bucket), delim = ",")
-
-# wood species lookup table
-wood_species <- read_csv(paste0(wdir,"\\01_data\\01_in\\silk\\SILK_PULP_WOOD_SPECIES.csv"))
 
 # policy timeline (updated)
 policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline_cats_rev1.csv")) %>%
@@ -282,7 +261,6 @@ wt_plot <- ggplot(pulp_prod_ratio_merged) +
   scale_y_continuous(name="Pulp production (Million tonnes)\n",
                      limits=c(0,10),
                      breaks=seq(0,19, by=1),
-                     #labels = d3_format(".3~s"),
                      expand = c(0,0)) + 
   theme_plot +
   labs(fill = "\n") +
@@ -297,8 +275,6 @@ wt_plot
 df <- policy_tl[with(policy_tl, order(year)), ]
 
 type_levels <- c("Indonesian government", "Companies","International governments")
-#type_colors <- c("#0070C0", "#00B050", "#DE8600")
-#type_fill <- c("#0070C0", "#00B050", "#DE8600")
 
 type_colors <- c(colorBlind8[4],colorBlind8[6],colorBlind8[8])
 type_fill <- c(colorBlind8[4],colorBlind8[6],colorBlind8[8])
@@ -368,13 +344,11 @@ tl_plot <- ggplot(tl_df,aes(x=year,y=0, col=type, label=type,shape=direction)) +
   geom_point(data=tl_df[tl_df$direction.x == 0,],aes(y=text_position), size=4.5,alpha=1) + # scatter points 
   ggrepel::geom_text_repel(aes(y=text_position_mod+0.05,x=year,label=stringr::str_wrap(event,25)),size=2.75,hjust =0,vjust=-1.25, family= "DM Sans",
                            fontface = "bold",show.legend = FALSE,min.segment.length = 2.5) +
-  #geom_text(data=year_df, aes(x=as.double(year_format),y=-0.03,label=year_format, fontface="bold"),size=2.75, color='black', family = "DM Sans") +
   theme(text = element_text(family = "DM Sans"),
         panel.grid.major.x = element_line(colour="grey95", size=6),
         axis.line.y=element_blank(),
         axis.text.y=element_blank(),
         axis.title.x=element_blank(),
-        #axis.title.y=element_blank(),
         axis.ticks.y=element_blank(),
         axis.text.x =element_text(vjust=5,color = "grey30",angle = 0, face="bold"),
         axis.ticks.x =element_blank(),
