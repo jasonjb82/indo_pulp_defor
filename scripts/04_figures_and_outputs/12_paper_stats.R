@@ -93,7 +93,7 @@ pw_supply_2022 <- read_excel(paste0(wdir, '/01_data/01_in/wwi/RPBBI_2022_compile
   select(YEAR,SUPPLIER_ID,EXPORTER_ID,VOLUME_M3)
 
 # pulpwood conversion from forest and non-forest within and outside hti concessions
-hti_nonhti_conv <- read_csv(paste0(wdir,"/01_data/02_out/tables/idn_pulp_conversion_hti_nonhti_gaveau.csv"))
+hti_nonhti_conv <- read_csv(paste0(wdir,"/01_data/02_out/tables/idn_pulp_conversion_hti_nonhti_treemap.csv"))
 
 # pulp expansion
 id_annual_pulp_stats <- read_excel(paste0(wdir,"/01_data/01_in/gaveau/IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="PULPWOOD EXPANSION",skip=90) %>% clean_names() %>%
