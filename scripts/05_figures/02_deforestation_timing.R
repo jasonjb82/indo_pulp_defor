@@ -28,7 +28,6 @@ library(lubridate)
 library(sf)
 library(scales)
 library(dtplyr)
-library(d3.format) # to install: devtools::install_github("dreamRs/d3.format")
 library(tidyfast)
 library(showtext)
 library(khroma) # palettes for color blindness
@@ -124,7 +123,10 @@ defor_plot <- freq_tab %>%
   ylab("Association with RGE or Sinar Mas") + 
   xlab("") +
   scale_y_discrete(labels = function(x) str_wrap(x, width = 18)) +
-  scale_x_continuous(labels = d3_format(".3~s",suffix = " ha"),expand = c(0,0),breaks= c(0,500000,1000000,1500000,2000000,2500000)) +
+  scale_x_continuous(
+  labels = scales::label_number(scale_cut = c("k" = 1e3, "M" = 1e6), suffix = " ha"),
+  expand = c(0,0),
+  breaks = c(0,500000,1000000,1500000,2000000,2500000)) +
   guides(fill = guide_legend(nrow = 2)) +
   scale_fill_manual(values = cols,name ="Group",
                     breaks=defor_order,labels=defor_order) +
