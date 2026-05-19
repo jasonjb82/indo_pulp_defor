@@ -26,7 +26,6 @@ library(janitor)
 library(lubridate)
 library(scales)
 library(dtplyr)
-library(d3.format) # to install: devtools::install_github("dreamRs/d3.format")
 library(tidyfast)
 library(concordance)
 library(extrafont)
@@ -95,7 +94,14 @@ for(concession_ in concessions) {
   hti_plots[[concession_]] <- ggplot(filtered_df,aes(year,area_ha))+
     geom_area(aes(fill= as.factor(class_desc)), position = position_stack(reverse = F)) +
     scale_x_continuous(expand=c(0,0),breaks=seq(2001,2022,by=1),limits = c(2001,2022)) +
-    scale_y_continuous(labels = d3_format(".2~s",suffix = "ha"),expand = c(0,0)) +
+    scale_y_continuous(labels = scales::label_number(
+    scale_cut = scales::cut_short_scale(), 
+    accuracy = 0.1,                        
+    drop0trailing = TRUE,                  
+    suffix = " ha"                        
+  ),
+  expand = c(0, 0)
+) +
     ylab("") +
     xlab("") +
     ggtitle(paste0(str_sub(concession_, end=-10))) +
@@ -120,6 +126,6 @@ for(concession_ in concessions) {
   }
   
   print(hti_plots[[concession_]])
-  ggsave(hti_plots[[concession_]], file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\lu_traj_plots_all\\",gsub(" ","_",concession_),"_TreeMap_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
+  ggsave(hti_plots[[concession_]], file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\lu_traj_plots_check\\",gsub(" ","_",concession_),"_TreeMap_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
 
 }
