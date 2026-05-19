@@ -38,18 +38,10 @@ library(janitor)
 library(lubridate)
 library(sf)
 library(scales)
-library(aws.s3)
 library(dtplyr)
 library(testthat)
 library(tidyfast)
 library(patchwork)
-library(d3.format)
-
-## credentials ----------------------------------------------
-
-aws.signature::use_credentials()
-bucket <- "trase-storage"
-Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 ## set working directory -------------------------------------
 
