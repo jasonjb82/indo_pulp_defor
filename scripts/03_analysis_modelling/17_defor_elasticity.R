@@ -2,7 +2,8 @@
 # Author: Robert Heilmayr
 # Project: Indonesia pulp deforestation
 # Date: 6-2-2025
-# Purpose: Estimate the deforestation elasticity
+# Purpose: Estimate the deforestation elasticity. Largely the foundation
+#   for SI section 5, but also includes some stats reported in SI Section 4.
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
