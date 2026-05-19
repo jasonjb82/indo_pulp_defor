@@ -30,7 +30,6 @@ library(scales)
 library(showtext)
 library(khroma) # palettes for color blindness
 library(nngeo)
-# library(d3.format)
 library(rmapshaper)
 
 ## set working directory -------------------------------------
