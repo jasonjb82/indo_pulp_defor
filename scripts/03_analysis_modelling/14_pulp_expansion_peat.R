@@ -38,18 +38,12 @@ library(scales)
 library(aws.s3)
 library(dtplyr)
 library(testthat)
-library(d3.format)
 library(tidyfast)
 library(patchwork)
 library(rcartocolor)
 library(showtext)
 library(khroma) # palettes for color blindness
 
-## credentials ----------------------------------------------
-
-aws.signature::use_credentials()
-bucket <- "trase-storage"
-Sys.setenv("AWS_DEFAULT_REGION" = "eu-west-1")
 
 ## set working directory -------------------------------------
 
@@ -57,9 +51,6 @@ wdir <- "remote"
 
 ## read data -------------------------------------------------
 '%ni%' <- Negate('%in%') # filter out function
-
-## load color palette
-source("scripts/001_misc/001_color_palettes.R")
 
 ## HTI and sample IDs
 samples_hti <- read_csv(paste0(wdir,"/01_data/02_out/samples/samples_hti_id.csv"))
