@@ -30,7 +30,6 @@ library(lubridate)
 library(sf)
 library(scales)
 library(dtplyr)
-library(d3.format)
 library(tidyfast)
 library(showtext)
 library(khroma) # palettes for color blindness
