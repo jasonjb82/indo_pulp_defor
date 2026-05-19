@@ -41,9 +41,9 @@ library(scales)
 library(aws.s3)
 library(dtplyr)
 library(testthat)
-library(d3.format)
 library(tidyfast)
 library(patchwork)
+library(d3.format)
 
 ## credentials ----------------------------------------------
 
@@ -58,20 +58,20 @@ wdir <- "remote"
 ## read data -------------------------------------------------
 
 ## hti license dates
-lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE_DATES.csv"),
+lic_dates_hti <- readr::read_csv(paste0(wdir,"/01_data/01_in/wwi/HTI_LICENSE_DATES.csv"),
                                  col_types = cols(license_date = col_date("%m/%d/%Y")))
 
 ## supplier groups
-groups <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.csv"))
+groups <- read_csv(paste0(wdir,"/01_data/01_in/wwi/ALIGNED_NAMES_GROUP_HTI.csv"))
 
 ## HTI and sample IDs
-samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
+samples_hti <- read_csv(paste0(wdir,"/01_data/02_out/samples/samples_hti_id.csv"))
 
 # hti concessions
-hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HT_proj.shp"))
+hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HT_proj.shp"))
 
 ## Gaveau data
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gaveau/"),
                  pattern = "*.csv",
                  full.names= TRUE)
 
@@ -81,7 +81,7 @@ samples_gaveau_landuse <- filenames %>%
   select(-system_index,-geo)
 
 ## Peat areas
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_peat\\"),
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gfc_peat/"),
                  pattern = "*.csv",
                  full.names= TRUE)
 
@@ -91,7 +91,7 @@ samples_peat_areas <- filenames %>%
   select(-lossyear,-primary,-forcover)
 
 ## Burned areas
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\burn_areas\\"),
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/burn_areas/"),
                  pattern = "*.csv",
                  full.names= TRUE)
 
@@ -229,5 +229,5 @@ hti_merge <- hti %>%
 
 
 ## Write to csv -----------------------
-write_csv(hti_merge,paste0(wdir,"\\01_data\\02_out\\tables\\hti_concessions_area_calcs.csv"))
+write_csv(hti_merge,paste0(wdir,"/01_data/02_out/tables/hti_concessions_area_calcs.csv"))
   

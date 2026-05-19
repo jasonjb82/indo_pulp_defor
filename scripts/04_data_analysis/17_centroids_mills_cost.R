@@ -20,7 +20,7 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 
 ### Load packages
 library(stringr)
-library(dlookr)
+# library(dlookr) # Dropping since this package has lots of dependencies and doesn't seem to be called?
 library(tidyverse)
 library(tidylog)
 library(janitor)
@@ -36,10 +36,10 @@ wdir <- "remote"
 ## read data -------------------------------------------------
 
 # centroids to mills
-centroid_mills_df <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\centroids_mills_od_output.csv"))
+centroid_mills_df <- read_csv(paste0(wdir,"/01_data/02_out/tables/centroids_mills_od_output.csv"))
 
 # contractor table values
-contr_tbl <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\sm_contractor_rates_simplified.csv"))
+contr_tbl <- read_csv(paste0(wdir,"/01_data/02_out/tables/sm_contractor_rates_simplified.csv"))
 
 ## merge tables ----------------------------------------------
 
@@ -87,4 +87,4 @@ cost_annual_tbl <- cost_tbl %>%
 
 ## export to csv --------------------------------------
 
-write_csv(cost_tbl,paste0(wdir,"\\01_data\\02_out\\tables\\centroids_mills_cost.csv"))
+write_csv(cost_tbl,paste0(wdir,"/01_data/02_out/tables/centroids_mills_cost.csv"))

@@ -53,32 +53,32 @@ wdir <- "remote"
 '%ni%' <- Negate('%in%') # filter out function
 
 ## load color palette
-source("scripts\\001_misc\\001_color_palettes.R")
+source("scripts/001_misc/001_color_palettes.R")
 
 colorBlind8  <- c("#999999", "#E69F00", "#56B4E9", "#009E73", 
                   "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
 ## data lookup table
-lu_table <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\data_lookup_table.csv"))
+lu_table <- read_csv(paste0(wdir,"/01_data/02_out/gee/data_lookup_table.csv"))
 
 ## hti license dates
-lic_dates_hti <- readr::read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
+lic_dates_hti <- readr::read_csv(paste0(wdir,"/01_data/01_in/wwi/HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
 
 ## supplier groups
-groups <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.csv"))
+groups <- read_csv(paste0(wdir,"/01_data/01_in/wwi/ALIGNED_NAMES_GROUP_HTI.csv"))
 
 ## HTI and sample IDs
-samples_hti <- read_csv(paste0(wdir,"\\01_data\\02_out\\samples\\samples_hti_id.csv"))
+samples_hti <- read_csv(paste0(wdir,"/01_data/02_out/samples/samples_hti_id.csv"))
 
 # hti concessions
-hti <- read_sf(paste0(wdir,"\\01_data\\01_in\\klhk\\IUPHHK_HTI_20230314_proj.shp")) %>%
+hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HTI_20230314_proj.shp")) %>%
   filter(ID != "H-0553")
 
 # wood supply
-ws <- read_csv(paste0(wdir,"\\01_data\\01_in\\wwi\\PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv"))
+ws <- read_csv(paste0(wdir,"/01_data/01_in/wwi/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv"))
 
 # kabupaten
-kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
+kab <- read_sf(paste0(wdir,"/01_data/01_in/big/idn_kabupaten_big.shp"))
 prov_slim <- kab %>% select(prov,prov_code) %>% st_drop_geometry() %>% distinct() %>%
   mutate(prov_code = ifelse(prov == "PAPUA",92,prov_code))
 
@@ -97,7 +97,7 @@ islands <- kab %>%
   drop_na(island)
 
 # mills
-mills <- read_excel(paste0(wdir,"\\01_data\\01_in\\wwi\\MILLS_EXPORTERS_20200405.xlsx"))
+mills <- read_excel(paste0(wdir,"/01_data/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
 
 ## clean mill supplier
 mill_supplier <- ws %>%
@@ -113,14 +113,14 @@ mill_supplier <- ws %>%
 
 ## JRC
 ## Annual changes 
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\jrc\\annual_changes\\"),pattern = "*.csv",full.names= TRUE)
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/jrc/annual_changes/"),pattern = "*.csv",full.names= TRUE)
 
 samples_jrc_tmf <- filenames %>%
   map_dfr(read_csv) %>%
   janitor::clean_names() 
 
 ## Deforestation year
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\jrc\\deforestation_year\\"),
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/jrc/deforestation_year/"),
                  pattern = "*.csv",
                  full.names= TRUE)
 
@@ -129,14 +129,14 @@ samples_jrc_defyr <- filenames %>%
   janitor::clean_names() 
 
 ## Gaveau data
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\"),pattern = "*gaveau_classes.csv",full.names= TRUE)
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gaveau/"),pattern = "*gaveau_classes.csv",full.names= TRUE)
 
 samples_gaveau_landuse <- filenames %>%
   map_dfr(read_csv) %>%
   janitor::clean_names() 
 
 ## GFC deforestation (modified by TreeMap)
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_ttm\\"),
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gfc_ttm/"),
                  pattern = "*.csv",
                  full.names= TRUE)
 
@@ -145,7 +145,7 @@ samples_gfc_ttm <- filenames %>%
   janitor::clean_names() 
 
 ## GFC deforestation, peat and Margono primary forest
-filenames <- dir(path = paste0(wdir,"\\01_data\\02_out\\gee\\gfc_peat\\"),
+filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gfc_peat/"),
                  pattern = "*.csv",
                  full.names= TRUE)
 
@@ -154,11 +154,11 @@ samples_gfc_margono_peat <- filenames %>%
   janitor::clean_names() 
 
 # pulp conversion from forest (indonesia wide)
-pulp_for_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_annual_defor_forest_id.csv")) %>%
+pulp_for_id <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaveau/pulp_annual_defor_forest_id.csv")) %>%
   select(-`system:index`,-constant,-.geo)
 
 # pulp conversion from non-forest (indonesia wide)
-pulp_nonfor_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_annual_defor_non-forest_id.csv")) %>%
+pulp_nonfor_id <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaveau/pulp_annual_defor_non-forest_id.csv")) %>%
   select(-`system:index`,-constant,-.geo)
 
 ############################################################################
@@ -305,7 +305,7 @@ gaveau_annual_pulp <- samples_gaveau_landuse %>%
   filter(gav_class != "Others")
 
 # # write to csv
-# write_csv(gaveau_annual_pulp,paste0(wdir,"\\01_data\\02_out\\tables\\gaveau_annual_pulp_areas.csv"))
+# write_csv(gaveau_annual_pulp,paste0(wdir,"/01_data/02_out/tables/gaveau_annual_pulp_areas.csv"))
 
 gav_tbl <- gaveau_annual_pulp %>%
   mutate(dataset = "gaveau",sh_area = shr_gav_lu_areas,pulp_area = n) %>%
@@ -530,7 +530,7 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
 #     theme_plot
 #   
 #   print(hti_plots[[concession_]])
-#   ggsave(hti_plots[[concession_]], file=paste0("D:\\",gsub(" ","_",concession_),"_JRC_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
+#   ggsave(hti_plots[[concession_]], file=paste0("D:/",gsub(" ","_",concession_),"_JRC_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
 # }
 
 # ## filter by supplier
@@ -562,7 +562,7 @@ theme_plot <- theme(text = element_text(family = "DM Sans",colour="#3A484F"),
 # 
 # gav_ac_plot
 # 
-# ggsave(gav_ac_plot,file="D:\\gav_plot_test.png",dpi=400, w=10, h=6)
+# ggsave(gav_ac_plot,file="D:/gav_plot_test.png",dpi=400, w=10, h=6)
 
 # create plots by loop
 hti_gav_annual_lc <- gaveau_annual_lc %>%
@@ -600,5 +600,5 @@ for(concession_ in concessions) {
     theme_plot
   
   print(hti_plots[[concession_]])
-  ggsave(hti_plots[[concession_]], file=paste0("D:\\",gsub(" ","_",concession_),"_Gaveau_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
+  ggsave(hti_plots[[concession_]], file=paste0("D:/",gsub(" ","_",concession_),"_Gaveau_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
 }
