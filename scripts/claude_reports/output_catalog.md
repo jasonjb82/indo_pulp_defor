@@ -58,11 +58,8 @@ This document maps every figure, table, and empirical statistic in the paper and
 
 ---
 
-### Figure 2 — Deforestation map and timing by ownership group
+### Figure 2 — Deforestation timing by ownership group
 
-Figure 2 has two components. Based on the current script structure:
-
-#### Figure 2 — Bar chart component
 **Generating script:** `scripts/04_figures_and_outputs/02_deforestation_timing.R`  
 **Output file:** `remote/01_data/02_out/plots/001_figures/supplier_groups_defor_class_plot_rev9.png`
 
@@ -76,9 +73,6 @@ Figure 2 has two components. Based on the current script structure:
 1. `scripts/02_data_preparation/01_data_prep.R` (requires GEE extractions + raw shapefiles as inputs)
 
 > ⚠️ **Path bug:** `02_deforestation_timing.R` sources `scripts\\001_misc\\001_color_palettes.R` — wrong path.
-
-#### Figure 2 — Geospatial map component
-> ⚠️ **Gap:** The geospatial concession-level map (showing each of 292 HTI concessions colored by deforestation timing and ownership) was produced by `scripts/99_archive/10_hti_defor_analysis.R`, which has been archived. No active script currently produces this map. This needs to be addressed before the pipeline can reproduce Figure 2 in its entirety.
 
 ---
 
@@ -420,11 +414,7 @@ The following scripts are in `99_archive/` but produce files that active scripts
 
 > Additionally, the `write_csv()` for `gaveau_annual_pulp_areas.csv` in `11_hti_lu_change_analysis.R` is **commented out**, so this file is not regenerated even if that archived script is run.
 
-### Issue 2 — Missing active script for Figure 2 map
-
-The geospatial map of 292 HTI concessions (Figure 2) was produced by `99_archive/10_hti_defor_analysis.R`. No active script currently produces it.
-
-### Issue 3 — Broken `source()` paths for color palettes
+### Issue 2 — Broken `source()` paths for color palettes
 
 `01_summary_figure.R`, `02_deforestation_timing.R`, and `03_land_use_change.R` all source:
 ```r
@@ -432,7 +422,7 @@ source("scripts\\001_misc\\001_color_palettes.R")
 ```
 The file has moved to `scripts/04_figures_and_outputs/001_color_palettes.R`. These source paths are broken.
 
-### Issue 4 — Statistics printed to console but not saved
+### Issue 3 — Statistics printed to console but not saved
 
 The following scripts produce paper-critical outputs that exist only in the R session:
 - `12_paper_stats.R` — ~35 inline statistics
@@ -440,7 +430,7 @@ The following scripts produce paper-critical outputs that exist only in the R se
 - `21_pulp_expansion_model.R` — ROC-AUC, PR-AUC, Brier score, confusion matrix
 - `23_rs_accuracy_assessment.R` — all accuracy metrics for SI Tables 4–5
 
-### Issue 5 — Hardcoded scalar values in `12_paper_stats.R`
+### Issue 4 — Hardcoded scalar values in `12_paper_stats.R`
 
 Mill capacity expansion values are hardcoded (lines 416–420) rather than derived from data:
 - `oki_exp_mt = 4.2` (OKI mill expansion, million tonnes/year)
