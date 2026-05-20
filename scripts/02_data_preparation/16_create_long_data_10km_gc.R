@@ -62,7 +62,7 @@ kec_slim <- kec %>%
   st_transform(crs = indonesian_crs)
 
 # deforestation and forest cover (hansen)
-gfw_df <- read_csv(paste0(wdir,"/01_data/02_out/gee/explore_deforestation_Indonesia.csv"))
+gfw_df <- read_csv(paste0(wdir,"/01_data/02_out/tables/explore_deforestation_Indonesia.csv"))
 
 # grid centroids covering kalimantan and sumatera
 grid_10km_sf <- read_sf(paste0(wdir,"/01_data/01_in/ucsb/kalisuma_10km_grid_centroids_proj.shp"))
