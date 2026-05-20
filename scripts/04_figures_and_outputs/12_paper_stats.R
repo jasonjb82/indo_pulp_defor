@@ -132,6 +132,12 @@ pulp_ttm_soil_type <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaveau/idn_pulp_
 # pulp production data (MoEF)
 pulp_production <- read_excel(paste0(wdir,"/01_data/01_in/tables/annual_pulp_shr_prod.xlsx"))
 
+# HTI concession names
+hti_concession_names <- hti %>%
+  st_drop_geometry() %>%
+  select(supplier_id=ID,supplier=namaobj) %>%
+  mutate(supplier_label = paste0(supplier," (",supplier_id,")"))
+
 ## GFC deforestation (modified by TreeMap)
 filenames <- dir(path = paste0(wdir,"/01_data/02_out/gee/gfc_ttm/"),
                  pattern = "*.csv",
@@ -302,7 +308,7 @@ total_violations <- zdc_hti_conv %>%
   filter(conv_type == 2) %>% # only forest to pulp conversion
   group_by(class) %>% 
   summarise(area_ha = sum(area_ha)) %>% 
-  filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>% 
+  filter(class == "Deforestation for pulp after 2015") %>% 
   pull(area_ha) %>% 
   print()
 
@@ -332,7 +338,7 @@ indirect_violations <- zdc_hti_conv %>%
   filter(supplier_group %in% c("SINAR MAS", "MARUBENI", "ROYAL GOLDEN EAGLE / TANOTO")) %>% 
   group_by(class) %>% 
   summarise(area_ha = sum(area_ha)) %>% 
-  filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>% 
+  filter(class == "Deforestation for pulp after 2015") %>% 
   pull(area_ha) %>% 
   print()
 
