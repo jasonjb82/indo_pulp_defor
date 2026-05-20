@@ -304,69 +304,69 @@ undrained_peat_areas_hti <- samples_gfc_ttm %>%
 # Description of ZDC violations -----------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Line 85: Although the impact of these types of voluntary commitments has been called into question in other settings (Garrett et al. 2019), we find that only XX hectares (XX percent) of pulpwood plantations established between 2015 and 2022 violated these no deforestation commitments (SIXX). 
-total_violations <- zdc_hti_conv %>% 
-  filter(conv_type == 2) %>% # only forest to pulp conversion
-  group_by(class) %>% 
-  summarise(area_ha = sum(area_ha)) %>% 
-  filter(class == "Deforestation for pulp after 2015") %>% 
-  pull(area_ha) %>% 
-  print()
+# total_violations <- zdc_hti_conv %>% 
+#   filter(conv_type == 2) %>% # only forest to pulp conversion
+#   group_by(class) %>% 
+#   summarise(area_ha = sum(area_ha)) %>% 
+#   filter(class == "Deforestation for pulp after 2015") %>% 
+#   pull(area_ha) %>% 
+#   print()
 
-# Area of pulp-driven deforestation since APRIL's ZDC 
-pulp_defor_after_zdc <- hti_nonhti_conv %>%
-  filter(conv_type == 2) %>%
-  filter(year >= 2015, year <= 2022) %>% 
-  pull(area_ha) %>% 
-  sum()
+# # Area of pulp-driven deforestation since APRIL's ZDC 
+# pulp_defor_after_zdc <- hti_nonhti_conv %>%
+#   filter(conv_type == 2) %>%
+#   filter(year >= 2015, year <= 2022) %>% 
+#   pull(area_ha) %>% 
+#   sum()
 
-# Area of pulp expansion 
-pulp_expansion <- hti_nonhti_conv %>%
-  # filter(conv_type == 2) %>%
-  filter(year >= 2013, year <= 2022) %>% 
-  pull(area_ha) %>% 
-  sum()
+# # Area of pulp expansion 
+# pulp_expansion <- hti_nonhti_conv %>%
+#   # filter(conv_type == 2) %>%
+#   filter(year >= 2013, year <= 2022) %>% 
+#   pull(area_ha) %>% 
+#   sum()
 
-pulp_2013 = annual_pulp %>% filter(year==2013) %>% pull(area_ha)
-pulp_2022 = annual_pulp %>% filter(year==2022) %>% pull(area_ha)
-pulp_expansion_2 <- pulp_2022- pulp_2013  ## TODO: Jason - why don't these two measures of pulp expansion match up better?
+# pulp_2013 = annual_pulp %>% filter(year==2013) %>% pull(area_ha)
+# pulp_2022 = annual_pulp %>% filter(year==2022) %>% pull(area_ha)
+# pulp_expansion_2 <- pulp_2022- pulp_2013  ## TODO: Jason - why don't these two measures of pulp expansion match up better?
 
-violations_shr <- (total_violations / pulp_expansion) %>% print()
+# violations_shr <- (total_violations / pulp_expansion) %>% print()
 
-# Line 88: In addition, we find that XX percent of these violations occurred in concessions controlled by external suppliers, rather than directly within concessions controlled by NDPE-committed pulp producers. 
-indirect_violations <- zdc_hti_conv %>%
-  filter(conv_type == 2) %>%
-  filter(supplier_group %in% c("SINAR MAS", "MARUBENI", "ROYAL GOLDEN EAGLE / TANOTO")) %>% 
-  group_by(class) %>% 
-  summarise(area_ha = sum(area_ha)) %>% 
-  filter(class == "Deforestation for pulp after 2015") %>% 
-  pull(area_ha) %>% 
-  print()
+# # Line 88: In addition, we find that XX percent of these violations occurred in concessions controlled by external suppliers, rather than directly within concessions controlled by NDPE-committed pulp producers. 
+# indirect_violations <- zdc_hti_conv %>%
+#   filter(conv_type == 2) %>%
+#   filter(supplier_group %in% c("SINAR MAS", "MARUBENI", "ROYAL GOLDEN EAGLE / TANOTO")) %>% 
+#   group_by(class) %>% 
+#   summarise(area_ha = sum(area_ha)) %>% 
+#   filter(class == "Deforestation for pulp after 2015") %>% 
+#   pull(area_ha) %>% 
+#   print()
 
-indirect_shr <- (indirect_violations / total_violations) %>% 
-  print()
+# indirect_shr <- (indirect_violations / total_violations) %>% 
+#   print()
 
-# Among the XX pulpwood producers with the largest violations, XX.
-group_data <- zdc_hti_conv %>% 
-  select(supplier_id, supplier, supplier_group) %>% 
-  distinct()
+# # Among the XX pulpwood producers with the largest violations, XX.
+# group_data <- zdc_hti_conv %>% 
+#   select(supplier_id, supplier, supplier_group) %>% 
+#   distinct()
 
-violations_df <- zdc_hti_conv %>% 
-  filter(conv_type == 2) %>% # only forest to pulp conversion
-  filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>% 
-  group_by(supplier_id) %>% 
-  summarise(violations_ha = sum(area_ha)) %>% 
-  arrange(desc(violations_ha)) %>% 
-  ungroup() %>% 
-  left_join(group_data, by = "supplier_id") %>% 
-  print()
+# violations_df <- zdc_hti_conv %>% 
+#   filter(conv_type == 2) %>% # only forest to pulp conversion
+#   filter(class == "Deforestation for pulp after first ZDC of downstream mill") %>% 
+#   group_by(supplier_id) %>% 
+#   summarise(violations_ha = sum(area_ha)) %>% 
+#   arrange(desc(violations_ha)) %>% 
+#   ungroup() %>% 
+#   left_join(group_data, by = "supplier_id") %>% 
+#   print()
 
-n = 5
-top_violations <- violations_df %>% 
-  top_n(n, violations_ha) %>% 
-  pull(violations_ha) %>% 
-  sum()
+# n = 5
+# top_violations <- violations_df %>% 
+#   top_n(n, violations_ha) %>% 
+#   pull(violations_ha) %>% 
+#   sum()
 
-top_violations / total_violations
+# top_violations / total_violations
 
 # Line 95 to 98
 # While the three major pulp-producing conglomerates publicly claim ownership of concessions
@@ -486,27 +486,27 @@ extra_production / new_wood_demand
 # Total area of post-permit deforestation
 
 # deforestation for pulp (1 - non-forest to pulp,2 - forest to pulp)
-nodefor_pulp_sids <- gaveau_annual_pulp %>% 
-  filter(year == 2017,
-         class == 1) %>% 
-  pull(sid)
+# nodefor_pulp_sids <- gaveau_annual_pulp %>% 
+#   filter(year == 2017,
+#          class == 1) %>% 
+#   pull(sid)
 
-samples_df %>%
-  filter(start_for == "Y" & !is.na(lossyear) & (sid %in% nodefor_pulp_sids)) %>% 
-  pull(lossyear) %>% 
-  hist()
+# samples_df %>%
+#   filter(start_for == "Y" & !is.na(lossyear) & (sid %in% nodefor_pulp_sids)) %>% 
+#   pull(lossyear) %>% 
+#   hist()
 
-test <- hti_conv %>% filter(year > 2015, conv_type == 3) %>% arrange(desc(area_ha))
-test <- hti_conv %>%
-  filter(year > 2015, 
-         conv_type == 3) %>% 
-  group_by(supplier) %>% 
-  summarise(area_ha = sum(area_ha)) %>% 
-  arrange(desc(area_ha))
+# test <- hti_conv %>% filter(year > 2015, conv_type == 3) %>% arrange(desc(area_ha))
+# test <- hti_conv %>%
+#   filter(year > 2015, 
+#          conv_type == 3) %>% 
+#   group_by(supplier) %>% 
+#   summarise(area_ha = sum(area_ha)) %>% 
+#   arrange(desc(area_ha))
 
-test$area_ha %>% sum()
+# test$area_ha %>% sum()
 
-test
+# test
 
 # SI 1 stats
 
