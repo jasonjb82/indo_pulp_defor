@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>audit_report</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="audit_report_files/libs/clipboard/clipboard.min.js"></script>
+<script src="audit_report_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="audit_report_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="audit_report_files/libs/quarto-html/popper.min.js"></script>
+<script src="audit_report_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="audit_report_files/libs/quarto-html/anchor.min.js"></script>
+<link href="audit_report_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="audit_report_files/libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="audit_report_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="audit_report_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="audit_report_files/libs/bootstrap/bootstrap-138a6193a3bd40baf1e627da441a4734.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+
+
+
+<section id="indonesia-pulp-deforestation-repository-audit-report" class="level1">
+<h1>Indonesia Pulp Deforestation — Repository Audit Report</h1>
+<p><strong>Generated:</strong> 2026-05-15<br>
+<strong>Purpose:</strong> Pre-targets replication package audit<br>
+<strong>Authors of codebase:</strong> Robert Heilmayr and Jason Jon Benedict</p>
+<hr>
+<section id="executive-summary" class="level2">
+<h2 class="anchored" data-anchor-id="executive-summary">Executive Summary</h2>
+<p>The repository has two parallel analytical layers:</p>
+<ol type="1">
+<li><strong>Folders 02–05 (organic evolution):</strong> A sprawling set of ~30 R scripts that developed the analysis iteratively. Many are partially commented-out or prototype-stage.</li>
+<li><strong>Folder 06_clean_scripts (consolidation):</strong> Four scripts that attempt to consolidate the core pipeline. Coverage is incomplete — only land-use change tabulation and the deforestation-timing figure are fully reproduced. The new ML-based spatial model (scripts 21 and 22) and the MAI yield analysis (script 08) have <strong>no counterpart in 06_clean_scripts at all</strong>.</li>
+</ol>
+<p>The current state is not ready for a targets pipeline without significant harmonisation. Key problems are flagged in each section below.</p>
+<hr>
+</section>
+<section id="repository-structure-full-file-list" class="level2">
+<h2 class="anchored" data-anchor-id="repository-structure-full-file-list">Repository Structure (Full File List)</h2>
+<pre><code>scripts/
+├── 001_misc/
+│   ├── 001_color_palettes.R
+│   └── 002_pulp_trade_data_2021.R
+├── 01_data_explore/               (10 exploratory scripts — not audited for replication)
+├── 02_data_cleaning/
+│   ├── 01_clean_psdh_comp_names.R
+│   ├── 02_sipnbp_hti_data_cleanup.R
+│   ├── 03_sipnbp_hph_data_cleanup.R
+│   ├── 04_clean_hti.R
+│   ├── 04_merge_ws_data.R
+│   ├── 05_hti_group_cleaning.R
+│   ├── 06_gaveau_harvests.R          *** KEY: produces hti_harvest_yr.csv
+│   ├── 07_ports_cleaning.R
+│   ├── 08_centroid_mill_distance_calc.R
+│   ├── 08_clean_od_outputs.R
+│   ├── 09_gaveau_hti_union.py
+│   ├── 10_pulp_expansion_model_variables.R
+│   └── pulp_expansion_model_variables_1km.R  *** KEY: produces 1km model inputs
+├── 03_data_preprocessing/         (Python scripts + 1 R cleanup)
+├── 04_data_analysis/              (22 scripts — main analytical layer)
+├── 05_figures/
+│   └── 01_summary_figure.R
+└── 06_clean_scripts/              (4 scripts — partial consolidation)
+    ├── 01_data_prep.R
+    ├── 02_deforestation_timing.R
+    ├── 03_land_use_change.R
+    └── 04_land_use_traj_plots.R</code></pre>
+<hr>
+</section>
+<section id="section-1-original-clean-gap-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="section-1-original-clean-gap-analysis">Section 1: Original-Clean Gap Analysis</h2>
+<section id="what-06_clean_scripts-covers" class="level3">
+<h3 class="anchored" data-anchor-id="what-06_clean_scripts-covers">1.1 What 06_clean_scripts Covers</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Clean Script</th>
+<th>Analysis Covered</th>
+<th>Replaces (04_data_analysis)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>01_data_prep.R</code></td>
+<td>Core data wrangling: HTI land-use change table + HTI/non-HTI pulp conversion tables</td>
+<td>Partial overlap with <code>11_hti_lu_change_analysis.R</code> and <code>10_hti_defor_analysis.R</code></td>
+</tr>
+<tr class="even">
+<td><code>02_deforestation_timing.R</code></td>
+<td>Bar chart of deforestation class by mill ownership group</td>
+<td><code>10_hti_defor_analysis.R</code> (figure only; partial)</td>
+</tr>
+<tr class="odd">
+<td><code>03_land_use_change.R</code></td>
+<td>Per-concession land-use trajectories using 2024 IOPP/ITP GDB data</td>
+<td><code>11_hti_lu_change_analysis.R</code> (partial, newer data)</td>
+</tr>
+<tr class="even">
+<td><code>04_land_use_traj_plots.R</code></td>
+<td>Per-concession area-stacked plots (loop over all concessions)</td>
+<td><code>11_hti_lu_change_analysis.R</code> (figure loop only)</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="scripts-in-04_data_analysis-not-covered-by-06_clean_scripts" class="level3">
+<h3 class="anchored" data-anchor-id="scripts-in-04_data_analysis-not-covered-by-06_clean_scripts">1.2 Scripts in 04_data_analysis NOT Covered by 06_clean_scripts</h3>
+<p>The following analysis scripts have <strong>no equivalent in 06_clean_scripts</strong> and represent gaps for the replication package:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Script</th>
+<th>Purpose</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>08_calc_mai.R</code></td>
+<td>MAI yield analysis, fixest regressions, exports <code>key_parameters.csv</code></td>
+<td><strong>UNCOVERED — critical upstream dependency</strong></td>
+</tr>
+<tr class="even">
+<td><code>12_paper_stats.R</code></td>
+<td>All in-text statistics for the manuscript</td>
+<td><strong>UNCOVERED</strong></td>
+</tr>
+<tr class="odd">
+<td><code>15_pulp_defor_prices.R</code></td>
+<td>Pulp price vs.&nbsp;deforestation figures</td>
+<td><strong>UNCOVERED</strong></td>
+</tr>
+<tr class="even">
+<td><code>17_defor_elasticity.R</code></td>
+<td>Deforestation elasticity regressions (fixest)</td>
+<td><strong>UNCOVERED</strong></td>
+</tr>
+<tr class="odd">
+<td><code>20_pulp_expansion_table.R</code></td>
+<td>Table of pulp expansion areas 2001–2022</td>
+<td><strong>UNCOVERED</strong></td>
+</tr>
+<tr class="even">
+<td><code>21_pulp_expansion_model.R</code></td>
+<td>Random forest spatial model (tidymodels/ranger)</td>
+<td><strong>UNCOVERED — new methodology</strong></td>
+</tr>
+<tr class="odd">
+<td><code>22_pulp_expansion_scenarios.R</code></td>
+<td>Scenario projections from RF model</td>
+<td><strong>UNCOVERED — downstream of 21</strong></td>
+</tr>
+<tr class="even">
+<td><code>01_def_temporal_trends.R</code></td>
+<td>Temporal deforestation trends</td>
+<td><strong>UNCOVERED</strong></td>
+</tr>
+<tr class="odd">
+<td><code>02_mill_demand.R</code></td>
+<td>Mill demand analysis</td>
+<td><strong>UNCOVERED</strong></td>
+</tr>
+<tr class="even">
+<td><code>06_burn_areas_peat.R</code></td>
+<td>Burn areas on peat</td>
+<td><strong>UNCOVERED</strong></td>
+</tr>
+<tr class="odd">
+<td><code>09_hti_area_calculations.R</code></td>
+<td>HTI concession areas, burn/peat fractions</td>
+<td><strong>UNCOVERED</strong></td>
+</tr>
+<tr class="even">
+<td><code>14_pulp_expansion_peat.R</code></td>
+<td>Pulp expansion on peat soils</td>
+<td><strong>UNCOVERED</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>05_figures:</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Script</th>
+<th>Purpose</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>01_summary_figure.R</code></td>
+<td>Three-panel summary figure (deforestation + wood supply + policy timeline)</td>
+<td><strong>UNCOVERED</strong> — uses AWS S3 data, old data paths</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="orphan-outputs-outputs-not-traceable-to-any-06_clean_scripts-logic" class="level3">
+<h3 class="anchored" data-anchor-id="orphan-outputs-outputs-not-traceable-to-any-06_clean_scripts-logic">1.3 Orphan Outputs (Outputs Not Traceable to Any 06_clean_scripts Logic)</h3>
+<p>The following output files are referenced as <strong>inputs</strong> by other scripts but have no generating script in <code>06_clean_scripts</code>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Orphan Output File</th>
+<th>Referenced In</th>
+<th>Generating Script (04/ or 02/)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>remote/01_data/02_out/tables/hti_grps_zdc_pulp_conv_areas.csv</code></td>
+<td><code>12_paper_stats.R</code></td>
+<td>Not clearly identified — possible <code>10_hti_defor_analysis.R</code></td>
+</tr>
+<tr class="even">
+<td><code>remote/01_data/02_out/tables/gaveau_annual_pulp_areas.csv</code></td>
+<td><code>12_paper_stats.R</code></td>
+<td><code>11_hti_lu_change_analysis.R</code> (commented-out write)</td>
+</tr>
+<tr class="odd">
+<td><code>remote/01_data/02_out/tables/hti_harvest_yr.csv</code></td>
+<td><code>08_calc_mai.R</code></td>
+<td><code>02_data_cleaning/06_gaveau_harvests.R</code></td>
+</tr>
+<tr class="even">
+<td><code>remote/01_data/04_results/key_parameters.csv</code></td>
+<td><code>12_paper_stats.R</code>, <code>22_pulp_expansion_scenarios.R</code></td>
+<td><code>08_calc_mai.R</code></td>
+</tr>
+<tr class="odd">
+<td><code>remote/01_data/02_out/tables/hti_mai.csv</code></td>
+<td><code>17_defor_elasticity.R</code></td>
+<td><code>08_calc_mai.R</code></td>
+</tr>
+<tr class="even">
+<td><code>remote/01_data/02_out/tables/idn_pulp_conversion_hti_nonhti_gaveau.csv</code></td>
+<td><code>12_paper_stats.R</code>, <code>20_pulp_expansion_table.R</code></td>
+<td><code>01_data_prep.R</code> (writes <code>..._treemap.csv</code>; <strong>filename mismatch</strong>)</td>
+</tr>
+<tr class="odd">
+<td><code>remote/01_data/02_out/tables/idn_deforestation_hti_nonhti_treemap.csv</code></td>
+<td><code>15_pulp_defor_prices.R</code></td>
+<td>Not found — <strong>unresolved</strong></td>
+</tr>
+<tr class="even">
+<td><code>remote/01_data/02_out/tables/tbl_long_pulp_clearing_gfc_forest.csv</code></td>
+<td><code>17_defor_elasticity.R</code></td>
+<td>Not found — <strong>unresolved</strong></td>
+</tr>
+<tr class="odd">
+<td><code>remote/01_data/02_out/tables/centroids_mills_cost.csv</code></td>
+<td><code>17_defor_elasticity.R</code></td>
+<td><code>02_data_cleaning/08_centroid_mill_distance_calc.R</code> or <code>17_centroids_mills_cost.R</code></td>
+</tr>
+<tr class="even">
+<td><code>remote/01_data/02_out/tables/gaez_grid_share.csv</code></td>
+<td><code>17_defor_elasticity.R</code></td>
+<td><code>04_data_analysis/18_gaez_classes_hti_centroids.R</code></td>
+</tr>
+<tr class="odd">
+<td><code>remote/01_data/02_out/tables/pulp_predictions.csv</code></td>
+<td><code>22_pulp_expansion_scenarios.R</code></td>
+<td><code>21_pulp_expansion_model.R</code></td>
+</tr>
+<tr class="even">
+<td><code>remote/01_data/02_out/tables/pulp_exp_model_var_1km_2017.csv</code></td>
+<td><code>21_pulp_expansion_model.R</code></td>
+<td><code>02_data_cleaning/pulp_expansion_model_variables_1km.R</code></td>
+</tr>
+<tr class="odd">
+<td><code>remote/01_data/02_out/tables/pulp_exp_model_var_1km_2022.csv</code></td>
+<td><code>21_pulp_expansion_model.R</code></td>
+<td><code>02_data_cleaning/pulp_expansion_model_variables_1km.R</code></td>
+</tr>
+<tr class="even">
+<td><code>remote/01_data/02_out/models/rf_final_fit.rds</code></td>
+<td>(intended for <code>22_...</code> reload)</td>
+<td><code>21_pulp_expansion_model.R</code></td>
+</tr>
+<tr class="odd">
+<td><code>remote/01_data/04_results/figures/SI_f4_auc.png</code></td>
+<td><code>21_pulp_expansion_model.R</code></td>
+<td>Same script</td>
+</tr>
+<tr class="even">
+<td><code>remote/01_data/04_results/figures/pulp_expansion_map.html</code></td>
+<td><code>21_pulp_expansion_model.R</code></td>
+<td>Same script</td>
+</tr>
+<tr class="odd">
+<td><code>remote/01_data/04_results/figures/fig_expansion_combined.png</code></td>
+<td><code>22_pulp_expansion_scenarios.R</code></td>
+<td>Same script</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Critical filename mismatch:</strong> <code>01_data_prep.R</code> writes <code>idn_pulp_conversion_hti_nonhti_treemap.csv</code>, but <code>12_paper_stats.R</code> reads <code>idn_pulp_conversion_hti_nonhti_gaveau.csv</code>. These are different filenames pointing to what should be the same data, indicating the clean scripts and the paper-stats script are not currently wired together.</p>
+</section>
+<section id="data-source-inconsistencies-across-versions" class="level3">
+<h3 class="anchored" data-anchor-id="data-source-inconsistencies-across-versions">1.4 Data Source Inconsistencies Across Versions</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>06_clean_scripts</th>
+<th>04_data_analysis</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>HTI shapefile</td>
+<td><code>IUPHHK_HTI_20230314_proj.shp</code> (with filter <code>H-0553</code>)</td>
+<td>Some scripts use <code>IUPHHK_HTI_TRASE_20230314_proj.shp</code>; others use <code>IUPHHK_HT_proj.shp</code></td>
+</tr>
+<tr class="even">
+<td>Pulp/harvest data</td>
+<td>IOPP/ITP from <code>data.gdb</code> (Gaveau 2024) in <code>03_land_use_change.R</code></td>
+<td>Older CSV-based Gaveau classes in 04 scripts</td>
+</tr>
+<tr class="odd">
+<td><code>04_land_use_traj_plots.R</code></td>
+<td>References <code>concession_fnf_traj</code> (undefined)</td>
+<td>Not defined anywhere in 06 scripts — <strong>runtime error</strong></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+</section>
+<section id="section-2-inputoutput-lineage-matrix" class="level2">
+<h2 class="anchored" data-anchor-id="section-2-inputoutput-lineage-matrix">Section 2: Input/Output Lineage Matrix</h2>
+<section id="clean_scripts" class="level3">
+<h3 class="anchored" data-anchor-id="clean_scripts">06_clean_scripts</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Clean Script</th>
+<th>Primary Input(s)</th>
+<th>Derived Output(s)</th>
+<th>Original Script(s) Replaced</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>01_data_prep.R</code></td>
+<td><code>gaveau/*gaveau_classes.csv</code> (batch), <code>gfc_peat/*.csv</code> (batch), <code>gfc_ttm/*.csv</code> (batch), <code>samples_hti_id.csv</code>, <code>IUPHHK_HTI_TRASE_20230314_proj.shp</code>, <code>PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv</code>, <code>HTI_LICENSE_DATES.csv</code>, <code>ALIGNED_NAMES_GROUP_HTI.csv</code>, <code>MILLS_EXPORTERS_20200405.xlsx</code>, <code>idn_kabupaten_big.shp</code>, <code>hti_company_ownership_reclass.csv</code>, <code>pulp_annual_defor_forest_id.csv</code>, <code>pulp_annual_defor_non-forest_id.csv</code></td>
+<td><code>hti_land_use_change_areas.csv</code>, <code>hti_grps_deforestation_timing.csv</code>, <code>idn_pulp_conversion_hti_nonhti_treemap.csv</code></td>
+<td>Partially replaces <code>11_hti_lu_change_analysis.R</code>, <code>10_hti_defor_analysis.R</code></td>
+</tr>
+<tr class="even">
+<td><code>02_deforestation_timing.R</code></td>
+<td><code>hti_grps_deforestation_timing.csv</code> (from <code>01_data_prep.R</code>), <code>001_color_palettes.R</code></td>
+<td><code>supplier_groups_defor_class_plot_rev9.png</code></td>
+<td>Partially replaces <code>10_hti_defor_analysis.R</code> (figure only)</td>
+</tr>
+<tr class="odd">
+<td><code>03_land_use_change.R</code></td>
+<td><code>HTI_LICENSE_DATES.csv</code>, <code>IUPHHK_HTI_20230314_proj.shp</code>, <code>PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv</code>, <code>ttm_classes_by_concession.csv</code>, <code>data.gdb</code> (layer: <code>ioppitp_hti_union</code>)</td>
+<td>None written to disk (incomplete — <code>lu_expanded_tbl</code> built but not saved; references undefined <code>concession_fnf_traj</code>)</td>
+<td>Intended to replace <code>11_hti_lu_change_analysis.R</code> — <strong>INCOMPLETE</strong></td>
+</tr>
+<tr class="even">
+<td><code>04_land_use_traj_plots.R</code></td>
+<td><code>hti_land_use_change_areas.csv</code>, <code>001_color_palettes.R</code></td>
+<td>Per-concession PNG files at <code>plots/001_figures/lu_traj_plots_all/*.png</code> (one per HTI concession, ~200+ files)</td>
+<td>Replaces the figure loop in <code>11_hti_lu_change_analysis.R</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="key-04_data_analysis-scripts-not-covered-by-06_clean_scripts" class="level3">
+<h3 class="anchored" data-anchor-id="key-04_data_analysis-scripts-not-covered-by-06_clean_scripts">Key 04_data_analysis Scripts (not covered by 06_clean_scripts)</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Script</th>
+<th>Primary Input(s)</th>
+<th>Derived Output(s)</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>08_calc_mai.R</code></td>
+<td><code>hti_harvest_yr.csv</code>, <code>RPBBI_2015_2019_compiled.xlsx</code>, <code>RPBBI_2020_compiled.xlsx</code>, <code>RPBBI_2021_compiled.xlsx</code></td>
+<td><code>hti_mai.csv</code>, <code>key_parameters.csv</code>, <code>yield_growth_table.docx</code>, <code>mai_diagnostic_plots.png</code></td>
+<td>Critical upstream dependency; exports MAI parameters consumed by <code>12_paper_stats.R</code> and <code>22_pulp_expansion_scenarios.R</code></td>
+</tr>
+<tr class="even">
+<td><code>12_paper_stats.R</code></td>
+<td><code>idn_kabupaten_big.shp</code>, <code>IUPHHK_HTI_TRASE_20230314_proj.shp</code>, <code>PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv</code>, <code>RPBBI_2015_2019/2020/2021/2022_compiled.xlsx</code> (4 files), <code>idn_pulp_conversion_hti_nonhti_gaveau.csv</code>, <code>IDN_2001_2022 landcover change...xlsx</code>, <code>pulp_annual_area_hti_only.csv</code>, <code>pulp_annual_area_id.csv</code>, <code>ALIGNED_NAMES_GROUP_HTI_reclassed.csv</code>, <code>hti_grps_zdc_pulp_conv_areas.csv</code>, <code>gaveau_annual_pulp_areas.csv</code>, <code>idn_pulp_annual_expansion_peat_mineral_soils.csv</code>, <code>annual_pulp_shr_prod.xlsx</code>, <code>gfc_ttm/*.csv</code> (batch), <code>key_parameters.csv</code>, <code>MILLS_EXPORTERS_20200405.xlsx</code></td>
+<td><code>pulp_expansion_areas_2001_2022.csv</code></td>
+<td>All stats printed to console via <code>print()</code></td>
+</tr>
+<tr class="odd">
+<td><code>17_defor_elasticity.R</code></td>
+<td><code>tbl_long_pulp_clearing_gfc_forest.csv</code>, <code>Fastmarkets_2025_01_14-103617.xlsx</code>, <code>WRQ_pulpwood_prices.xlsx</code>, <code>FRED_CCUSSP02IDM650N.csv</code>, <code>FRED_IDNCPIALLAINMEI.csv</code>, <code>centroids_mills_cost.csv</code>, <code>gaez_grid_share.csv</code>, <code>gaez_hti_areas.csv</code>, <code>hti_mai.csv</code>, <code>grid_10km_adm_prov_kab_kec.csv</code></td>
+<td>Regression tables (modelsummary, to console/docx)</td>
+<td><code>fixest</code> panel models</td>
+</tr>
+<tr class="even">
+<td><code>21_pulp_expansion_model.R</code></td>
+<td><code>pulp_exp_model_var_1km_2017.csv</code>, <code>pulp_exp_model_var_1km_2022.csv</code>, <code>idn_kabupaten_big.shp</code></td>
+<td><code>rf_final_fit.rds</code>, <code>pulp_predictions.csv</code>, <code>SI_f4_auc.png</code>, <code>pulp_expansion_map.html</code></td>
+<td>Random forest via tidymodels/ranger</td>
+</tr>
+<tr class="odd">
+<td><code>22_pulp_expansion_scenarios.R</code></td>
+<td><code>pulp_predictions.csv</code>, <code>idn_kabupaten_big.shp</code>, <code>key_parameters.csv</code></td>
+<td><code>fig_expansion_map.png</code>, <code>fig_expansion_combined.png</code>, <code>pulp_expansion_scenarios.html</code></td>
+<td>Scenario projections from RF model</td>
+</tr>
+<tr class="even">
+<td><code>15_pulp_defor_prices.R</code></td>
+<td><code>idn_deforestation_hti_nonhti_treemap.csv</code>, <code>pulp_expansion.csv</code>, <code>Fastmarkets_2025_01_14-103617.xlsx</code>, <code>WPU0911_annual.csv</code>, <code>MILL_PRODUCTION_2015_2024.xlsx</code>, <code>MILLS_EXPORTERS_20200405.xlsx</code></td>
+<td>Figures to console/disk (paths not fully shown)</td>
+<td>Price-deforestation relationship</td>
+</tr>
+<tr class="odd">
+<td><code>05_figures/01_summary_figure.R</code></td>
+<td>AWS S3 data (wood supply), <code>data_lookup_table.csv</code>, <code>HTI_LICENSE_DATES.csv</code>, <code>ALIGNED_NAMES_GROUP_HTI.csv</code>, <code>IUPHHK_HT_proj.shp</code>, <code>pulp_annual_defor_forest/non-forest_id.csv</code>, <code>plot_data.csv</code> (Obidzinski), <code>pulp_exports_wits.csv</code>, <code>WPU0911_FRED.csv</code>, <code>annual_pulp_shr_prod.xlsx</code>, <code>idn_kabupaten_big.shp</code>, <code>policy_timeline_cats_rev1.csv</code></td>
+<td><code>fig_0X_summary_figure_updated.png</code>, <code>fig_0X_summary_figure_rev4.svg</code></td>
+<td>Uses <code>aws.s3</code>; requires credentials</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="key-02_data_cleaning-scripts-upstream-of-analysis" class="level3">
+<h3 class="anchored" data-anchor-id="key-02_data_cleaning-scripts-upstream-of-analysis">Key 02_data_cleaning Scripts (Upstream of Analysis)</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Script</th>
+<th>Primary Input(s)</th>
+<th>Derived Output(s)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>06_gaveau_harvests.R</code></td>
+<td><code>IDN_ITPHarvesting_V20220208.shp</code>, <code>long_rotations_Checked_20240503.shp</code>, <code>IUPHHK_HT_proj.shp</code>, <code>gambut_indonesia_2019.shp</code>, <code>treemap_long_rotation_blocks_climate_2000_2024.csv</code></td>
+<td><code>hti_harvest_yr.csv</code> (implied; written at end of script)</td>
+</tr>
+<tr class="even">
+<td><code>pulp_expansion_model_variables_1km.R</code></td>
+<td>GEE batch CSVs (<code>kalisuma_topo_*</code>, <code>kalisuma_landuse_*</code>, <code>kalisuma_riverdist_*</code>, <code>mill_dist_*</code>, <code>kalisuma_aee_embed_*</code>), <code>kalisuma_1km_grid_pts.csv</code>, <code>kalisuma_1km_grid.shp</code>, <code>PNUNJUKKWSHUTAN_AR_250K_2021_06.shp</code></td>
+<td><code>pulp_exp_model_var_1km_2017.csv</code>, <code>pulp_exp_model_var_1km_2022.csv</code>, <code>var_table_summary_stats.csv</code></td>
+</tr>
+<tr class="odd">
+<td><code>10_pulp_expansion_model_variables.R</code></td>
+<td><code>kalisuma_10km_grid_centroids_proj.shp</code>, GEE batch CSVs (10km versions), <code>centroids_mills_dist_2017.csv</code>, <code>centroids_mills_dist_2022.csv</code>, <code>PNUNJUKKWSHUTAN_AR_250K_2021_06.shp</code></td>
+<td><code>pulp_exp_model_var_2017.csv</code>, <code>pulp_exp_model_var_2022.csv</code> (superseded by 1km version)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+</section>
+<section id="section-3-data-flow-visualization-mermaid.js" class="level2">
+<h2 class="anchored" data-anchor-id="section-3-data-flow-visualization-mermaid.js">Section 3: Data Flow Visualization (Mermaid.js)</h2>
+<pre class="mermaid"><code>flowchart TD
+    %% ── RAW DATA SOURCES ──────────────────────────────────────────────
+    subgraph RAW ["Raw Data (remote/01_data/01_in/)"]
+        direction TB
+        R1([HTI Shapefile\nKLHK 2023])
+        R2([Wood Supply RPBBI\n2015–2022 xlsx])
+        R3([HTI License Dates\nHTI_LICENSE_DATES.csv])
+        R4([Supplier Groups\nALIGNED_NAMES_GROUP_HTI.csv])
+        R5([Mill Info\nMILLS_EXPORTERS.xlsx])
+        R6([Kabupaten Shapefile\nidn_kabupaten_big.shp])
+        R7([ITP Harvest Polygons\nIDN_ITPHarvesting.shp])
+        R8([Gaveau Land Cover\nIDN_2001_2022 xlsx])
+        R9([IOPP/ITP GDB\nGaveau data.gdb 2024])
+        R10([Fastmarkets / RISI\nPulp Prices xlsx])
+        R11([FRED / WRQ\nPulp Prices csv])
+        R12([Kawasan Hutan\nPNUNJUKKWSHUTAN.shp])
+        R13([Peat Map\nMoA 2019 shp])
+    end
+
+    %% ── GEE EXTRACTED DATA ────────────────────────────────────────────
+    subgraph GEE ["GEE Extracted (remote/01_data/02_out/gee/)"]
+        direction TB
+        G1[(gaveau/*gaveau_classes.csv\nTreeMap land-use classes)]
+        G2[(gfc_ttm/*.csv\nTreeMap-modified GFC)]
+        G3[(gfc_peat/*.csv\nPeat + Margono primary)]
+        G4[(pulp_annual_defor_forest_id.csv\npulp_annual_defor_non-forest_id.csv)]
+        G5[(pulp_annual_area_hti_only.csv\npulp_annual_area_id.csv)]
+        G6[(GEE batch CSVs\n1km grid: topo, landuse,\nriverdist, AEE embeddings,\nmill distances)]
+        G7[(ttm_classes_by_concession.csv)]
+        G8[(idn_pulp_annual_expansion_peat_mineral_soils.csv)]
+        G9[(samples/samples_hti_id.csv)]
+    end
+
+    %% ── DATA CLEANING ────────────────────────────────────────────────
+    subgraph CLEAN ["02_data_cleaning"]
+        C1[06_gaveau_harvests.R]
+        C2[pulp_expansion_model_variables_1km.R]
+    end
+
+    %% ── INTERMEDIATE TABLES ──────────────────────────────────────────
+    subgraph INT ["Intermediate Tables (remote/01_data/02_out/tables/)"]
+        direction TB
+        I1[(hti_land_use_change_areas.csv)]
+        I2[(hti_grps_deforestation_timing.csv)]
+        I3[(idn_pulp_conversion_hti_nonhti_treemap.csv)]
+        I4[(hti_harvest_yr.csv)]
+        I5[(pulp_exp_model_var_1km_2017.csv\npulp_exp_model_var_1km_2022.csv)]
+        I6[(key_parameters.csv\ndmai, yield_growth, etc.)]
+        I7[(hti_mai.csv)]
+        I8[(pulp_expansion_areas_2001_2022.csv)]
+        I9[(pulp_predictions.csv)]
+        I10[(hti_grps_zdc_pulp_conv_areas.csv\nhti_company_ownership_reclass.csv)]
+    end
+
+    %% ── ANALYSIS SCRIPTS ─────────────────────────────────────────────
+    subgraph ANALYSIS ["04_data_analysis / 06_clean_scripts"]
+        A1[06_clean/01_data_prep.R]
+        A2[06_clean/02_deforestation_timing.R]
+        A3[06_clean/03_land_use_change.R]
+        A4[06_clean/04_land_use_traj_plots.R]
+        A5[08_calc_mai.R]
+        A6[12_paper_stats.R]
+        A7[17_defor_elasticity.R]
+        A8[21_pulp_expansion_model.R]
+        A9[22_pulp_expansion_scenarios.R]
+        A10[15_pulp_defor_prices.R]
+        A11[05_figures/01_summary_figure.R]
+    end
+
+    %% ── FINAL OUTPUTS ────────────────────────────────────────────────
+    subgraph OUT ["Final Outputs"]
+        direction TB
+        O1{{supplier_groups_defor_class_plot_rev9.png}}
+        O2{{lu_traj_plots_all/*.png\n~200 per-concession PNGs}}
+        O3{{yield_growth_table.docx\nmai_diagnostic_plots.png}}
+        O4{{Manuscript statistics\nprinted to console}}
+        O5{{Elasticity regression tables}}
+        O6{{rf_final_fit.rds\nSI_f4_auc.png\npulp_expansion_map.html}}
+        O7{{fig_expansion_map.png\nfig_expansion_combined.png\nscenario_map.html}}
+        O8{{fig_0X_summary_figure.png/.svg}}
+    end
+
+    %% ── CONNECTIONS ─────────────────────────────────────────────────
+    R1 &amp; R2 &amp; R3 &amp; R4 &amp; R5 &amp; R6 --&gt; A1
+    G1 &amp; G2 &amp; G3 &amp; G4 &amp; G9 --&gt; A1
+    R10 --&gt; I10
+    A1 --&gt; I1 &amp; I2 &amp; I3
+    I2 --&gt; A2
+    A2 --&gt; O1
+    I1 --&gt; A4
+    A4 --&gt; O2
+    G7 &amp; R9 --&gt; A3
+    A3 -.-&gt;|incomplete| I1
+
+    R7 &amp; R13 --&gt; C1
+    C1 --&gt; I4
+    G6 &amp; R12 --&gt; C2
+    C2 --&gt; I5
+
+    I4 &amp; R2 --&gt; A5
+    A5 --&gt; I6 &amp; I7 &amp; O3
+
+    I3 &amp; G4 &amp; G5 &amp; G8 &amp; R8 &amp; R2 &amp; I6 &amp; I10 --&gt; A6
+    A6 --&gt; I8 &amp; O4
+
+    I5 --&gt; A8
+    A8 --&gt; I6 &amp; I9 &amp; O6
+
+    I9 &amp; I6 --&gt; A9
+    A9 --&gt; O7
+
+    I7 &amp; R10 &amp; R11 --&gt; A7
+    A7 --&gt; O5
+
+    G4 &amp; R2 &amp; R8 --&gt; A11
+    A11 --&gt; O8
+
+    %% ── STYLING ─────────────────────────────────────────────────────
+    classDef raw fill:#d4edda,stroke:#28a745,color:#000
+    classDef gee fill:#cce5ff,stroke:#004085,color:#000
+    classDef inter fill:#fff3cd,stroke:#856404,color:#000
+    classDef script fill:#f8d7da,stroke:#721c24,color:#000
+    classDef output fill:#e2e3e5,stroke:#383d41,color:#000
+
+    class R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13 raw
+    class G1,G2,G3,G4,G5,G6,G7,G8,G9 gee
+    class I1,I2,I3,I4,I5,I6,I7,I8,I9,I10 inter
+    class A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,C1,C2 script
+    class O1,O2,O3,O4,O5,O6,O7,O8 output</code></pre>
+<hr>
+</section>
+<section id="section-4-manuscript-metric-inventory" class="level2">
+<h2 class="anchored" data-anchor-id="section-4-manuscript-metric-inventory">Section 4: Manuscript Metric Inventory</h2>
+<p>All statistics below are generated by <code>print()</code>, <code>cat()</code>, inline arithmetic with <code>%&gt;% print()</code>, or <code>summary()</code> without being saved to disk. These are <strong>“naked” outputs</strong> that need to be either written to a file or wrapped in a targets object for a replication package.</p>
+<section id="script-04_data_analysis12_paper_stats.r" class="level3">
+<h3 class="anchored" data-anchor-id="script-04_data_analysis12_paper_stats.r">4.1 Script: <code>04_data_analysis/12_paper_stats.R</code></h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Statistic / Model</th>
+<th>Code / Function</th>
+<th>Line(s)</th>
+<th>Intended for Paper?</th>
+<th>Saved?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Annual pulp expansion areas table (2001–2022)</td>
+<td><code>print()</code> on <code>annual_pulp_areas</code></td>
+<td>~166</td>
+<td>Yes (Table/SI)</td>
+<td>Yes → <code>pulp_expansion_areas_2001_2022.csv</code></td>
+</tr>
+<tr class="even">
+<td>Share of pulp deforestation over total 2001–2011</td>
+<td><code>print()</code> on <code>pulp_def_share_2001_2011</code></td>
+<td>~176–185</td>
+<td>Yes — manuscript line 24</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Share of palm deforestation over total 2001–2011</td>
+<td><code>print()</code> on <code>palm_def_share_2001_2011</code></td>
+<td>~179–185</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Forest conversion to pulp 2001–2011 total</td>
+<td><code>sum() %&gt;% print()</code> on <code>annual_conv</code></td>
+<td>~213</td>
+<td>Yes — manuscript “735,000 ha”</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>2011 peak conversion</td>
+<td><code>print()</code> on <code>conv_2011</code></td>
+<td>~219</td>
+<td>Yes — manuscript line 14</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>2017 valley conversion</td>
+<td><code>print()</code> on <code>conv_2017</code></td>
+<td>~220</td>
+<td>Yes — manuscript line 14</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>% change 2011–2017 (−95%)</td>
+<td><code>early_change %&gt;% print()</code></td>
+<td>~222</td>
+<td>Yes — manuscript line 14</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>2022 conversion level</td>
+<td><code>print()</code> on <code>conv_2022</code></td>
+<td>~226</td>
+<td>Yes — manuscript line 16</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>% change 2017–2022 (+372%)</td>
+<td><code>late_change %&gt;% print()</code></td>
+<td>~228</td>
+<td>Yes — manuscript line 16</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Overall change 2011–2022</td>
+<td><code>overall_change %&gt;% print()</code></td>
+<td>~232</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Peat conversion 2017</td>
+<td><code>print()</code> on <code>pulp_conv_2017</code></td>
+<td>~246</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Peat conversion 2022</td>
+<td><code>print()</code> on <code>pulp_conv_2022</code></td>
+<td>~247</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>% change peat conversion 2017–2022</td>
+<td><code>overall_pulp_change %&gt;% print()</code></td>
+<td>~249</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Share of Kalimantan pulp deforestation since 2017</td>
+<td><code>print()</code> on <code>kali_pulp_driven_defor</code></td>
+<td>~261</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Pulp area 2000</td>
+<td><code>print()</code> on <code>annual_pulp</code></td>
+<td>~272</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Pulp expansion 2000–2015</td>
+<td><code>pulp_change %&gt;% print()</code></td>
+<td>~277</td>
+<td>Yes — manuscript “1.62 million ha”</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Annual wood demand 2022</td>
+<td><code>print()</code> on <code>current_wood_demand</code></td>
+<td>~280</td>
+<td>Yes — manuscript “47 million m3”</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Remaining forest in HTI by type</td>
+<td><code>print()</code> on <code>undrained_peat_areas_hti</code></td>
+<td>~293</td>
+<td>Yes — manuscript line 151</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>ZDC violation total ha</td>
+<td><code>print()</code> on <code>total_violations</code></td>
+<td>~307</td>
+<td>Yes — manuscript line 85</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Violations share of pulp expansion</td>
+<td><code>print()</code> on <code>violations_shr</code></td>
+<td>~327</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Indirect violations (NGO-linked)</td>
+<td><code>print()</code> on <code>indirect_violations</code></td>
+<td>~337</td>
+<td>Yes — manuscript line 88</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Indirect share</td>
+<td><code>print()</code> on <code>indirect_shr</code></td>
+<td>~339</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Top 5 violators breakdown</td>
+<td><code>print()</code> on <code>violations_df</code></td>
+<td>~355</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Capacity expansion %</td>
+<td><code>print()</code> on <code>cap_change</code></td>
+<td>~442</td>
+<td>Yes — manuscript “91%”</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Land demand for capacity expansion</td>
+<td><code>(area_demand &lt;- ...)</code></td>
+<td>~450</td>
+<td>Yes — manuscript “1.63 million ha”</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Yield growth scenario share of demand met</td>
+<td><code>extra_production / new_wood_demand</code></td>
+<td>~464</td>
+<td>Yes — manuscript “62%”</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Pulp area within HTI vs.&nbsp;total</td>
+<td><code>print()</code> on <code>pulp_area_hti/id</code></td>
+<td>~513–521</td>
+<td>Yes — SI</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Share of pulpwood expansion in HTI</td>
+<td><code>print()</code> on <code>hti_pulpwood_expansion</code></td>
+<td>~530</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>HTI concession LU areas (Mha)</td>
+<td><code>print()</code> on <code>hti_conc_lu_areas</code></td>
+<td>~592</td>
+<td>Yes — SI 5</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Share of pulp by island</td>
+<td><code>print()</code> on <code>pulp_share_island</code></td>
+<td>~618</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Active HTI supplier count and share</td>
+<td><code>print()</code> on <code>active_hti_suppliers</code></td>
+<td>~562</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Mean concession area (active suppliers)</td>
+<td><code>print(n=Inf)</code> on <code>hti_supp_to_mills_conc_avg_area</code></td>
+<td>~653</td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="script-04_data_analysis08_calc_mai.r" class="level3">
+<h3 class="anchored" data-anchor-id="script-04_data_analysis08_calc_mai.r">4.2 Script: <code>04_data_analysis/08_calc_mai.R</code></h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Statistic / Model</th>
+<th>Code / Function</th>
+<th>Intended for Paper?</th>
+<th>Saved?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Sector-wide MAI (m3/ha/yr)</td>
+<td><code>sector_mai &lt;- ... %&gt;% print()</code></td>
+<td>Yes — core parameter</td>
+<td>Yes → <code>key_parameters.csv</code></td>
+</tr>
+<tr class="even">
+<td>Alternative MAI specs (ignoring fire, dropping fire, winsorized)</td>
+<td><code>if_mai</code>, <code>hf_mai</code>, <code>rw_mai %&gt;% print()</code></td>
+<td>Yes — robustness</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Annual MAI by year (<code>year_mai</code>)</td>
+<td><code>print()</code> on <code>year_mai</code></td>
+<td>Yes — Figure</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>MAI in 2021</td>
+<td><code>print()</code> on <code>mai_2021</code></td>
+<td>Yes</td>
+<td>Yes → <code>key_parameters.csv</code></td>
+</tr>
+<tr class="odd">
+<td>OLS regression: <code>ln_mai ~ year</code> (no FE)</td>
+<td><code>feols()</code> + <code>summary()</code></td>
+<td>Yes — SI Table</td>
+<td>No (modelsummary to docx) → <code>yield_growth_table.docx</code></td>
+</tr>
+<tr class="even">
+<td>Base model: <code>ln_mai ~ controls + year | Supplier FE</code></td>
+<td><code>feols()</code> + <code>summary()</code>, <code>confint()</code></td>
+<td>Yes — main result</td>
+<td>Coef → <code>key_parameters.csv</code></td>
+</tr>
+<tr class="odd">
+<td>Trim, NoWin, RW, IF, HF robustness models</td>
+<td><code>feols()</code> + <code>summary()</code> ×5</td>
+<td>Yes — robustness</td>
+<td>Docx only</td>
+</tr>
+<tr class="even">
+<td>Production coverage (share with harvest data)</td>
+<td><code>print()</code> on <code>prod_coverage</code></td>
+<td>Yes — data quality</td>
+<td>Yes → <code>key_parameters.csv</code></td>
+</tr>
+<tr class="odd">
+<td>Median observations per concession</td>
+<td><code>median()</code></td>
+<td>Yes</td>
+<td>Yes → <code>key_parameters.csv</code></td>
+</tr>
+<tr class="even">
+<td>Comparison to Hardiyanto CAGR (3.6%)</td>
+<td><code>cagr</code></td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Reviewer diagnostic models (eq3–eq6)</td>
+<td><code>feols()</code> + diagnostic plots</td>
+<td>Reviewer response</td>
+<td><code>mai_diagnostic_plots.png</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="script-04_data_analysis22_pulp_expansion_scenarios.r" class="level3">
+<h3 class="anchored" data-anchor-id="script-04_data_analysis22_pulp_expansion_scenarios.r">4.3 Script: <code>04_data_analysis/22_pulp_expansion_scenarios.R</code></h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Statistic / Model</th>
+<th>Code / Function</th>
+<th>Intended for Paper?</th>
+<th>Saved?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Productivity growth rate with CI</td>
+<td><code>cat(sprintf(...))</code></td>
+<td>Yes — paper text</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>MAI in 2028 (central + CI)</td>
+<td><code>cat(sprintf(...))</code></td>
+<td>Yes — paper text</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Additional production from yield growth</td>
+<td><code>cat(sprintf(...))</code></td>
+<td>Yes — paper text</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Share of demand met by productivity growth</td>
+<td><code>cat(sprintf(...))</code></td>
+<td>Yes — paper text</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Total pulp expansion area (central + CI)</td>
+<td><code>cat(sprintf(...))</code></td>
+<td>Yes — paper text</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Deforestation area (central + CI)</td>
+<td><code>cat(sprintf(...))</code></td>
+<td>Yes — paper text</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Peatland conversion (central + CI)</td>
+<td><code>cat(sprintf(...))</code></td>
+<td>Yes — paper text</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Expansion table by island × land type</td>
+<td><code>gt()</code></td>
+<td>Yes — Table in paper</td>
+<td><strong>No</strong> (rendered to viewer, not saved)</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="script-04_data_analysis17_defor_elasticity.r" class="level3">
+<h3 class="anchored" data-anchor-id="script-04_data_analysis17_defor_elasticity.r">4.4 Script: <code>04_data_analysis/17_defor_elasticity.R</code></h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Statistic / Model</th>
+<th>Code / Function</th>
+<th>Intended for Paper?</th>
+<th>Saved?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Price conversion models (SA, Indo, NASC)</td>
+<td><code>lm()</code> + <code>summary()</code></td>
+<td>Yes — robustness</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Panel regression: <code>defor ~ price + FE</code></td>
+<td><code>feols()</code> + <code>modelsummary()</code></td>
+<td>Yes — main result</td>
+<td>Partially via modelsummary</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="script-04_data_analysis21_pulp_expansion_model.r" class="level3">
+<h3 class="anchored" data-anchor-id="script-04_data_analysis21_pulp_expansion_model.r">4.5 Script: <code>04_data_analysis/21_pulp_expansion_model.R</code></h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Statistic / Model</th>
+<th>Code / Function</th>
+<th>Intended for Paper?</th>
+<th>Saved?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>% pixels dropped from NA</td>
+<td><code>message(sprintf(...))</code></td>
+<td>Yes — data quality note</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>CV tuning metrics (roc_auc, pr_auc) by hyperparams</td>
+<td><code>collect_metrics()</code> + <code>print(n=16)</code></td>
+<td>Yes — SI</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Final test set metrics (roc_auc, pr_auc)</td>
+<td><code>collect_metrics(last_fit_result)</code></td>
+<td>Yes — main result</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Brier score</td>
+<td><code>brier_class()</code></td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Confusion matrix</td>
+<td><code>conf_mat()</code> + <code>tidy()</code></td>
+<td>Yes — SI</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Variable importance (top 20)</td>
+<td><code>vip(num_features=20)</code></td>
+<td>Yes — Figure</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Partial dependence plots</td>
+<td><code>pdp::partial()</code> + <code>ggplot()</code></td>
+<td>Yes — Figure</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Spearman correlation (spatial calibration)</td>
+<td><code>cor(..., method="spearman")</code></td>
+<td>Yes</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="odd">
+<td>Predicted probability summary</td>
+<td><code>summary()</code> on <code>.pred_pulp</code></td>
+<td>Diagnostic</td>
+<td><strong>No</strong></td>
+</tr>
+<tr class="even">
+<td>Best CV hyperparameters</td>
+<td><code>collect_metrics()</code> + <code>inner_join()</code></td>
+<td>Yes — SI</td>
+<td><strong>No</strong></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="naked-variables-models-run-but-not-saved-or-exported" class="level3">
+<h3 class="anchored" data-anchor-id="naked-variables-models-run-but-not-saved-or-exported">4.6 Naked Variables / Models (Run but Not Saved or Exported)</h3>
+<p>The following objects are computed but exist only in the R session — they are not written to disk, not assigned to a named output in any function, and not returned from any targets pipeline. These are the highest-priority items to address:</p>
+<ol type="1">
+<li><strong>All manuscript statistics in <code>12_paper_stats.R</code></strong> (24+ named scalar values) — printed via <code>print()</code> and lost when the session ends.</li>
+<li><strong>Scenario statistics in <code>22_pulp_expansion_scenarios.R</code></strong> (7 <code>cat(sprintf(...))</code> blocks) — written to console only.</li>
+<li><strong>RF model evaluation metrics in <code>21_pulp_expansion_model.R</code></strong> (ROC-AUC, PR-AUC, Brier score, confusion matrix, VIP) — rendered to viewer/console only; <code>SI_f4_auc.png</code> is the only saved evaluation artifact.</li>
+<li><strong><code>expansion_gt</code></strong> (the gt table in <code>22_pulp_expansion_scenarios.R</code>) — rendered to the RStudio viewer but not saved as HTML, LaTeX, or PNG.</li>
+<li><strong><code>hti_conv</code> object</strong> — built in <code>01_data_prep.R</code> and referenced in <code>12_paper_stats.R</code> as <code>test &lt;- hti_conv %&gt;% ...</code> but never written to disk.</li>
+<li><strong><code>gaveau_annual_pulp</code></strong> in <code>11_hti_lu_change_analysis.R</code> — built and used but the <code>write_csv()</code> call is commented out. Consumed by <code>12_paper_stats.R</code>.</li>
+<li><strong><code>tbl_long_pulp_clearing_gfc_forest.csv</code></strong> — read by <code>17_defor_elasticity.R</code> but its generating script is not identified in the repository.</li>
+<li><strong><code>idn_deforestation_hti_nonhti_treemap.csv</code></strong> — read by <code>15_pulp_defor_prices.R</code> but not clearly generated by any script in <code>06_clean_scripts</code> (close to <code>idn_pulp_conversion_hti_nonhti_treemap.csv</code> but different name and possibly different columns).</li>
+<li><strong>Diagnostic MAI plots</strong> in <code>08_calc_mai.R</code> (panels p1–p6) — saved as <code>mai_diagnostic_plots.png</code> but the reviewer-response models (<code>eq3</code>–<code>eq6</code> in levels) are not saved.</li>
+<li><strong><code>concession_fnf_traj</code></strong> in <code>06_clean_scripts/03_land_use_change.R</code> — referenced but <strong>never defined</strong>. This will cause a runtime error.</li>
+</ol>
+<hr>
+</section>
+</section>
+<section id="section-5-recommendations-for-targets-package" class="level2">
+<h2 class="anchored" data-anchor-id="section-5-recommendations-for-targets-package">Section 5: Recommendations for targets Package</h2>
+<p>Based on this audit, the following priorities are recommended before building a <code>targets</code> pipeline:</p>
+<section id="critical-fixes-blockers" class="level3">
+<h3 class="anchored" data-anchor-id="critical-fixes-blockers">5.1 Critical Fixes (Blockers)</h3>
+<ol type="1">
+<li><p><strong>Resolve <code>concession_fnf_traj</code> in <code>03_land_use_change.R</code>.</strong> This object is used in <code>lu_expanded_tbl</code> but is never created. The script will fail at runtime. It is likely meant to be <code>concession_forest_traj</code>.</p></li>
+<li><p><strong>Resolve filename mismatch.</strong> <code>01_data_prep.R</code> writes <code>idn_pulp_conversion_hti_nonhti_treemap.csv</code>; <code>12_paper_stats.R</code> reads <code>idn_pulp_conversion_hti_nonhti_gaveau.csv</code>. Decide on a canonical name and update all readers.</p></li>
+<li><p><strong>Identify the generating script for <code>tbl_long_pulp_clearing_gfc_forest.csv</code></strong> (required by <code>17_defor_elasticity.R</code>) and <code>idn_deforestation_hti_nonhti_treemap.csv</code> (required by <code>15_pulp_defor_prices.R</code>). These may be produced by scripts not yet in the repository, or the filenames may have changed.</p></li>
+<li><p><strong>Reactivate the <code>write_csv(gaveau_annual_pulp, ...)</code> call</strong> in <code>11_hti_lu_change_analysis.R</code> or replicate it in <code>01_data_prep.R</code>, since <code>12_paper_stats.R</code> depends on this file.</p></li>
+</ol>
+</section>
+<section id="structural-decisions" class="level3">
+<h3 class="anchored" data-anchor-id="structural-decisions">5.2 Structural Decisions</h3>
+<ol start="5" type="1">
+<li><p><strong>Decide whether <code>06_clean_scripts</code> replaces or extends <code>04_data_analysis</code>.</strong> Currently both layers coexist with overlapping but inconsistent logic. For targets, one canonical set of scripts per analysis step is needed.</p></li>
+<li><p><strong>Add <code>06_clean_scripts</code> equivalents for the uncovered analysis scripts:</strong> <code>08_calc_mai.R</code>, <code>12_paper_stats.R</code>, <code>17_defor_elasticity.R</code>, <code>21_pulp_expansion_model.R</code>, <code>22_pulp_expansion_scenarios.R</code>, and <code>05_figures/01_summary_figure.R</code>.</p></li>
+<li><p><strong>Eliminate AWS S3 dependency in <code>05_figures/01_summary_figure.R</code>.</strong> Replace <code>s3read_using()</code> / <code>aws.s3::get_object()</code> calls with local file reads for reproducibility.</p></li>
+<li><p><strong>Harmonise HTI shapefile versions.</strong> Three different shapefile names are in use across scripts. Standardise on one (likely <code>IUPHHK_HTI_TRASE_20230314_proj.shp</code>).</p></li>
+</ol>
+</section>
+<section id="output-capture" class="level3">
+<h3 class="anchored" data-anchor-id="output-capture">5.3 Output Capture</h3>
+<ol start="9" type="1">
+<li><p><strong>Wrap all <code>print()</code> and <code>cat()</code> manuscript statistics</strong> in <code>12_paper_stats.R</code> and <code>22_pulp_expansion_scenarios.R</code> as named <code>targets</code> objects or write them to a structured YAML/CSV file so they are tracked in the pipeline.</p></li>
+<li><p><strong>Save the <code>expansion_gt</code> table</strong> in <code>22_pulp_expansion_scenarios.R</code> using <code>gtsave()</code> to a PNG, HTML, or LaTeX file so the pipeline can track it.</p></li>
+<li><p><strong>Save RF evaluation metrics</strong> (ROC-AUC, PR-AUC, confusion matrix) from <code>21_pulp_expansion_model.R</code> to <code>key_results.csv</code> or similar, analogous to how <code>08_calc_mai.R</code> exports <code>key_parameters.csv</code>.</p></li>
+</ol>
+<hr>
+<p><em>End of audit report.</em></p>
+</section>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
