@@ -40,9 +40,6 @@ wdir <- "remote"
 ## read data -------------------------------------------------
 '%ni%' <- Negate('%in%') # filter out function
 
-# load color palette
-source("scripts\\001_misc\\001_color_palettes.R")
-
 # read data on hti conversion timing
 hti_conv_timing <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_deforestation_timing.csv"))
 
@@ -128,8 +125,10 @@ defor_plot <- freq_tab %>%
   expand = c(0,0),
   breaks = c(0,500000,1000000,1500000,2000000,2500000)) +
   guides(fill = guide_legend(nrow = 2)) +
-  scale_fill_manual(values = cols,name ="Group",
-                    breaks=defor_order,labels=defor_order) +
+  scale_fill_manual(values = c("#CC79A7","#0072B2","#F0E442","#009E73"),
+    name ="Group",
+    breaks=defor_order,
+    labels=defor_order) +
   theme(axis.title.y = element_text(angle = 90))
 
 defor_plot

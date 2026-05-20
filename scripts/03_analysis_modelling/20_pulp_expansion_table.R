@@ -55,7 +55,7 @@ hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.s
 ann_pulp_tbl <- read_csv(paste0(wdir,"/01_data/02_out/tables/pulp_expansion_areas_2001_2022.csv"))
 
 # pulpwood conversion from forest and non-forest within and outside hti concessions
-hti_nonhti_conv <- read_csv(paste0(wdir,"/01_data/02_out/tables/idn_pulp_conversion_hti_nonhti_gaveau.csv"))
+hti_nonhti_conv <- read_csv(paste0(wdir,"/01_data/02_out/tables/idn_pulp_conversion_hti_nonhti_treemap.csv"))
 
 ## read point sample extracted datasets ##
 

@@ -121,7 +121,7 @@ pw_2000 <- pw_annual_area_id %>%
 groups_reclass_hti <- read_csv(paste0(wdir,"/01_data/01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv"))
 
 # hti pulp conversion with timing information
-zdc_hti_conv <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_zdc_pulp_conv_areas.csv'))
+zdc_hti_conv <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_deforestation_timing.csv'))
 
 # Gaveau annual pulp areas (within HTI)
 gaveau_annual_pulp <- read_csv(paste0(wdir, '/01_data/02_out/tables/gaveau_annual_pulp_areas.csv'))

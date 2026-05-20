@@ -57,7 +57,7 @@ trucking_tbl <- contr_tbl %>%
   filter(type == "trucking")
 
 barging_costs <- fuzzy_left_join(
-  centroid_mills_df, barging_tbl,
+  centroid_all_mills_df, barging_tbl,
   by = c("dist_sea_km" = "dist_1", "dist_sea_km" = "dist_2"),
   match_fun = list(`>=`, `<=`)
 ) %>%
@@ -65,14 +65,14 @@ barging_costs <- fuzzy_left_join(
   print()
 
 trucking_costs_sumatra <- fuzzy_left_join(
-  centroid_mills_df, trucking_tbl,
+  centroid_all_mills_df, trucking_tbl,
   by = c("dist_land_sumatera_km" = "dist_1", "dist_land_sumatera_km" = "dist_2"),
   match_fun = list(`>=`, `<=`)
 ) %>%
   select(id,mill,cost_trucking_suma=value)
 
 trucking_costs_kalimantan <- fuzzy_left_join(
-  centroid_mills_df, trucking_tbl,
+  centroid_all_mills_df, trucking_tbl,
   by = c("dist_land_kalimantan_km" = "dist_1", "dist_land_kalimantan_km" = "dist_2"),
   match_fun = list(`>=`, `<=`)
 ) %>%
