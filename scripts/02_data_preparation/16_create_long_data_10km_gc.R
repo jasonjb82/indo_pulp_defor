@@ -44,9 +44,6 @@ wdir <- "remote"
 # choose projection: Cylindrical Equal Area
 indonesian_crs <- "+proj=cea +lon_0=115.0 +lat_ts=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
 
-# load color palette
-source("scripts/001_misc/001_color_palettes.R")
-
 # kabupaten
 kab <- read_sf(paste0(wdir,"/01_data/01_in/big/idn_kabupaten_big.shp"))
 kab_slim <- kab %>%

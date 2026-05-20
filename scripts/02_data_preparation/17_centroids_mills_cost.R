@@ -20,7 +20,6 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 
 ### Load packages
 library(stringr)
-# library(dlookr) # Dropping since this package has lots of dependencies and doesn't seem to be called?
 library(tidyverse)
 library(tidylog)
 library(janitor)
