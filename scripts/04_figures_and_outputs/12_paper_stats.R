@@ -171,7 +171,7 @@ annual_pulp_areas <- pw_annual_area_id %>%
   select(year,annual_pulp_expansion_area_ha=annual_pulp_area,forest_loss_ha,forest_loss_pulp_ha,nonforest_loss_pulp_ha,annual_pulp_area_ha=area_ha) %>%
   print()
 
-
+# Line 24: ...contributing 14% of all of Indonesia’s primary forest loss over the same period 
 # Share of pulp deforestation over total annual deforestation (2001-2011)
 pulp_def_share_2001_2011 <- id_annual_pulp_stats %>%
   filter(year < 2012) %>%
@@ -218,8 +218,6 @@ annual_conv %>%
   pull(area_ha) %>% 
   sum()
   
-# Line 24: ...contributing 15% of all of Indonesia’s primary forest loss over the same period 
-## TODO: Jason, could you help get the denominator for this stat? Is David's forest basemap primary forest? If so, we'd want to take that, combine it with Hansen through 2011, to calculate total primary forest clearing in the same years
 
 # Line 14 / 100: Over the following six years, pulp-driven deforestation declined by 95% 
 conv_2011 = annual_conv %>% filter(year == 2011) %>% pull(area_ha) %>% print()
