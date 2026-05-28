@@ -35,9 +35,10 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 ## load data -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 wdir <- "remote"
+data_dir <- "/01_data"
 
 # Harvest data
-harvest_csv <- paste0(wdir, "/01_data/02_out/tables/hti_harvest_yr.csv")
+harvest_csv <- paste0(wdir, data_dir, "/02_out/tables/hti_harvest_yr.csv")
 harvest_df <- read_csv(harvest_csv)
 
 # Calculate peat percentages
