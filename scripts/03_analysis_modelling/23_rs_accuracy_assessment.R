@@ -42,19 +42,11 @@ wdir <- "remote/"
 XLSX_PATH <- paste0(wdir, "01_data/01_in/gaveau/Validation_11classes_land-cover-change-map_v1-2.xlsx")
 
 # Mapped (pixel-counting) areas per stratum class (ha).
-# Source: Inputs tab of the validation spreadsheet.
-MAPPED_AREA_HA <- c(
-  "0"  = 185113344.48759899,   # Stable other (non-pulpwood 2000-2024)
-  "1"  =   1129638.02954680,   # Stable pulpwood (2000-2024)
-  "2"  =    560269.50156898,   # Other to pulpwood 2001-2011
-  "3"  =    164814.40470079,   # Other to pulpwood 2012-2017
-  "4"  =    240215.72409482,   # Other to pulpwood 2018-2024
-  "5"  =    244332.19723691,   # Forest to pulpwood 2001-2011
-  "6"  =     78723.67053828,   # Forest to pulpwood 2012-2017
-  "7"  =     74924.25752140,   # Forest to pulpwood 2018-2024
-  "8"  =    509834.91942866,   # Peat to pulpwood 2001-2011
-  "9"  =    123864.08694500,   # Peat to pulpwood 2012-2017
-  "10" =     27813.90172020    # Peat to pulpwood 2018-2024
+# Read directly from the Inputs tab of the validation spreadsheet (A6:C17).
+inputs_raw <- read_excel(XLSX_PATH, sheet = "Inputs", range = "A6:C17")
+MAPPED_AREA_HA <- setNames(
+  as.numeric(inputs_raw[[3]]),
+  as.character(as.integer(inputs_raw[[1]]))
 )
 
 CLASS_NAMES <- c(
