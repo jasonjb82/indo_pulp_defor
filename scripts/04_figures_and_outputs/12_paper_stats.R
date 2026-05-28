@@ -413,62 +413,52 @@ ownership_defor %>% select(area_ha) %>% sum()
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Capacity expansions -----------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## Summary of proposed expansions: remote/01_data/01_in/new_capacity/planned_expansions.xlsx"
-## Productivity calculations largely building upon script 08_calc_mai.R
-sector_mai <- mai_df$dmai # After correcting for burns. Was 21.75 in prior version
-
-oki_exp_mt <- 4.2
-rapp_exp_mt <- 1.33
+# Expansion tonnage and baseline capacity: from planned_expansions.xlsx and MILLS_EXPORTERS
+oki_exp_mt       <- 4.2
+rapp_exp_mt      <- 1.33
 rappbctmp_exp_mt <- 1.3
-phoenix_exp_mt <- 1.7
-total_exp_mt <- oki_exp_mt + rapp_exp_mt + rappbctmp_exp_mt + phoenix_exp_mt
-baseline_production <- pulp_production %>% filter(year == 2022) %>% pull(annual_prod_mtpy)
-baseline_cap_mt <- cap_df %>%
+phoenix_exp_mt   <- 1.7
+total_exp_mt     <- oki_exp_mt + rapp_exp_mt + rappbctmp_exp_mt + phoenix_exp_mt
+baseline_cap_mt  <- cap_df %>%
   select(MILL_ID, PULP_CAP_MTPY) %>%
   distinct() %>%
   pull(PULP_CAP_MTPY) %>%
   sum()
+cap_change <- total_exp_mt / baseline_cap_mt
 
-## Calculate the prior industry average conversion rate: m3 per tonne of pulp
-wood_pulp_conv <- (current_wood_demand / 1000000) / baseline_production
+cat(sprintf("Capacity expansion: %.2f Mt (%.1f%% increase over baseline)\n",
+            total_exp_mt, cap_change * 100))
 
-## Double check calculations on current production
-baseline_usage_shr <- baseline_production / baseline_cap_mt
-test_wood_demand <- baseline_cap_mt * baseline_usage_shr * wood_pulp_conv
-(current_wood_demand / 1000000) == test_wood_demand
-baseline_usage_shr <- 1 # Assume all capacity will eventually go into production 
+# Wood demand, plantation area, and productivity scenarios: authoritative calculations
+# from 22_pulp_expansion_scenarios.R (run that script first to generate scenario_stats.csv)
+scenario_stats <- read_csv(paste0(wdir, "/01_data/04_results/scenario_stats.csv"),
+                           show_col_types = FALSE)
 
-## Set assumed conversion rate for new semi-chemical pulp mill (pt phoenix). Source: https://unece.org/forestry-timber/documents/2022/01/informal-documents/supporting-tables-forest-products-conversion
-chem_wood_pulp_conv <- 2.75
+cat(sprintf("New annual wood demand from expansion: %.1f million m3\n",
+            scenario_stats$new_wood_demand_mm3))
 
-## Line 102: Together, these three projects would increase the country’s pulp capacity by 91% and, once fully operational, would lead to a concomitant 40 million m3 increase in the country’s annual demand for pulpwood. 
-total_exp_mt
-cap_change <- (total_exp_mt / baseline_cap_mt) %>% print()
+# Area needed assuming no productivity improvements (uses current sector MAI)
+area_demand_historical <- scenario_stats$new_wood_demand_mm3 / mai_df$dmai
+cat(sprintf("Area needed at historical productivity: %.2f million ha\n",
+            area_demand_historical))
 
-# Estimate of land demand from capacity expansions
-new_wood_demand <- ((oki_exp_mt + rapp_exp_mt) * baseline_usage_shr * wood_pulp_conv) + ((phoenix_exp_mt + rappbctmp_exp_mt) * baseline_usage_shr * chem_wood_pulp_conv)
-new_wood_demand
-
-# Line 103: At historical levels of plantation productivity, an additional 1.63 million hectares of plantations would be needed to meet this potential boom in pulpwood demand
-# new_wood_demand <- 30600000 # m3 / y - taken from Brian's calculations in paper draft. Was for original expansion estimates without PT phoenix
-(area_demand <- new_wood_demand / sector_mai) # ha
-
-new_wood_demand / (current_wood_demand / 1000000)
-
-## Explore scenario with continued yield improvements for five years. We've seen ~4.5% increase per year (script 08_calc_mai.R)
-## "...even if companies were able to sustain the current rate of productivity 
-## improvement over the next decade, increased production from existing plantations 
-## would only meet 62% of the anticipated growth in pulpwood demand"
-yield_growth = (mai_df$yield_growth + 1) %>% print()
-yield_growth = (1.059) %>% print()
-mai_2021 <- mai_df$dmai_2021
-high_yield_mai <- ((yield_growth^7) * mai_2021) %>% print()  # Updated after fixing david's data to account for burns. Was 1.049 growth rate
-assumed_area_plantations <- 3050000
-extra_production <- (high_yield_mai - mai_2021) * assumed_area_plantations / 1000000
-extra_production / new_wood_demand
-
-# A further XX hectares of plantations would be needed to meet the remaining pulpwood demand.
-(new_wood_demand - extra_production) / high_yield_mai
+# Area needed accounting for projected productivity growth (with CI); from 22_pulp_expansion_scenarios.R
+cat(sprintf("Additional plantation area needed (with yield growth): %.2f million ha (%.2f-%.2f million ha)\n",
+            scenario_stats$area_demand_central_mha,
+            scenario_stats$area_demand_low_mha,
+            scenario_stats$area_demand_high_mha))
+cat(sprintf("Productivity growth rate: %.1f%% per year (%.1f%%-%.1f%%)\n",
+            scenario_stats$mai_growth_central_pct,
+            scenario_stats$mai_growth_lb_pct,
+            scenario_stats$mai_growth_ub_pct))
+cat(sprintf("Projected deforestation from expansion: %s ha (%s-%s ha)\n",
+            formatC(scenario_stats$defor_central_ha, format = "d", big.mark = ","),
+            formatC(scenario_stats$defor_low_ha,     format = "d", big.mark = ","),
+            formatC(scenario_stats$defor_high_ha,    format = "d", big.mark = ",")))
+cat(sprintf("Projected peatland conversion: %s ha (%s-%s ha)\n",
+            formatC(scenario_stats$peat_central_ha,  format = "d", big.mark = ","),
+            formatC(scenario_stats$peat_low_ha,      format = "d", big.mark = ","),
+            formatC(scenario_stats$peat_high_ha,     format = "d", big.mark = ",")))
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -546,7 +536,7 @@ pulpwood_expansion_hti_hte <- hti_nonhti_conv %>%
   print()
 
 # Pulpwood share by woodtype
-pw_share <- read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx')) %>%
+pw_share <- read_excel(paste0(wdir, '/01_data/01_in/wwi/RPBBI_2022_compiled.xlsx')) %>%
   group_by(TYPE) %>%
   summarize(VOLUME_M3 = sum(VOLUME_M3)) %>%
   mutate(SHARE = prop.table(VOLUME_M3)*100) %>%
@@ -636,7 +626,7 @@ ann_pulp_exp <- annual_pulp_areas %>%
   filter(Year > 2000) %>%
   print(Inf)
 
-write_csv(ann_pulp_exp,paste0(wdir,"\\01_data\\02_out\\tables\\pulp_expansion_areas_2001_2022.csv"))
+write_csv(ann_pulp_exp,paste0(wdir,"/01_data/02_out/tables/pulp_expansion_areas_2001_2022.csv"))
 
 ## count of unique plantation concessions that supplied any pulp mills during the period 2015-2021
 ## and mean area (ha) of these concessions

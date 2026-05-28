@@ -424,3 +424,29 @@ cat(sprintf(
   formatC(peat_stats$scenario_1_ha, format = "d", big.mark = ","),
   formatC(peat_stats$scenario_3_ha, format = "d", big.mark = ",")
 ))
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# save scenario stats for reporting in 12_paper_stats.R ----------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Note on area_demand lb/ub: additional_area["ub"] corresponds to high MAI growth
+# (= low area demand); additional_area["lb"] corresponds to low MAI growth (= high area demand).
+scenario_stats <- tibble(
+  new_wood_demand_mm3     = new_wood_demand,
+  area_demand_central_mha = additional_area["central"],
+  area_demand_low_mha     = additional_area["ub"],
+  area_demand_high_mha    = additional_area["lb"],
+  mai_growth_central_pct  = mai_rate["central"] * 100,
+  mai_growth_lb_pct       = mai_rate["lb"]      * 100,
+  mai_growth_ub_pct       = mai_rate["ub"]      * 100,
+  mai_2028_central        = mai_2028["central"],
+  mai_2028_lb             = mai_2028["lb"],
+  mai_2028_ub             = mai_2028["ub"],
+  defor_central_ha        = defor_stats$scenario_2_ha,
+  defor_low_ha            = defor_stats$scenario_1_ha,
+  defor_high_ha           = defor_stats$scenario_3_ha,
+  peat_central_ha         = peat_stats$scenario_2_ha,
+  peat_low_ha             = peat_stats$scenario_1_ha,
+  peat_high_ha            = peat_stats$scenario_3_ha
+)
+write_csv(scenario_stats, paste0(wdir, "01_data/04_results/scenario_stats.csv"))
