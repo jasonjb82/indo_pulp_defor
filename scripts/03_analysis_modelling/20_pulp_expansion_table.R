@@ -2,7 +2,7 @@
 ## 
 ## Project: Indonesia pulp deforestation
 ##
-## Purpose of script: Data preparation
+## Purpose of script: Create pulp expansion table for SI Table 2
 ##
 ## Author: Robert Heilmayr and Jason Jon Benedict
 ##
