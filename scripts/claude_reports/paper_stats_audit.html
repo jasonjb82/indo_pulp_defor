@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>paper_stats_audit</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="paper_stats_audit_files/libs/clipboard/clipboard.min.js"></script>
+<script src="paper_stats_audit_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="paper_stats_audit_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="paper_stats_audit_files/libs/quarto-html/popper.min.js"></script>
+<script src="paper_stats_audit_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="paper_stats_audit_files/libs/quarto-html/anchor.min.js"></script>
+<link href="paper_stats_audit_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="paper_stats_audit_files/libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="paper_stats_audit_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="paper_stats_audit_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="paper_stats_audit_files/libs/bootstrap/bootstrap-138a6193a3bd40baf1e627da441a4734.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+
+
+
+<section id="paper-statistics-audit-12_paper_stats.r-vs.-published-paper" class="level1">
+<h1>Paper Statistics Audit: 12_paper_stats.R vs.&nbsp;Published Paper</h1>
+<p><strong>Script:</strong> <code>scripts/04_figures_and_outputs/12_paper_stats.R</code><br>
+<strong>Paper:</strong> <code>spf_pulp_defor_r2.docx</code><br>
+<strong>Generated:</strong> 2026-05-20<br>
+<strong>Updated:</strong> 2026-05-20 — script executed; all values verified against actual output</p>
+<p>This report catalogs every empirical statistic reported in the main text of the paper, maps it to the script code that should produce it, and flags discrepancies or gaps. Statistics are organized in the order they appear in the paper.</p>
+<p><strong>Legend:</strong> - ✅ Computed in script, value consistent with paper - ⚠️ Computed in script, but value or methodology inconsistent with paper - ❌ Not currently computed in <code>12_paper_stats.R</code> (missing or commented out) - 🔲 Paper contains a blank/unfilled placeholder — value expected from script</p>
+<hr>
+<section id="abstract" class="level2">
+<h2 class="anchored" data-anchor-id="abstract">Abstract</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 17%">
+<col style="width: 20%">
+<col style="width: 22%">
+<col style="width: 20%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Paper text</th>
+<th>Paper value</th>
+<th>Script output</th>
+<th>Script lines</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>A1</td>
+<td>“Between 2001 and 2011, ___ hectares of rainforest were directly converted to pulpwood plantations”</td>
+<td><strong>[BLANK in docx]</strong></td>
+<td><strong>734,974 ha</strong> (≈ 735,000 ha)</td>
+<td>216–219</td>
+<td>🔲 Computed correctly; paper placeholder not yet filled. Value not assigned to a named variable.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="progress-towards-zero-deforestation" class="level2">
+<h2 class="anchored" data-anchor-id="progress-towards-zero-deforestation">Progress Towards Zero-Deforestation</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 17%">
+<col style="width: 20%">
+<col style="width: 22%">
+<col style="width: 20%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Paper text</th>
+<th>Paper value</th>
+<th>Script output</th>
+<th>Script lines</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>P1</td>
+<td>“pulp-driven deforestation fell by 95%”</td>
+<td>–95%</td>
+<td><strong>–94.9%</strong> (<code>conv_2011</code> = 108,096; <code>conv_2017</code> = 5,554)</td>
+<td>223–226</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td>P2</td>
+<td>“which expanded by 1.__ million hectares between 2000 and <strong>2011</strong>”</td>
+<td><strong>[BLANK]</strong></td>
+<td><strong>1,623,439 ha</strong> (2000→2015)</td>
+<td>278–281</td>
+<td>⚠️ <strong>Date mismatch:</strong> script computes 2000→2015 expansion (<code>pulp_2015 - pulp_2000</code>); paper text says “2000 and 2011”. Script comment also references “2000 and 2015.” The paper date or script date range needs to be reconciled.</td>
+</tr>
+<tr class="odd">
+<td>P3</td>
+<td>“plantations now supply nearly all of Indonesia’s <strong>47 million m³</strong> of annual pulpwood demand”</td>
+<td>47,000,000 m³</td>
+<td><strong>46,555,205 m³</strong></td>
+<td>284</td>
+<td>✅ Rounds to 47 million m³</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="despite-the-sectors-ambitious-goals-paragraph-deforestation-20152022" class="level2">
+<h2 class="anchored" data-anchor-id="despite-the-sectors-ambitious-goals-paragraph-deforestation-20152022">“Despite the sector’s ambitious goals…” paragraph (Deforestation 2015–2022)</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 17%">
+<col style="width: 20%">
+<col style="width: 22%">
+<col style="width: 20%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Paper text</th>
+<th>Paper value</th>
+<th>Script output</th>
+<th>Script lines</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>D1</td>
+<td>“107,400 hectares of forests were directly converted to pulpwood plantations between 2015 and 2022”</td>
+<td>107,400 ha</td>
+<td><strong>107,353 ha</strong></td>
+<td>374–385</td>
+<td>✅ Rounds to 107,400 ha</td>
+</tr>
+<tr class="even">
+<td>D2</td>
+<td>“Concessions officially claimed by APP and APRIL had little pulp-driven deforestation after 2015 (<strong>3,600 ha</strong>)”</td>
+<td>3,600 ha</td>
+<td><strong>3,615 ha</strong> (“Owned or acknowledged” row)</td>
+<td>374–383</td>
+<td>✅ Rounds to 3,600 ha</td>
+</tr>
+<tr class="odd">
+<td>D3</td>
+<td>“responsible for <strong>63,900 ha (60%)</strong> of pulp-driven deforestation during this period”</td>
+<td>63,900 ha / 60%</td>
+<td><strong>63,895 ha / 59.5%</strong> (“NGO-linked” row)</td>
+<td>374–383</td>
+<td>✅ Rounds to 63,900 ha / 60%</td>
+</tr>
+<tr class="even">
+<td>D4</td>
+<td>“The remaining <strong>37%</strong> of pulp-driven deforestation occurred in concessions controlled by external suppliers”</td>
+<td>37%</td>
+<td><strong>37.1%</strong> (“Indirect supplier” 32.8% + NA 4.3%)</td>
+<td>374–383</td>
+<td>✅ Rounds to 37%</td>
+</tr>
+</tbody>
+</table>
+<blockquote class="blockquote">
+<p><strong>Note on D1–D4:</strong> The ZDC violations section (lines 305–368) is commented out and replaced by <code>ownership_defor</code>, which groups by <code>group_reclassed</code> from <code>ALIGNED_NAMES_GROUP_HTI_reclassed.csv</code>. All four paper values are readable from the printed table but none are extracted to named scalars, making automated verification difficult.</p>
+</blockquote>
+<hr>
+</section>
+<section id="an-emerging-boom-in-deforestation" class="level2">
+<h2 class="anchored" data-anchor-id="an-emerging-boom-in-deforestation">An Emerging Boom in Deforestation</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 17%">
+<col style="width: 20%">
+<col style="width: 22%">
+<col style="width: 20%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Paper text</th>
+<th>Paper value</th>
+<th>Script output</th>
+<th>Script lines</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>E1</td>
+<td>“annual rate of conversion increased from <strong>5,600 ha/year</strong> to <strong>24,300 ha/year</strong>”</td>
+<td>5,600 and 24,300</td>
+<td><strong>5,554</strong> and <strong>24,304</strong></td>
+<td>223–230</td>
+<td>✅ Round to 5,600 and 24,300</td>
+</tr>
+<tr class="even">
+<td>E2</td>
+<td>“(<strong>338% increase</strong>)”</td>
+<td>338%</td>
+<td><strong>337.6%</strong></td>
+<td>231–232</td>
+<td>✅ Rounds correctly; apparent arithmetic inconsistency from independently rounded inputs</td>
+</tr>
+<tr class="odd">
+<td>E3</td>
+<td>“pulp-driven conversion of peatlands increased from <strong>1,500 ha/year</strong> to <strong>7,800 ha/year</strong>”</td>
+<td>1,500 and 7,800</td>
+<td><strong>1,427</strong> and <strong>7,784</strong></td>
+<td>250–251</td>
+<td>✅ Round to nearest 100: 1,400 and 7,800; close to paper rounding</td>
+</tr>
+<tr class="even">
+<td>E4</td>
+<td>“(<strong>446% increase</strong>)”</td>
+<td>446%</td>
+<td><strong>445.7%</strong></td>
+<td>252–253</td>
+<td>✅ Rounds correctly</td>
+</tr>
+<tr class="odd">
+<td>E5</td>
+<td>“deforestation rates in 2022 were still <strong>76% lower</strong> than the 2011 peak”</td>
+<td>–76%</td>
+<td><strong>–77.5%</strong></td>
+<td>234–236</td>
+<td>⚠️ Script gives –77.5%; paper says 76%. User confirmed paper value is stale — paper should be updated to 78%.</td>
+</tr>
+<tr class="even">
+<td>E6</td>
+<td>“the region has been responsible for <strong>89%</strong> of pulp-driven deforestation since 2017”</td>
+<td>89%</td>
+<td><strong>89.0%</strong></td>
+<td>258–266</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="new-pulp-mills-and-capacity-expansion" class="level2">
+<h2 class="anchored" data-anchor-id="new-pulp-mills-and-capacity-expansion">New Pulp Mills and Capacity Expansion</h2>
+<blockquote class="blockquote">
+<p><strong>Note on C2–C4:</strong> The capacity/scenario calculations were previously duplicated between <code>12_paper_stats.R</code> and <code>22_pulp_expansion_scenarios.R</code> with stale inline comments. As of 2026-05-20, <code>12_paper_stats.R</code> now loads C3/C4/productivity stats from <code>scenario_stats.csv</code> (produced by <code>22_pulp_expansion_scenarios.R</code>). Run <code>22_pulp_expansion_scenarios.R</code> before <code>12_paper_stats.R</code>.</p>
+</blockquote>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 17%">
+<col style="width: 20%">
+<col style="width: 22%">
+<col style="width: 20%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Paper text</th>
+<th>Paper value</th>
+<th>Script output</th>
+<th>Script lines</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>C1</td>
+<td>“over <strong>95%</strong> of the industry’s production capacity” [Sinar Mas + RGE]</td>
+<td>95%</td>
+<td>Not computed</td>
+<td>—</td>
+<td>❌ Stated as context in the paper; no calculation in <code>12_paper_stats.R</code></td>
+</tr>
+<tr class="even">
+<td>C2</td>
+<td>“increase the country’s pulp capacity by <strong>78%</strong> (<strong>8.53 million tonnes</strong>)”</td>
+<td>78% / 8.53 Mt</td>
+<td><strong>78.2%</strong> / <strong>8.53 Mt</strong></td>
+<td>capacity section</td>
+<td>✅ Previous inline comment saying “91%” was stale; dynamic calculation matches paper</td>
+</tr>
+<tr class="odd">
+<td>C3</td>
+<td>“increase the country’s annual demand for pulpwood by <strong>34 million m³</strong>”</td>
+<td>34,000,000 m³</td>
+<td><strong>34.27 million m³</strong> (from <code>scenario_stats.csv</code>)</td>
+<td>loaded from <code>22_pulp_expansion_scenarios.R</code></td>
+<td>✅ Rounds to 34 million m³</td>
+</tr>
+<tr class="even">
+<td>C4</td>
+<td>“an additional <strong>1.84 million hectares</strong> of plantations will be needed”</td>
+<td>1,840,000 ha</td>
+<td><strong>1.838 million ha</strong> (from <code>scenario_stats.csv</code>)</td>
+<td>loaded from <code>22_pulp_expansion_scenarios.R</code></td>
+<td>✅ Previous inline comment saying “1.63 million hectares” was stale</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="barriers-facing-productivity-improvements" class="level2">
+<h2 class="anchored" data-anchor-id="barriers-facing-productivity-improvements">Barriers Facing Productivity Improvements</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 17%">
+<col style="width: 20%">
+<col style="width: 22%">
+<col style="width: 20%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Paper text</th>
+<th>Paper value</th>
+<th>Script output</th>
+<th>Script lines</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>B1</td>
+<td>“productivity of approximately ___ per year (S3)”</td>
+<td><strong>[BLANK]</strong></td>
+<td><strong>3.2%/year</strong> (<code>mai_df$yield_growth = 0.032</code>, from <code>key_parameters.csv</code>)</td>
+<td><code>08_calc_mai.R</code> → <code>key_parameters.csv</code></td>
+<td>🔲 Value is confirmed at 3.2%/year (with CI); paper placeholder not yet filled. See note below.</td>
+</tr>
+</tbody>
+</table>
+<blockquote class="blockquote">
+<p><strong>Note on B1:</strong> <code>key_parameters.csv</code> contains <code>yield_growth = 0.032</code> (3.2%/year). This is the authoritative value used in <code>22_pulp_expansion_scenarios.R</code> for scenario projections. The previously hardcoded <code>yield_growth = 1.059</code> override has been removed from <code>12_paper_stats.R</code> as part of the 2026-05-20 refactor.</p>
+</blockquote>
+<hr>
+</section>
+<section id="we-find-that-2.94-million-hectares-of-primary-forests-paragraph" class="level2">
+<h2 class="anchored" data-anchor-id="we-find-that-2.94-million-hectares-of-primary-forests-paragraph">“We find that 2.94 million hectares of primary forests…” paragraph</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 17%">
+<col style="width: 20%">
+<col style="width: 22%">
+<col style="width: 20%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Paper text</th>
+<th>Paper value</th>
+<th>Script output</th>
+<th>Script lines</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>F1</td>
+<td>“<strong>2.94 million hectares</strong> of primary forests, <strong>18%</strong> of which are on peat soils”</td>
+<td>2.94 Mha / 18%</td>
+<td><strong>2.964 Mha</strong> / <strong>18.5%</strong></td>
+<td>290–297</td>
+<td>⚠️ <strong>Area discrepancy:</strong> script gives 2.964 Mha; paper says 2.94 Mha (gap of ~24,000 ha / 0.8%). Peat share rounds to 18% ✅. Total area gap may reflect a change in input data or filter criteria since the paper was written.</td>
+</tr>
+<tr class="even">
+<td>F2</td>
+<td>“<strong>46%</strong> of these forests within pulp concessions are located in Kalimantan”</td>
+<td>46%</td>
+<td>Not computed</td>
+<td>—</td>
+<td>❌ No island-level breakdown of remaining primary forests in <code>12_paper_stats.R</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="summary-table" class="level2">
+<h2 class="anchored" data-anchor-id="summary-table">Summary Table</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 26%">
+<col style="width: 42%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Status</th>
+<th>Count</th>
+<th>Statistics</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>✅ Computed, consistent with paper</td>
+<td>14</td>
+<td>P1, P3, D1, D2, D3, D4, E1, E2, E3, E4, E6, C2, C3, C4</td>
+</tr>
+<tr class="even">
+<td>⚠️ Computed but inconsistent with paper</td>
+<td>3</td>
+<td>P2 (date mismatch), E5 (76% vs 77.5%), F1 (2.94 vs 2.96 Mha)</td>
+</tr>
+<tr class="odd">
+<td>❌ Not computed in this script</td>
+<td>2</td>
+<td>C1, F2</td>
+</tr>
+<tr class="even">
+<td>🔲 Blank placeholder in paper</td>
+<td>2</td>
+<td>A1 (735K ha confirmed), B1 (3.2%/yr confirmed)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="priority-issues-to-resolve" class="level2">
+<h2 class="anchored" data-anchor-id="priority-issues-to-resolve">Priority Issues to Resolve</h2>
+<section id="high-e5-paper-says-76-lower-script-gives-77.5-stale" class="level3">
+<h3 class="anchored" data-anchor-id="high-e5-paper-says-76-lower-script-gives-77.5-stale">1. 🔴 HIGH — E5: paper says 76% lower, script gives 77.5% (stale)</h3>
+<p>User confirmed the 76% figure in the paper is stale. The script computes <code>(conv_2022 - conv_2011) / conv_2011 = –77.5%</code>, which rounds to <strong>–78%</strong>, not –76%. <strong>Paper should be updated to “78% lower.”</strong></p>
+</section>
+<section id="medium-f1-2.94-mha-vs.-2.964-mha-remaining-primary-forests" class="level3">
+<h3 class="anchored" data-anchor-id="medium-f1-2.94-mha-vs.-2.964-mha-remaining-primary-forests">2. 🟠 MEDIUM — F1: 2.94 Mha vs.&nbsp;2.964 Mha remaining primary forests</h3>
+<p>The script sums GFC TTM pixels with values in {100, 400, 600} and gets 2,964,002 ha. The paper says “2.94 million hectares.” The gap of ~24,000 ha (~0.8%) likely reflects a change in input data or filter criteria. Needs investigation — either the input data changed and the paper number is stale, or the filter has drifted from what produced the original published figure.</p>
+</section>
+<section id="medium-p2-date-mismatch-in-plantation-expansion" class="level3">
+<h3 class="anchored" data-anchor-id="medium-p2-date-mismatch-in-plantation-expansion">3. 🟠 MEDIUM — P2: date mismatch in plantation expansion</h3>
+<p>The paper says “expanded by 1.___ million hectares between 2000 and <strong>2011</strong>.” The script computes <code>pulp_2015 - pulp_2000</code>. Either the paper text or the script endpoint needs to be corrected. The script’s inline comment also references “2000 and 2015,” so this appears to be a paper text error.</p>
+</section>
+<section id="low-a1-and-b1-blank-placeholders-in-paper" class="level3">
+<h3 class="anchored" data-anchor-id="low-a1-and-b1-blank-placeholders-in-paper">4. 🟡 LOW — A1 and B1: blank placeholders in paper</h3>
+<ul>
+<li>A1: 2001–2011 deforestation = 734,974 ha ≈ 735,000 ha. Paper placeholder should be filled.</li>
+<li>B1: productivity growth = 3.2%/year. Paper placeholder should be filled.</li>
+</ul>
+</section>
+<section id="low-d1d4-ownership-breakdown-not-extracted-as-named-scalars" class="level3">
+<h3 class="anchored" data-anchor-id="low-d1d4-ownership-breakdown-not-extracted-as-named-scalars">5. 🟡 LOW — D1–D4: ownership breakdown not extracted as named scalars</h3>
+<p>All four ZDC statistics are readable from the printed <code>ownership_defor</code> table but are not assigned to named variables, making automated verification impossible.</p>
+</section>
+<section id="low-f2-kalimantan-share-of-remaining-forests-not-computed-46" class="level3">
+<h3 class="anchored" data-anchor-id="low-f2-kalimantan-share-of-remaining-forests-not-computed-46">6. 🟡 LOW — F2: Kalimantan share of remaining forests not computed (46%)</h3>
+<p>No island-level breakdown of remaining primary forests within HTI concessions exists in <code>12_paper_stats.R</code>.</p>
+</section>
+<section id="low-script-crashes-at-line-549-on-windows-path" class="level3">
+<h3 class="anchored" data-anchor-id="low-script-crashes-at-line-549-on-windows-path">7. 🟡 LOW — Script crashes at line 549 on Windows path</h3>
+<p><code>read_excel(paste0(wdir, '\\01_data\\01_in\\wwi\\RPBBI_2022_compiled.xlsx'))</code> uses backslashes and fails on macOS. This affects SI-section stats (wood type share, active supplier share) but not any main-text paper statistics. Fix: replace <code>\\</code> with <code>/</code>.</p>
+<hr>
+</section>
+</section>
+<section id="statistics-from-other-scripts-referenced-in-paper" class="level2">
+<h2 class="anchored" data-anchor-id="statistics-from-other-scripts-referenced-in-paper">Statistics From Other Scripts Referenced in Paper</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 26%">
+<col style="width: 17%">
+<col style="width: 34%">
+<col style="width: 21%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Paper stat</th>
+<th>Value</th>
+<th>Source script</th>
+<th>Variable</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>“productivity of approximately ___ per year”</td>
+<td><strong>3.2%/yr</strong></td>
+<td><code>03_analysis_modelling/08_calc_mai.R</code></td>
+<td><code>key_parameters.csv: yield_growth</code></td>
+</tr>
+<tr class="even">
+<td>ROC-AUC of RF model</td>
+<td>0.957</td>
+<td><code>03_analysis_modelling/21_pulp_expansion_model.R</code></td>
+<td>Printed to console only</td>
+</tr>
+<tr class="odd">
+<td>Expansion scenarios (1.84M ha total, 150K ha deforestation, etc.)</td>
+<td>Various</td>
+<td><code>03_analysis_modelling/22_pulp_expansion_scenarios.R</code></td>
+<td><code>scenario_stats.csv</code> (as of 2026-05-20)</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
