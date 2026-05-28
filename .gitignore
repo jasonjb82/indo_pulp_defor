@@ -10,7 +10,6 @@ review/reviewer2_comments.docx
 scripts/audit_report_files/*
 scripts/data_inputs_audit_files/*
 scripts/audit_report.html
-scripts/audit_report.html
 scripts/data_inputs_audit.html
 CLAUDE.md
 .claude/settings.local.json
