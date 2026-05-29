@@ -64,11 +64,22 @@ cap_expansions <- tibble(expansions = c("oki", "rapp_1", "rapp_2", "phoenix"),
 cap_expansions <- cap_expansions %>%
   mutate(wood_demand = cap * conv_factor / 1e6) # m3
 
+# Calculate implied pulpwood demand assuming 100% capacity utilization
 new_wood_demand <- cap_expansions %>% pull(wood_demand) %>% sum() # Million m3 needed
+
+# Calculate percent increase in capacity
+baseline_cap_mt  <- cap_df %>%
+  select(MILL_ID, PULP_CAP_MTPY) %>%
+  distinct() %>%
+  pull(PULP_CAP_MTPY) %>%
+  sum()
+
+cap_increase <- (cap_expansions %>% pull(cap) %>% sum() / 1000000)
+cap_pct_increase <- cap_increase / baseline_cap_mt
 
 # starting pulpwood area
 pp_areas <- read_csv(paste0(wdir,data_dir,"/04_results/rs_accuracy_paper_stats.csv"))
-prior_plantations <- ann_pulp_tbl %>%
+prior_plantations <- pp_areas %>%
   filter(stat_name == "total_pp_area_2022") %>%
   pull(estimated_area_kha) * 1000 
 
@@ -452,6 +463,11 @@ cat(sprintf(
 # (= low area demand); additional_area["lb"] corresponds to low MAI growth (= high area demand).
 scenario_stats <- tibble(
   new_wood_demand_mm3     = new_wood_demand,
+  cap_increase            = cap_increase,
+  cap_pct_increase        = cap_pct_increase,
+  pct_demand_met_central  = extra_production["central"] / new_wood_demand * 100,
+  pct_demand_met_low      = extra_production["lb"]      / new_wood_demand * 100,
+  pct_demand_met_high     = extra_production["ub"]      / new_wood_demand * 100,
   area_demand_central_mha = additional_area["central"],
   area_demand_low_mha     = additional_area["ub"],
   area_demand_high_mha    = additional_area["lb"],
