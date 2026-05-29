@@ -22,16 +22,16 @@ library(patchwork)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # load data --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-wdir <- "remote/"
+wdir <- "remote"
 
 # Predicted expansion probabilities from 21_pulp_expansion_model.R
 # (lat/lon pre-joined; no need to reload p2_df)
 pred_df <- read_csv(
-  paste0(wdir, "01_data/02_out/tables/pulp_predictions.csv")
+  paste0(wdir, "/01_data/02_out/tables/pulp_predictions.csv")
 )
 
 # Province boundaries for maps
-kab_sf  <- read_sf(paste0(wdir, "01_data/01_in/big/idn_kabupaten_big.shp"))
+kab_sf  <- read_sf(paste0(wdir, "/01_data/01_in/big/idn_kabupaten_big.shp"))
 prov_sf <- kab_sf %>%
   group_by(prov, prov_code) %>%
   summarise(.groups = "drop")
