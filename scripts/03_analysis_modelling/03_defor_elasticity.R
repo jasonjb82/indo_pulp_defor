@@ -82,10 +82,10 @@ hti_mai <- read_csv(paste0(wdir,data_dir,"/02_out/tables/hti_mai.csv"))
 grid_admin <- read_csv(paste0(wdir,data_dir,"/02_out/tables/grid_10km_adm_prov_kab_kec.csv"))
 
 # mill capacities
-cap_df <- read_excel(paste0(wdir,data_dir,"/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
+cap_df <- readxl::read_excel(paste0(wdir,data_dir,"/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
 
 # mill-level production
-mill_prod <- read_excel(paste0(wdir,data_dir,'/01_in/wwi/MILL_PRODUCTION_2015_2024.xlsx'))
+mill_prod <- readxl::read_excel(paste0(wdir,data_dir,'/01_in/wwi/MILL_PRODUCTION_2015_2024.xlsx'))
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # clean price data --------------
