@@ -26,15 +26,15 @@ library(pdp)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # load data --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-wdir <- "remote/"
-p1_df <- read_csv(paste0(wdir, "01_data/02_out/tables/pulp_exp_model_var_1km_2017.csv")) %>%
+wdir <- "remote"
+p1_df <- read_csv(paste0(wdir, "/01_data/02_out/tables/pulp_exp_model_var_1km_2017.csv")) %>%
   rename_with(tolower) %>%
   rename(pulp_start = pulp_2017, palm_start = palm_2017, forest_start = forest_2017,
          hti_start = hti_risk_2017, dist_mill = dist_mill_2017) %>%
   rename_with(~ str_replace(., "^y2017_a", "ya_"), starts_with("y2017_a")) %>%
   mutate(across(c(tmmx, tmmn, pr, pet, def, clay_content, soil_ph, gaez_cat), ~ na_if(., -9999)))
 
-p2_df <- read_csv(paste0(wdir, "01_data/02_out/tables/pulp_exp_model_var_1km_2022.csv")) %>%
+p2_df <- read_csv(paste0(wdir, "/01_data/02_out/tables/pulp_exp_model_var_1km_2022.csv")) %>%
   rename_with(tolower) %>%
   rename(pulp_start = pulp_2022, palm_start = palm_2022, forest_start = forest_2022,
          hti_start = hti_risk_2022, dist_mill = dist_mill_2022) %>%
