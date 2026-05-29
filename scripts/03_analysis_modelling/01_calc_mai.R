@@ -2,7 +2,7 @@
 ## 
 ## Project: Indonesia pulp deforestation
 ##
-## Purpose of script: Calculate MAI for HTI concessions
+## Purpose of script:  SI section 3 - Calculate MAI for HTI concessions
 ##    and analyze trends in productivity.
 ##
 ## Author: Robert Heilmayr and Jason Jon Benedict
@@ -13,6 +13,13 @@
 ##
 ## Input datasets
 ##        1) 
+##
+##
+## Outputs:
+##        1) SI Table 6: Robustness table of DMAI trend regressions
+##        2) 04_results/key_parameters.csv: Table with estimated 
+##               parameters to pass to downstream scripts
+##        3) Figures for review round 2
 ##
 ## ---------------------------------------------------------
 
@@ -342,6 +349,16 @@ modelsummary(models,
 yield_growth <- base_mod$coefficients['harvest_year']
 yield_growth_confint <- yield_growth - confint(base_mod, "harvest_year", level = 0.95)[1]
 
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Contrast against prior estimates -------------------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Comparing against Section 7 of hardiyanto et al., 2024. 
+# Productivity increased 15% between R-4 (2013) and R-5 (2017). 
+# Under compound growth, this implies ~3.6% growth per year
+hardiyanto_cagr <- (1.15)^(1/(2017-2013))-1
+hardiyanto_cagr
+
+
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Export key model parameters -------------------------------------
@@ -367,9 +384,8 @@ write_csv(output, paste0(wdir,data_dir,"/04_results/key_parameters.csv"))
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Adding reviewer TFP check -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## Reviewer 2 asked for a series of diagnostic plots to illustrate DMAI trends
-## NOTE: Diagnostic models below use mai_winsorized (levels), not ln_mai_w (log), per the reviewer's
-## request. The main regression models use logs; the justification is in the response to reviewers.
+## Round 2, Reviewer 2 asked for a series of diagnostic plots to illustrate DMAI trends
+
 # --- Step i: Raw annual DMAI across the sector
 p1 = year_mai %>% 
   ggplot(aes(x = harvest_year, y = year_mai)) +
@@ -513,14 +529,3 @@ eq6ln_fe_df <- tibble(
 rev_mod <- feols(estimate ~ harvest_year, data = eq6ln_fe_df)
 rev_mod %>% summary()
 base_mod %>% summary()
-
-
-
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## Contrast against prior estimates -------------------------------------
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Comparing against Section 7 of hardiyanto et al., 2024. 
-# Productivity increased 15% between R-4 (2013) and R-5 (2017). 
-# Under compound growth, this implies ~3.6% growth per year
-cagr <- (1.15)^(1/(2017-2013))-1
-cagr
