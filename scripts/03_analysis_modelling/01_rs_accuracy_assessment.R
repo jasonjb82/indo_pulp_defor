@@ -29,14 +29,6 @@
 #
 # OUTPUT: Sections 1–10 printed to the console.
 #
-# KNOWN BUGS IN THE SOURCE SPREADSHEET (investigated in this script):
-#   Bug 1 – Combined-class SE uses sqrt(ΣSE_k²), which ignores the negative
-#            within-stratum covariances between mutually exclusive reference
-#            classes.  The correct SE is always ≤ the spreadsheet value.
-#            Affects: 2+5+8, 3+6+9, 4+7+10, and 5+6+7+8+9+10.
-#            (5+8, 6+9, 7+10 are unaffected because the two constituent
-#            classes never co-occur in the same stratum, making their
-#            covariance exactly zero.)
 # =============================================================================
 
 library(readxl)
@@ -212,66 +204,28 @@ V_A_j <- A_total^2 * V_p_j
 # =============================================================================
 # 8.  COMBINED-CLASS AREA ESTIMATES
 #
-# -----------------------------------------------------------------------
-# WHY THE SPREADSHEET FORMULA IS WRONG
-# -----------------------------------------------------------------------
-# The spreadsheet computes SE(x+y+z) = sqrt(SE_x^2 + SE_y^2 + SE_z^2),
-# which assumes the class estimators are uncorrelated.
-#
-# This is incorrect.  Reference class labels are mutually exclusive, so
-# within stratum i the sample covariance between the binary indicators
-# for classes k != l is:
-#
-#   Cov_hat_i(y_bar_ik, y_bar_il) = -n_ik * n_il / (n_i * (n_i - 1))  <= 0
-#
-# This propagates to a negative covariance between p_hat_k and p_hat_l:
-#
-#   Cov_hat(p_hat_k, p_hat_l) =
-#       sum_i  W_i^2 * (-n_ik * n_il) / (n_i^2 * (n_i - 1))   <= 0
-#
-# So the true combined variance is:
-#   V_hat(p_hat_{k+l+...}) = sum_k V_hat(p_hat_k) + 2*sum_{k<l} Cov_hat(p_hat_k, p_hat_l)
-#                           <= sum_k V_hat(p_hat_k)   [spreadsheet uses only this]
-#
-# Note: For pairs (5,8), (6,9), (7,10), no stratum has non-zero counts in
-# BOTH columns simultaneously, so their covariance is exactly zero and both
-# formulas agree.
-#
-# -----------------------------------------------------------------------
-# CORRECT APPROACH
-# -----------------------------------------------------------------------
 # Treat the combined set S as a single new class via a binary indicator.
 # Apply the standard stratified variance formula directly:
 #
 #   q_i        = (sum_{k in S} n_ik) / n_i   [combined proportion per stratum]
 #   V_hat(p_S) = sum_i  W_i^2 * q_i * (1 - q_i) / (n_i - 1)
 #
-# This is algebraically identical to the explicit covariance formula above.
+# This correctly accounts for the negative within-stratum covariances between
+# mutually exclusive reference classes.
 # [Cochran 1977, Eq. 5.7;  Olofsson 2013, Eq. 10]
 # =============================================================================
 
 calc_combined <- function(class_set) {
-  # Point estimate (sum of individual p_hat_k, same either way)
   p_combined <- sum(p_j[class_set])
   area_ha    <- p_combined * A_total
-
-  # CORRECT variance: combined binary indicator
   n_comb <- rowSums(n_mat[, class_set, drop = FALSE])
   q_i    <- n_comb / n_i
-  V_corr <- sum(W^2 * q_i * (1 - q_i) / (n_i - 1))
-
-  # INCORRECT variance: sum of squared SEs (spreadsheet method)
-  V_wrong <- sum(V_p_j[class_set])
-
+  V      <- sum(W^2 * q_i * (1 - q_i) / (n_i - 1))
   list(
-    area_ha          = area_ha,
-    area_Mha         = area_ha / 1e6,
-    se_corr          = sqrt(V_corr)  * A_total,
-    ci_corr          = Z95 * sqrt(V_corr)  * A_total,
-    se_wrong         = sqrt(V_wrong) * A_total,
-    ci_wrong         = Z95 * sqrt(V_wrong) * A_total,
-    overestimate_ha  = (sqrt(V_wrong) - sqrt(V_corr)) * A_total,
-    overestimate_pct = 100 * (sqrt(V_wrong) - sqrt(V_corr)) / sqrt(V_wrong)
+    area_ha  = area_ha,
+    area_Mha = area_ha / 1e6,
+    se       = sqrt(V) * A_total,
+    ci       = Z95 * sqrt(V) * A_total
   )
 }
 
@@ -283,7 +237,7 @@ combined <- lapply(COMBINED_CLASSES, calc_combined)
 #   Cov_hat(p_hat_k, p_hat_l) =
 #       sum_i  W_i^2 * (-n_ik * n_il) / (n_i^2 * (n_i - 1))
 #   Diagonal = V_hat(p_hat_k)
-#   Off-diagonal entries are <= 0, confirming SE(combined) <= sqrt(sum SE^2).
+#   Off-diagonal entries are <= 0 (mutual exclusivity of reference classes).
 # =============================================================================
 
 cov_p <- matrix(0, 11, 11, dimnames = list(ALL_CLASSES, ALL_CLASSES))
@@ -301,7 +255,105 @@ for (k in ALL_CLASSES) {
 }
 
 # =============================================================================
-# 10.  FORMATTED OUTPUT
+# 10.  STATIC MAP ACCURACY ANALYSIS
+# =============================================================================
+
+# At each snapshot year, the 11 change classes map to pulp (PP) or non-pulp (Other)
+# based on whether planting occurred by that year.
+pulp_by_year <- list(
+  "2000" = c("1"),                                   # stable pulpwood only
+  "2011" = c("1", "2", "5", "8"),                    # + 2001-2011 conversions
+  "2017" = c("1", "2", "3", "5", "6", "8", "9"),    # + 2012-2017 conversions
+  "2022" = c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")  # all conversions
+)
+
+# Binary accuracy estimator using the original 11-class stratification.
+# Applies the standard stratified estimator (Olofsson 2013) to the binary PP/Other
+# classification derived from the change-class labels.
+static_map_stats <- function(year_label, pulp_classes) {
+  other_classes <- setdiff(ALL_CLASSES, pulp_classes)
+
+  # Per-stratum reference-class counts for the binary classification
+  n_truth_pp    <- setNames(
+    sapply(ALL_CLASSES, function(i) sum(n_mat[i, pulp_classes])), ALL_CLASSES)
+  n_truth_other <- n_i - n_truth_pp
+  W_pp    <- sum(W[pulp_classes])
+  W_other <- sum(W[other_classes])
+
+  # Estimated PP area
+  p_truth_pp    <- sum(W * n_truth_pp / n_i)
+  p_truth_other <- 1 - p_truth_pp
+  V_p_truth_pp  <- sum(W^2 * (n_truth_pp / n_i) * (1 - n_truth_pp / n_i) / (n_i - 1))
+
+  # Overall accuracy: map and reference agree on binary class
+  n_correct <- setNames(sapply(ALL_CLASSES, function(i) {
+    if (i %in% pulp_classes) sum(n_mat[i, pulp_classes]) else sum(n_mat[i, other_classes])
+  }), ALL_CLASSES)
+  OA_s   <- sum(W * n_correct / n_i)
+  V_OA_s <- sum(W^2 * (n_correct / n_i) * (1 - n_correct / n_i) / (n_i - 1))
+
+  # User's accuracy (PP): fraction of mapped-PP area correctly identified as PP
+  # p_map_pp_truth_pp = sum_{i in pulp} W_i * (n_truth_pp_i / n_i)
+  p_mpp_tpp  <- sum(W[pulp_classes] * n_truth_pp[pulp_classes] / n_i[pulp_classes])
+  V_p_mpp    <- sum(W[pulp_classes]^2 *
+                      (n_truth_pp[pulp_classes] / n_i[pulp_classes]) *
+                      (1 - n_truth_pp[pulp_classes] / n_i[pulp_classes]) /
+                      (n_i[pulp_classes] - 1))
+  U_pp   <- p_mpp_tpp / W_pp
+  V_U_pp <- V_p_mpp / W_pp^2
+
+  # User's accuracy (Other): fraction of mapped-Other area correctly identified as Other
+  p_mot_tot  <- sum(W[other_classes] * n_truth_other[other_classes] / n_i[other_classes])
+  V_p_mot    <- sum(W[other_classes]^2 *
+                      (n_truth_other[other_classes] / n_i[other_classes]) *
+                      (1 - n_truth_other[other_classes] / n_i[other_classes]) /
+                      (n_i[other_classes] - 1))
+  U_other   <- p_mot_tot / W_other
+  V_U_other <- V_p_mot / W_other^2
+
+  # Producer's accuracy (PP): P_PP = p_mpp_tpp / p_truth_pp
+  # Cov(p_mpp_tpp, p_truth_pp) = V(p_mpp_tpp): pulp strata contribute to both terms.
+  P_pp   <- p_mpp_tpp / p_truth_pp
+  V_P_pp <- max(0, (1 / p_truth_pp^2) *
+    ((1 - 2 * P_pp) * V_p_mpp + P_pp^2 * V_p_truth_pp))
+
+  # Producer's accuracy (Other): P_Other = p_mot_tot / p_truth_other
+  V_p_truth_other <- sum(W^2 * (n_truth_other / n_i) * (1 - n_truth_other / n_i) / (n_i - 1))
+  P_other   <- p_mot_tot / p_truth_other
+  V_P_other <- max(0, (1 / p_truth_other^2) *
+    ((1 - 2 * P_other) * V_p_mot + P_other^2 * V_p_truth_other))
+
+  data.frame(
+    year                     = year_label,
+    mapped_pp_ha             = sum(MAPPED_AREA_HA[pulp_classes]),
+    estimated_pp_ha          = p_truth_pp * A_total,
+    se_pp_ha                 = sqrt(V_p_truth_pp) * A_total,
+    ci95_pp_ha               = Z95 * sqrt(V_p_truth_pp) * A_total,
+    overall_accuracy         = OA_s,
+    oa_se                    = sqrt(V_OA_s),
+    oa_ci95                  = Z95 * sqrt(V_OA_s),
+    users_acc_pp             = U_pp,
+    users_acc_pp_se          = sqrt(V_U_pp),
+    users_acc_pp_ci95        = Z95 * sqrt(V_U_pp),
+    users_acc_other          = U_other,
+    users_acc_other_se       = sqrt(V_U_other),
+    users_acc_other_ci95     = Z95 * sqrt(V_U_other),
+    producers_acc_pp         = P_pp,
+    producers_acc_pp_se      = sqrt(V_P_pp),
+    producers_acc_pp_ci95    = Z95 * sqrt(V_P_pp),
+    producers_acc_other      = P_other,
+    producers_acc_other_se   = sqrt(V_P_other),
+    producers_acc_other_ci95 = Z95 * sqrt(V_P_other)
+  )
+}
+
+# Compute per-year accuracy stats
+static_results <- do.call(rbind, lapply(names(pulp_by_year), function(yr) {
+  static_map_stats(yr, pulp_by_year[[yr]])
+}))
+
+# =============================================================================
+# 11.  FORMATTED OUTPUT
 # =============================================================================
 
 rule  <- paste0(strrep("=", 74), "\n")
@@ -410,41 +462,20 @@ for (j in ALL_CLASSES) {
 cat("\n", rule, sep = "")
 cat("  SECTION 8 - COMBINED-CLASS AREA ESTIMATES\n")
 cat(rule)
-cat("  Comparing CORRECT SE (combined binary indicator) vs.\n")
-cat("  WRONG SE (spreadsheet: sqrt of sum of squared individual SEs).\n\n")
 
-cat(sprintf("  %-44s  %9s  %12s  %12s  %s\n",
-            "Combination", "Area (Mha)",
-            "SE correct", "SE wrong", "Overestimate"))
-cat(sprintf("  %-44s  %9s  %12s  %12s  %s\n",
-            "", "", "(ha)", "(ha)", "(ha / %)"))
-cat(strrep("-", 95), "\n")
-
+cat(sprintf("  %-44s  %9s  %12s\n", "Combination", "Area (Mha)", "SE (ha)"))
+cat(strrep("-", 70), "\n")
 for (nm in names(combined)) {
   cr <- combined[[nm]]
-  if (abs(cr$overestimate_ha) < 1) {
-    over_str <- "-- (cov = 0)"
-  } else {
-    over_str <- sprintf("%s (+%.0f%%)", fmt_ha(cr$overestimate_ha),
-                        cr$overestimate_pct)
-  }
-  cat(sprintf("  %-44s  %9.4f  %12s  %12s  %s\n",
-              nm, cr$area_Mha,
-              fmt_ha(cr$se_corr),
-              fmt_ha(cr$se_wrong),
-              over_str))
+  cat(sprintf("  %-44s  %9.4f  %12s\n", nm, cr$area_Mha, fmt_ha(cr$se)))
 }
 
 cat("\n  Full 95% confidence intervals:\n\n")
 for (nm in names(combined)) {
   cr <- combined[[nm]]
   cat(sprintf("  %s\n", nm))
-  cat(sprintf("    Area              : %s ha  (%.4f Mha)\n",
-              fmt_ha(cr$area_ha), cr$area_Mha))
-  cat(sprintf("    95%% CI [CORRECT] : %.4f +/- %.4f Mha\n",
-              cr$area_Mha, cr$ci_corr / 1e6))
-  cat(sprintf("    95%% CI [wrong]  : %.4f +/- %.4f Mha\n\n",
-              cr$area_Mha, cr$ci_wrong / 1e6))
+  cat(sprintf("    Area    : %s ha  (%.4f Mha)\n", fmt_ha(cr$area_ha), cr$area_Mha))
+  cat(sprintf("    95%% CI : %.4f +/- %.4f Mha\n\n", cr$area_Mha, cr$ci / 1e6))
 }
 
 
@@ -459,29 +490,29 @@ periods <- list(
 
 cat("\n  Pulpwood plantation (PP) expansion [all sources]:\n")
 cat(sprintf("  %-10s  %14s  %s\n", "Period", "Mapped (Mha)",
-            "Estimated (Mha) [CORRECT 95% CI]"))
+            "Estimated (Mha) [95% CI]"))
 for (p in periods) {
   cr <- calc_combined(p$pp)
   cat(sprintf("  %-10s  %14.4f  %.2f  (%.2f, %.2f)\n", p$label,
               sum(MAPPED_AREA_HA[p$pp]) / 1e6, cr$area_Mha,
-              (cr$area_ha - cr$ci_corr) / 1e6,
-              (cr$area_ha + cr$ci_corr) / 1e6))
+              (cr$area_ha - cr$ci) / 1e6,
+              (cr$area_ha + cr$ci) / 1e6))
 }
 
 cat("\n  Pulp-driven deforestation (forest+peat to pulpwood):\n")
 cat(sprintf("  %-10s  %14s  %s\n", "Period", "Mapped (Mha)",
-            "Estimated (Mha) [CORRECT 95% CI]"))
+            "Estimated (Mha) [95% CI]"))
 for (p in periods) {
   cr <- calc_combined(p$def)
   cat(sprintf("  %-10s  %14.4f  %.2f  (%.2f, %.2f)\n", p$label,
               sum(MAPPED_AREA_HA[p$def]) / 1e6, cr$area_Mha,
-              (cr$area_ha - cr$ci_corr) / 1e6,
-              (cr$area_ha + cr$ci_corr) / 1e6))
+              (cr$area_ha - cr$ci) / 1e6,
+              (cr$area_ha + cr$ci) / 1e6))
 }
 
 cat("\n  Peat deforestation (peat to pulpwood):\n")
 cat(sprintf("  %-10s  %14s  %s\n", "Period", "Mapped (Mha)",
-            "Estimated (Mha) [CORRECT 95% CI]"))
+            "Estimated (Mha) [95% CI]"))
 for (p in periods) {
   j <- p$peat
   cat(sprintf("  %-10s  %14.4f  %.2f  (%.2f, %.2f)\n", p$label,
@@ -493,47 +524,116 @@ for (p in periods) {
 
 # Section 10: Covariance matrix
 H("SECTION 10 - COVARIANCE MATRIX OF CLASS AREA ESTIMATORS  (x10^-12)",
-  "  Off-diagonal entries <= 0 (mutual exclusivity). Confirms SE(combined) <= sqrt(sum SE^2).")
+  "  Off-diagonal entries <= 0 (mutual exclusivity of reference classes).")
 print(round(cov_p * 1e12, 2))
 
 
-# Bug summary
-cat("\n", rule, sep = "")
-cat("  BUGS FOUND IN THE SOURCE SPREADSHEET\n")
-cat(rule)
-cat("
-  BUG 1 - COMBINED-CLASS SE  [affects: 2+5+8, 3+6+9, 4+7+10, 5+6+7+8+9+10]
-  -------------------------------------------------------------------------
-  Formula used: SE(combined) = sqrt( SE_2^2 + SE_5^2 + SE_8^2 + ... )
-  This assumes zero covariance between class estimators, which is incorrect.
-  Because reference labels are mutually exclusive, the covariances are always
-  <= 0, so the spreadsheet OVERESTIMATES the combined SE.
+# =============================================================================
+# 12.  SAVE OUTPUTS
+# =============================================================================
 
-  The pairs 5+8, 6+9, and 7+10 are unaffected: no stratum has non-zero
-  sample counts in both columns simultaneously, so their covariance is
-  exactly zero and both formulas agree.
+out_dir <- paste0(wdir, data_dir, "04_results/")
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
-  Corrected values:\n")
+# --- SI Table 3: Land cover class descriptions and sample sizes ---
+si_table3 <- data.frame(
+  class          = as.integer(ALL_CLASSES),
+  name           = unname(CLASS_NAMES[ALL_CLASSES]),
+  mapped_area_ha = as.numeric(MAPPED_AREA_HA[ALL_CLASSES]),
+  sample_size    = as.integer(n_i[ALL_CLASSES]),
+  row.names      = NULL
+)
+write.csv(si_table3, paste0(out_dir, "si_table3_class_descriptions.csv"), row.names = FALSE)
 
-show_combos <- c("PP expansion 2001-2011    [2+5+8]",
-                 "PP expansion 2012-2017    [3+6+9]",
-                 "PP expansion 2018-2024    [4+7+10]",
-                 "All deforestation         [5+6+7+8+9+10]")
-for (nm in show_combos) {
-  cr <- combined[[nm]]
-  cat(sprintf("    %-42s  SE correct: %s ha   SE wrong: %s ha\n",
-              nm, fmt_ha(cr$se_corr), fmt_ha(cr$se_wrong)))
+# --- SI Table 4: Accuracy metrics for the 11-class land cover change map ---
+si_table4 <- data.frame(
+  class                 = as.integer(ALL_CLASSES),
+  name                  = unname(CLASS_NAMES[ALL_CLASSES]),
+  mapped_area_ha        = as.numeric(MAPPED_AREA_HA[ALL_CLASSES]),
+  estimated_area_ha     = as.numeric(A_j[ALL_CLASSES]),
+  se_area_ha            = as.numeric(sqrt(V_A_j[ALL_CLASSES])),
+  ci95_area_ha          = as.numeric(Z95 * sqrt(V_A_j[ALL_CLASSES])),
+  users_accuracy        = as.numeric(U[ALL_CLASSES]),
+  users_accuracy_se     = as.numeric(sqrt(V_U[ALL_CLASSES])),
+  producers_accuracy    = as.numeric(P_j[ALL_CLASSES]),
+  producers_accuracy_se = as.numeric(sqrt(V_P_j[ALL_CLASSES])),
+  row.names             = NULL
+)
+write.csv(si_table4, paste0(out_dir, "si_table4_change_map_accuracy.csv"), row.names = FALSE)
+
+# --- SI Table 5: Binary PP/Other accuracy for static snapshot maps ---
+fmt_pct_ci <- function(est, ci95) {
+  lo <- pmax(0,   est * 100 - ci95 * 100)
+  hi <- pmin(100, est * 100 + ci95 * 100)
+  sprintf("%.2f (%.2f, %.2f)", est * 100, lo, hi)
+}
+fmt_mha_ci <- function(est_ha, ci95_ha) {
+  sprintf("%.2f (%.2f, %.2f)",
+          est_ha / 1e6,
+          (est_ha - ci95_ha) / 1e6,
+          (est_ha + ci95_ha) / 1e6)
 }
 
-cat("
+static_rows <- lapply(seq_len(nrow(static_results)), function(i) {
+  s <- static_results[i, ]
+  list(
+    year             = s$year,
+    oa               = fmt_pct_ci(s$overall_accuracy,    s$oa_ci95),
+    u_other          = fmt_pct_ci(s$users_acc_other,     s$users_acc_other_ci95),
+    u_pp             = fmt_pct_ci(s$users_acc_pp,        s$users_acc_pp_ci95),
+    p_other          = fmt_pct_ci(s$producers_acc_other, s$producers_acc_other_ci95),
+    p_pp             = fmt_pct_ci(s$producers_acc_pp,    s$producers_acc_pp_ci95),
+    mapped_pp_mha    = sprintf("%.2f", s$mapped_pp_ha / 1e6),
+    estimated_pp_mha = fmt_mha_ci(s$estimated_pp_ha, s$ci95_pp_ha)
+  )
+})
 
-  NOTE - CLASS 10 USER'S ACCURACY  [not a bug, but flagged for manuscript]
-  -------------------------------------------------------------------------
-  U_10 = 52% is substantially lower than all other classes.  Of 50 samples
-  mapped as Class 10 (Peat to pulpwood 2018-2024), 21 were observed as
-  Class 4 (Other to pulpwood 2018-2024), suggesting peat vs. non-peat
-  substrate misclassification in the most recent period.
-")
+# Wide format: metrics as rows, years as columns
+metric_labels <- c(
+  "Overall accuracy (%)",
+  "User's accuracy (%) - Other",
+  "User's accuracy (%) - PP",
+  "Producer's accuracy (%) - Other",
+  "Producer's accuracy (%) - PP",
+  "Mapped PP area (Mha)",
+  "Estimated PP area (Mha)"
+)
+field_names <- c("oa", "u_other", "u_pp", "p_other", "p_pp",
+                 "mapped_pp_mha", "estimated_pp_mha")
+
+si_table5 <- data.frame(
+  Metric = metric_labels,
+  setNames(
+    lapply(static_rows, function(r) sapply(field_names, function(f) r[[f]])),
+    sapply(static_rows, `[[`, "year")
+  ),
+  check.names = FALSE,
+  row.names   = NULL
+)
+write.csv(si_table5, paste0(out_dir, "si_table5_static_map_accuracy.csv"), row.names = FALSE)
+
+# --- Paper statistics: key area estimates with 95% CIs ---
+# Maps combined-class estimates to specific paper citations.
+ps_keys <- c("Deforestation 2001-2011   [5+8]",
+             "PP expansion 2001-2011    [2+5+8]",
+             "All deforestation         [5+6+7+8+9+10]")
+paper_stats <- data.frame(
+  stat_name            = c("defor_2001_2011", "pulp_expansion_2001_2011", "total_defor_all_periods"),
+  paper_location       = c("Main text lines 8, 24", "Main text line 82", "SI line 31"),
+  estimated_area_kha   = sapply(ps_keys, function(k) combined[[k]]$area_ha  / 1e3),
+  se_kha               = sapply(ps_keys, function(k) combined[[k]]$se       / 1e3),
+  ci95_halfwidth_kha   = sapply(ps_keys, function(k) combined[[k]]$ci       / 1e3),
+  ci95_lower_kha       = sapply(ps_keys, function(k) (combined[[k]]$area_ha - combined[[k]]$ci) / 1e3),
+  ci95_upper_kha       = sapply(ps_keys, function(k) (combined[[k]]$area_ha + combined[[k]]$ci) / 1e3),
+  row.names = NULL
+)
+write.csv(paper_stats, paste0(out_dir, "rs_accuracy_paper_stats.csv"), row.names = FALSE)
+
+cat(sprintf("\n  Outputs saved to %s:\n", out_dir))
+cat("    si_table3_class_descriptions.csv\n")
+cat("    si_table4_change_map_accuracy.csv\n")
+cat("    si_table5_static_map_accuracy.csv\n")
+cat("    rs_accuracy_paper_stats.csv\n")
 
 cat("\nScript complete.\n")
 
