@@ -43,7 +43,7 @@ wdir <- "remote"
 '%ni%' <- Negate('%in%') # filter out function
 
 # read data on hti conversion timing
-hti_conv_timing <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_grps_deforestation_timing.csv"))
+hti_conv_timing <- read_csv(paste0(wdir,"/01_data/02_out/tables/hti_grps_deforestation_timing.csv"))
 
 # plot -------------------------------------------------------
 
@@ -139,5 +139,5 @@ defor_broken_plot <- defor_plot + scale_x_break(c(1000000, 2500000),space = 0.5)
 defor_broken_plot
 
 # export plot to png file
-ggsave(defor_broken_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\supplier_groups_defor_class_plot_rev9.png"), dpi=400, w=9, h=4,limitsize = FALSE)
+ggsave(defor_broken_plot,file=paste0(wdir,"/01_data/02_out/plots/001_figures/supplier_groups_defor_class_plot_rev9.png"), dpi=400, w=9, h=4,limitsize = FALSE)
 
