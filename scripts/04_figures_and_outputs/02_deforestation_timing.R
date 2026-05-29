@@ -33,6 +33,8 @@ library(showtext)
 library(khroma) # palettes for color blindness
 library(ggbreak)
 
+font_add_google(name = "DM Sans", family = "DM Sans")
+
 ## set working directory -------------------------------------
 
 wdir <- "remote"
