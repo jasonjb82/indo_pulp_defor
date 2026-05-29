@@ -8,6 +8,9 @@
 ##
 ## Date Created: 2023-05-08
 ## 
+## Outputs:
+##   1) SI Table 2: Mapped area of annual pulpwood plantation expansion
+##
 ## ---------------------------------------------------------
 ##
 ## Notes: 
