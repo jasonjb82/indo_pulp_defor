@@ -54,10 +54,22 @@ pred2027_rast <- rasterize(pred2027_vect, rast_template, field = ".pred_pulp", f
 names(pred2027_rast) <- "pred_pulp_2027"
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# calculate new wood demand --------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Hard code planned capacity expansions: Matches SI Table 7
+cap_expansions <- tibble(expansions = c("oki", "rapp_1", "rapp_2", "phoenix"),
+                         cap = c(4200000, 1330000, 1300000, 1700000), # tonnes pulp per year
+                         conv_factor = c(4.7, 4.7, 2.75, 2.75)) # m3 pulpwood / tonne pulp
+
+cap_expansions <- cap_expansions %>%
+  mutate(wood_demand = cap * conv_factor / 1e6) # m3
+
+new_wood_demand <- cap_expansions %>% pull(wood_demand) %>% sum() # Million m3 needed
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # estimate needed new pulp plantation area for scenarios --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-new_wood_demand <- 34.27 # Million m3 needed. Should be pulled / calculated from existing data
-prior_plantations <- 3050000 # Hectares in 2021. Should be pulled from existing data
+prior_plantations <- 3050000 # Hectares in 2021. Ideally would be pulled from existing data
 n_years <- 7
 
 mai_2021 <- mai_df$dmai_2021
