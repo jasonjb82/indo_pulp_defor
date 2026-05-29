@@ -66,10 +66,15 @@ cap_expansions <- cap_expansions %>%
 
 new_wood_demand <- cap_expansions %>% pull(wood_demand) %>% sum() # Million m3 needed
 
+# starting pulpwood area
+pp_areas <- read_csv(paste0(wdir,data_dir,"/04_results/rs_accuracy_paper_stats.csv"))
+prior_plantations <- ann_pulp_tbl %>%
+  filter(stat_name == "total_pp_area_2022") %>%
+  pull(estimated_area_kha) * 1000 
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # estimate needed new pulp plantation area for scenarios --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-prior_plantations <- 3050000 # Hectares in 2021. Ideally would be pulled from existing data
 n_years <- 7
 
 mai_2021 <- mai_df$dmai_2021

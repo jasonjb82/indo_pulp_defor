@@ -617,14 +617,22 @@ write.csv(si_table5, paste0(out_dir, "si_table5_static_map_accuracy.csv"), row.n
 ps_keys <- c("Deforestation 2001-2011   [5+8]",
              "PP expansion 2001-2011    [2+5+8]",
              "All deforestation         [5+6+7+8+9+10]")
+sr_2022  <- static_results[static_results$year == "2022", ]
 paper_stats <- data.frame(
-  stat_name            = c("defor_2001_2011", "pulp_expansion_2001_2011", "total_defor_all_periods"),
-  paper_location       = c("Main text lines 8, 24", "Main text line 82", "SI line 31"),
-  estimated_area_kha   = sapply(ps_keys, function(k) combined[[k]]$area_ha  / 1e3),
-  se_kha               = sapply(ps_keys, function(k) combined[[k]]$se       / 1e3),
-  ci95_halfwidth_kha   = sapply(ps_keys, function(k) combined[[k]]$ci       / 1e3),
-  ci95_lower_kha       = sapply(ps_keys, function(k) (combined[[k]]$area_ha - combined[[k]]$ci) / 1e3),
-  ci95_upper_kha       = sapply(ps_keys, function(k) (combined[[k]]$area_ha + combined[[k]]$ci) / 1e3),
+  stat_name            = c("defor_2001_2011", "pulp_expansion_2001_2011", "total_defor_all_periods",
+                           "total_pp_area_2022"),
+  paper_location       = c("Main text lines 8, 24", "Main text line 82", "SI line 31",
+                           ""),
+  estimated_area_kha   = c(sapply(ps_keys, function(k) combined[[k]]$area_ha  / 1e3),
+                           sr_2022$estimated_pp_ha / 1e3),
+  se_kha               = c(sapply(ps_keys, function(k) combined[[k]]$se       / 1e3),
+                           sr_2022$se_pp_ha / 1e3),
+  ci95_halfwidth_kha   = c(sapply(ps_keys, function(k) combined[[k]]$ci       / 1e3),
+                           sr_2022$ci95_pp_ha / 1e3),
+  ci95_lower_kha       = c(sapply(ps_keys, function(k) (combined[[k]]$area_ha - combined[[k]]$ci) / 1e3),
+                           (sr_2022$estimated_pp_ha - sr_2022$ci95_pp_ha) / 1e3),
+  ci95_upper_kha       = c(sapply(ps_keys, function(k) (combined[[k]]$area_ha + combined[[k]]$ci) / 1e3),
+                           (sr_2022$estimated_pp_ha + sr_2022$ci95_pp_ha) / 1e3),
   row.names = NULL
 )
 write.csv(paper_stats, paste0(out_dir, "rs_accuracy_paper_stats.csv"), row.names = FALSE)
