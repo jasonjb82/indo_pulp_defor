@@ -74,7 +74,7 @@ ALL_CLASSES <- as.character(0:10)
 # =============================================================================
 
 # Path to the validation spreadsheet
-XLSX_PATH <- paste0(wdir, data_dir,"/01_in/gaveau/Validation_11classes_land-cover-change-map_v1-2.xlsx")
+XLSX_PATH <- paste0(wdir, data_dir,"/01_in/gaveau/Validation_11classes_land-cover-change-map_v2.xlsx")
 
 # Load validation sample
 pts <- read_excel(XLSX_PATH, sheet = "Points")
