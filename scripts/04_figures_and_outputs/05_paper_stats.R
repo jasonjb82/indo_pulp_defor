@@ -469,59 +469,100 @@ cat(sprintf(paste0(
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Capacity expansions -----------------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Expansion tonnage and baseline capacity: from planned_expansions.xlsx and MILLS_EXPORTERS
-oki_exp_mt       <- 4.2
-rapp_exp_mt      <- 1.33
-rappbctmp_exp_mt <- 1.3
-phoenix_exp_mt   <- 1.7
-total_exp_mt     <- oki_exp_mt + rapp_exp_mt + rappbctmp_exp_mt + phoenix_exp_mt
-baseline_cap_mt  <- cap_df %>%
-  select(MILL_ID, PULP_CAP_MTPY) %>%
-  distinct() %>%
-  pull(PULP_CAP_MTPY) %>%
-  sum()
-cap_change <- total_exp_mt / baseline_cap_mt
+# # Expansion tonnage and baseline capacity: from planned_expansions.xlsx and MILLS_EXPORTERS
+# oki_exp_mt       <- 4.2
+# rapp_exp_mt      <- 1.33
+# rappbctmp_exp_mt <- 1.3
+# phoenix_exp_mt   <- 1.7
+# total_exp_mt     <- oki_exp_mt + rapp_exp_mt + rappbctmp_exp_mt + phoenix_exp_mt
+# baseline_cap_mt  <- cap_df %>%
+#   select(MILL_ID, PULP_CAP_MTPY) %>%
+#   distinct() %>%
+#   pull(PULP_CAP_MTPY) %>%
+#   sum()
+# cap_change <- total_exp_mt / baseline_cap_mt
 
-cat(sprintf("Capacity expansion: %.2f Mt (%.1f%% increase over baseline)\n",
-            total_exp_mt, cap_change * 100))
+
+sinar_rge_cap_share <- (cap_df %>% filter(MILL_ID != "M-0005") %>% pull(PULP_CAP_MTPY) %>% sum()) /
+                       sum(cap_df$PULP_CAP_MTPY) * 100
+cat(sprintf(paste0(
+  "\nPaper sentence, line 135:\n",
+  "As of 2025, Sinar Mas and RGE – which together control over \033[1m%.0f\033[0m%% of the\n",
+  "industry’s production capacity.\n\n"),
+  sinar_rge_cap_share
+))
 
 # Wood demand, plantation area, and productivity scenarios: authoritative calculations
-# from 22_pulp_expansion_scenarios.R (run that script first to generate scenario_stats.csv)
+# from 05_pulp_expansion_scenarios.R (run that script first to generate scenario_stats.csv)
 scenario_stats <- read_csv(paste0(wdir, "/01_data/04_results/scenario_stats.csv"),
                            show_col_types = FALSE)
 
-cat(sprintf("New annual wood demand from expansion: %.1f million m3\n",
-            scenario_stats$new_wood_demand_mm3))
-
-# Area needed assuming no productivity improvements (uses current sector MAI)
 area_demand_historical <- scenario_stats$new_wood_demand_mm3 / mai_df$dmai
-cat(sprintf("Area needed at historical productivity: %.2f million ha\n",
-            area_demand_historical))
+cat(sprintf(paste0(
+  "\nPaper sentence, line 140:\n",
+  "Together, these three projects will increase the country's pulp capacity by \033[1m%.0f\033[0m%%\n",
+  "(\033[1m%.2f\033[0m million tonnes of pulp per year) and, once fully operational, will increase\n",
+  "the country's annual demand for pulpwood by \033[1m%.0f\033[0m million m3 (SI Section 4).\n",
+  "At historical levels of plantation productivity, an additional \033[1m%.2f\033[0m million\n",
+  "hectares of plantations will be needed to meet this anticipated boom in pulpwood demand.\n\n"),
+  scenario_stats$cap_pct_increase * 100,
+  scenario_stats$cap_increase,
+  scenario_stats$new_wood_demand_mm3,
+  area_demand_historical
+))
 
-# Area needed accounting for projected productivity growth (with CI); from 22_pulp_expansion_scenarios.R
-cat(sprintf("Additional plantation area needed (with yield growth): %.2f million ha (%.2f-%.2f million ha)\n",
-            scenario_stats$area_demand_central_mha,
-            scenario_stats$area_demand_low_mha,
-            scenario_stats$area_demand_high_mha))
-cat(sprintf("Productivity growth rate: %.1f%% per year (%.1f%%-%.1f%%)\n",
-            scenario_stats$mai_growth_central_pct,
-            scenario_stats$mai_growth_lb_pct,
-            scenario_stats$mai_growth_ub_pct))
-cat(sprintf("Projected deforestation from expansion: %s ha (%s-%s ha)\n",
-            formatC(scenario_stats$defor_central_ha, format = "d", big.mark = ","),
-            formatC(scenario_stats$defor_low_ha,     format = "d", big.mark = ","),
-            formatC(scenario_stats$defor_high_ha,    format = "d", big.mark = ",")))
-cat(sprintf("Projected peatland conversion: %s ha (%s-%s ha)\n",
-            formatC(scenario_stats$peat_central_ha,  format = "d", big.mark = ","),
-            formatC(scenario_stats$peat_low_ha,      format = "d", big.mark = ","),
-            formatC(scenario_stats$peat_high_ha,     format = "d", big.mark = ",")))
+# Description of growth trend
+mai_ci <- scenario_stats$mai_growth_central_pct - scenario_stats$mai_growth_lb_pct
+mai_lb  <- scenario_stats$mai_growth_lb_pct
+mai_ub  <- scenario_stats$mai_growth_ub_pct
+hardiyanto_pct <- mai_df$hardiyanto_cagr * 100
+hardiyanto_in_ci <- hardiyanto_pct >= mai_lb & hardiyanto_pct <= mai_ub
+cat(sprintf(paste0(
+  "\nPaper sentence, line 156:\n",
+  "We find that, between 2015 and 2021, pulpwood plantations achieved increases in\n",
+  "productivity of approximately \033[1m%.1f\033[0m (± \033[1m%.1f\033[0m) percent per year (SI Section 3),\n",
+  "which is consistent with estimates based on pre-harvest inventory data from\n",
+  "operational plantations.\n\n",
+  "Validation - Hardiyanto CAGR (%.1f%%) falls within our CI [%.1f%%–%.1f%%]: \033[1m%s\033[0m\n\n"),
+  scenario_stats$mai_growth_central_pct,
+  mai_ci,
+  hardiyanto_pct,
+  mai_lb,
+  mai_ub,
+  ifelse(hardiyanto_in_ci, "TRUE", "FALSE")
+))
+
+fmt_ha <- function(x) formatC(round(x, -2), format = "f", digits = 0, big.mark = ",")
+cat(sprintf(paste0(
+  "\nPaper paragraph, line 160:\n",
+  "If companies are able to sustain these recent rates of productivity improvement, we\n",
+  "estimate that the increased production on existing plantations would meet only\n",
+  "\033[1m%.0f\033[0m (95%% confidence interval: \033[1m%.0f\033[0m–\033[1m%.0f\033[0m) percent of the anticipated growth in pulpwood\n",
+  "demand (SI Section 4). Even under these optimistic assumptions, a further\n",
+  "\033[1m%s\033[0m (\033[1m%s\033[0m–\033[1m%s\033[0m) hectares of pulpwood plantations would be needed. Assuming\n",
+  "that this pulp expansion follows similar patterns to the recent past (2017–2022),\n",
+  "we estimate that it will drive \033[1m%s\033[0m (\033[1m%s\033[0m–\033[1m%s\033[0m) hectares of additional\n",
+  "deforestation and \033[1m%s\033[0m (\033[1m%s\033[0m–\033[1m%s\033[0m) hectares of additional peatland conversion.\n\n"),
+  scenario_stats$pct_demand_met_central,
+  scenario_stats$pct_demand_met_low,
+  scenario_stats$pct_demand_met_high,
+  fmt_ha(scenario_stats$area_demand_central_mha * 1e6),
+  fmt_ha(scenario_stats$area_demand_low_mha     * 1e6),
+  fmt_ha(scenario_stats$area_demand_high_mha    * 1e6),
+  fmt_ha(scenario_stats$defor_central_ha),
+  fmt_ha(scenario_stats$defor_low_ha),
+  fmt_ha(scenario_stats$defor_high_ha),
+  fmt_ha(scenario_stats$peat_central_ha),
+  fmt_ha(scenario_stats$peat_low_ha),
+  fmt_ha(scenario_stats$peat_high_ha)
+))
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Remaining forests in plantations ---------------------------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# We find that XX hectares of primary forests, and XX hectares of undrained peatlands, still exist within Indonesia’s assigned industrial forest concessions 
-## TODO: Jason - do you have these data from WWI to be able to explore these results? Might also be a good visual for another supplementary figure?
+# We find that 2.94 million hectares of primary forests, 18% of which are on peat soils, still exist within Indonesia’s assigned pulpwood plantation concessions (SI Section 7). 46% of these forests within pulp concessions are located in Kalimantan, the current frontier of pulp-driven deforestation.
+## TODO: Jason - do you have these data from WWI to be able to add these stats to this script?
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -554,149 +595,149 @@ cat(sprintf("Projected peatland conversion: %s ha (%s-%s ha)\n",
 
 # SI 1 stats
 
-# Area of pulpwood in Indonesia and within HTI
-pulp_area_hti <- pw_area_hti %>%
-  #filter(ID != "H-0657" & ID != "H-0656") %>%
-  distinct(ID,pulp_2022) %>%
-  group_by() %>%
-  summarize(area_ha = sum(pulp_2022)) %>%
-  print()
+# # Area of pulpwood in Indonesia and within HTI
+# pulp_area_hti <- pw_area_hti %>%
+#   #filter(ID != "H-0657" & ID != "H-0656") %>%
+#   distinct(ID,pulp_2022) %>%
+#   group_by() %>%
+#   summarize(area_ha = sum(pulp_2022)) %>%
+#   print()
 
-pulp_area_id <- pw_annual_area_id %>%
-  distinct(prov,pulp_2022) %>%
-  group_by() %>%
-  summarize(area_ha = sum(pulp_2022)) %>%
-  print()
+# pulp_area_id <- pw_annual_area_id %>%
+#   distinct(prov,pulp_2022) %>%
+#   group_by() %>%
+#   summarize(area_ha = sum(pulp_2022)) %>%
+#   print()
 
-pulp_area_hti/pulp_area_id * 100
+# pulp_area_hti/pulp_area_id * 100
 
-# Share of pulpwood expansion in HTI
-hti_pulpwood_expansion <- hti_nonhti_conv %>%
-  filter(year == 2022) %>%
-  mutate(type = ifelse(is.na(supplier),"Non HTI","HTI")) %>%
-  group_by(type) %>%
-  summarize(area_ha = sum(area_ha)) %>%
-  mutate(share = prop.table(area_ha)*100) %>%
-  print()
+# # Share of pulpwood expansion in HTI
+# hti_pulpwood_expansion <- hti_nonhti_conv %>%
+#   filter(year == 2022) %>%
+#   mutate(type = ifelse(is.na(supplier),"Non HTI","HTI")) %>%
+#   group_by(type) %>%
+#   summarize(area_ha = sum(area_ha)) %>%
+#   mutate(share = prop.table(area_ha)*100) %>%
+#   print()
 
-# list of HTE plantations
-hti_hte_plantations <- c("H-0344","H-0361","H-0319","H-0526","H-0365","H-0405")
+# # list of HTE plantations
+# hti_hte_plantations <- c("H-0344","H-0361","H-0319","H-0526","H-0365","H-0405")
 
-pulpwood_expansion_hti_hte <- hti_nonhti_conv %>%
-  filter(year == 2022) %>%
-  mutate(type = ifelse(is.na(supplier),"Non HTI","HTI"),
-         type = ifelse(supplier_id %in% hti_hte_plantations,"HTI/HTE",type)) %>%
-  group_by(type) %>%
-  summarize(area_ha = sum(area_ha)) %>%
-  mutate(share = prop.table(area_ha)*100) %>%
-  print()
+# pulpwood_expansion_hti_hte <- hti_nonhti_conv %>%
+#   filter(year == 2022) %>%
+#   mutate(type = ifelse(is.na(supplier),"Non HTI","HTI"),
+#          type = ifelse(supplier_id %in% hti_hte_plantations,"HTI/HTE",type)) %>%
+#   group_by(type) %>%
+#   summarize(area_ha = sum(area_ha)) %>%
+#   mutate(share = prop.table(area_ha)*100) %>%
+#   print()
 
-# Pulpwood share by woodtype
-pw_share <- ws_2015_2022 %>%
-  filter(YEAR == 2022) %>%
-  group_by(TYPE) %>%
-  summarize(VOLUME_M3 = sum(VOLUME_M3)) %>%
-  mutate(SHARE = prop.table(VOLUME_M3)*100) %>%
-  print()
+# # Pulpwood share by woodtype
+# pw_share <- ws_2015_2022 %>%
+#   filter(YEAR == 2022) %>%
+#   group_by(TYPE) %>%
+#   summarize(VOLUME_M3 = sum(VOLUME_M3)) %>%
+#   mutate(SHARE = prop.table(VOLUME_M3)*100) %>%
+#   print()
 
-# Share of active pulpwood suppliers in 2022
-active_hti_suppliers <- ws %>%
-  mutate(supplier_id = str_replace(SUPPLIER_ID,"ID-WOOD-CONCESSION-","H-")) %>%
-  filter(YEAR == 2022) %>%
-  full_join(hti_concession_names,by="supplier_id") %>%
-  select(supplier_id,VOLUME_M3) %>%
-  mutate(active_supplier = ifelse(!is.na(VOLUME_M3),"yes","no")) %>%
-  distinct(supplier_id,active_supplier) %>%
-  group_by(active_supplier) %>%
-  summarize(count = n()) %>%
-  mutate(share = prop.table(count)*100) %>%
-  print()
+# # Share of active pulpwood suppliers in 2022
+# active_hti_suppliers <- ws %>%
+#   mutate(supplier_id = str_replace(SUPPLIER_ID,"ID-WOOD-CONCESSION-","H-")) %>%
+#   filter(YEAR == 2022) %>%
+#   full_join(hti_concession_names,by="supplier_id") %>%
+#   select(supplier_id,VOLUME_M3) %>%
+#   mutate(active_supplier = ifelse(!is.na(VOLUME_M3),"yes","no")) %>%
+#   distinct(supplier_id,active_supplier) %>%
+#   group_by(active_supplier) %>%
+#   summarize(count = n()) %>%
+#   mutate(share = prop.table(count)*100) %>%
+#   print()
   
 
-# SI5 stats
+# # SI5 stats
 
-## In 2022, existing concessions that could allow for the future expansion of pulpwood plantations
-## contain XX million ha of natural forests, 3 million ha of pulpwood plantations, 
-## and *5.5* million ha of other cleared lands. *2.9* million ha of forests
-## (17% of the total, within-concession forest area) are located within existing HTI concessions
+# ## In 2022, existing concessions that could allow for the future expansion of pulpwood plantations
+# ## contain XX million ha of natural forests, 3 million ha of pulpwood plantations, 
+# ## and *5.5* million ha of other cleared lands. *2.9* million ha of forests
+# ## (17% of the total, within-concession forest area) are located within existing HTI concessions
 
-hti_conc_area <- hti %>%
-  mutate(area_ha = as.double(units::set_units(st_area(.), "hectare"))) %>%
-  st_drop_geometry() %>%
-  select(supplier_id=ID,area_ha) %>%
-  mutate(class = "Concession Area") %>%
-  print()
+# hti_conc_area <- hti %>%
+#   mutate(area_ha = as.double(units::set_units(st_area(.), "hectare"))) %>%
+#   st_drop_geometry() %>%
+#   select(supplier_id=ID,area_ha) %>%
+#   mutate(class = "Concession Area") %>%
+#   print()
 
-hti_conc_lu_areas <- zdc_hti_conv %>%
-  group_by(supplier_id,class) %>%
-  summarize(area_ha = sum(area_ha)) %>%
-  bind_rows(hti_conc_area) %>%
-  pivot_wider(names_from ="class",
-              values_from = area_ha) %>%
-  mutate_if(is.numeric, ~replace_na(., 0)) %>%
-  mutate(`Other Land Cover` = `Concession Area` - `Remaining forest` - (`Deforestation not for pulp` + `Deforestation for pulp after 2015` + `Deforestation for pulp from 2001-2015`)) %>%
-  pivot_longer(cols = -c(supplier_id),
-               names_to='class',
-               values_to = 'area_ha') %>%
-  group_by(class) %>%
-  summarize(area_Mha = sum(area_ha)/1000000) %>%
-  print()
+# hti_conc_lu_areas <- zdc_hti_conv %>%
+#   group_by(supplier_id,class) %>%
+#   summarize(area_ha = sum(area_ha)) %>%
+#   bind_rows(hti_conc_area) %>%
+#   pivot_wider(names_from ="class",
+#               values_from = area_ha) %>%
+#   mutate_if(is.numeric, ~replace_na(., 0)) %>%
+#   mutate(`Other Land Cover` = `Concession Area` - `Remaining forest` - (`Deforestation not for pulp` + `Deforestation for pulp after 2015` + `Deforestation for pulp from 2001-2015`)) %>%
+#   pivot_longer(cols = -c(supplier_id),
+#                names_to='class',
+#                values_to = 'area_ha') %>%
+#   group_by(class) %>%
+#   summarize(area_Mha = sum(area_ha)/1000000) %>%
+#   print()
 
-## We restrict our analysis to these two islands since they produce more than 
-## XX% of all pulpwood throughout our study period  
+# ## We restrict our analysis to these two islands since they produce more than 
+# ## XX% of all pulpwood throughout our study period  
 
-pulp_share_island <- pw_annual_area_id %>%
-  mutate(island = str_sub(prov_code, 1, 1)) %>%
-  mutate(
-    island = case_when(
-      island == 1 ~ "SUMATRA", island == 2 ~ "RIAU ARCHIPELAGO",
-      island == 3 ~ "JAVA", island == 5 ~ "BALI AND NUSA TENGGARA",
-      island == 6 ~ "KALIMANTAN", island == 7 ~ "SULAWESI",
-      island == 8 ~ "MALUKU", island == 9 ~ "PAPUA"
-    )
-  ) %>%
-  select(island,contains("pulp_")) %>%
-  pivot_longer(cols = -c(island),
-               names_to = 'year',
-               values_to = 'area_ha') %>%
-  mutate(year = str_extract(year, "(?<=_).*"),
-         year = as.integer(year)) %>%
-  filter(area_ha > 0) %>%
-  group_by(island) %>%
-  summarize(area_ha = sum(area_ha)) %>%
-  group_by() %>%
-  mutate(share = prop.table(area_ha)*100) %>%
-  print()
+# pulp_share_island <- pw_annual_area_id %>%
+#   mutate(island = str_sub(prov_code, 1, 1)) %>%
+#   mutate(
+#     island = case_when(
+#       island == 1 ~ "SUMATRA", island == 2 ~ "RIAU ARCHIPELAGO",
+#       island == 3 ~ "JAVA", island == 5 ~ "BALI AND NUSA TENGGARA",
+#       island == 6 ~ "KALIMANTAN", island == 7 ~ "SULAWESI",
+#       island == 8 ~ "MALUKU", island == 9 ~ "PAPUA"
+#     )
+#   ) %>%
+#   select(island,contains("pulp_")) %>%
+#   pivot_longer(cols = -c(island),
+#                names_to = 'year',
+#                values_to = 'area_ha') %>%
+#   mutate(year = str_extract(year, "(?<=_).*"),
+#          year = as.integer(year)) %>%
+#   filter(area_ha > 0) %>%
+#   group_by(island) %>%
+#   summarize(area_ha = sum(area_ha)) %>%
+#   group_by() %>%
+#   mutate(share = prop.table(area_ha)*100) %>%
+#   print()
 
-## Area of expansion and plantation
-ann_pulp_exp <- annual_pulp_areas %>%
-  mutate(Aggregate_pulp_expansion = forest_loss_pulp_ha + nonforest_loss_pulp_ha) %>%
-  select(Year=year,Pulp_driven_deforestation=forest_loss_pulp_ha,
-         Other_pulp_expansion=nonforest_loss_pulp_ha,
-         Aggregate_pulp_expansion,Pulpwood_planted_area=annual_pulp_area_ha) %>%
-  mutate(Pulp_driven_deforestation_kha=Pulp_driven_deforestation/1000,
-         Other_pulp_expansion_kha=Other_pulp_expansion/1000,
-         Aggregate_pulp_expansion_kha=Aggregate_pulp_expansion/1000,
-         Pulpwood_planted_area_Mha=Pulpwood_planted_area/1000000) %>%
-  select(-Aggregate_pulp_expansion,-Pulpwood_planted_area,-Other_pulp_expansion,
-         -Pulp_driven_deforestation) %>%
-  filter(Year > 2000) %>%
-  print(Inf)
+# ## Area of expansion and plantation
+# ann_pulp_exp <- annual_pulp_areas %>%
+#   mutate(Aggregate_pulp_expansion = forest_loss_pulp_ha + nonforest_loss_pulp_ha) %>%
+#   select(Year=year,Pulp_driven_deforestation=forest_loss_pulp_ha,
+#          Other_pulp_expansion=nonforest_loss_pulp_ha,
+#          Aggregate_pulp_expansion,Pulpwood_planted_area=annual_pulp_area_ha) %>%
+#   mutate(Pulp_driven_deforestation_kha=Pulp_driven_deforestation/1000,
+#          Other_pulp_expansion_kha=Other_pulp_expansion/1000,
+#          Aggregate_pulp_expansion_kha=Aggregate_pulp_expansion/1000,
+#          Pulpwood_planted_area_Mha=Pulpwood_planted_area/1000000) %>%
+#   select(-Aggregate_pulp_expansion,-Pulpwood_planted_area,-Other_pulp_expansion,
+#          -Pulp_driven_deforestation) %>%
+#   filter(Year > 2000) %>%
+#   print(Inf)
 
-write_csv(ann_pulp_exp,paste0(wdir,"/01_data/02_out/tables/pulp_expansion_areas_2001_2022.csv"))
+# write_csv(ann_pulp_exp,paste0(wdir,"/01_data/02_out/tables/pulp_expansion_areas_2001_2022.csv"))
 
-## count of unique plantation concessions that supplied any pulp mills during the period 2015-2021
-## and mean area (ha) of these concessions
+# ## count of unique plantation concessions that supplied any pulp mills during the period 2015-2021
+# ## and mean area (ha) of these concessions
 
-hti_supp_to_mills_conc_avg_area <- ws_2015_2022 %>%
-  left_join(select(hti_conc_area, SUPPLIER_ID = supplier_id, area_ha), by = "SUPPLIER_ID") %>%
-  filter(!str_detect(SUPPLIER_ID, "S-")) %>%
-  # ensure uniqueness at the Exporter-Supplier level before summarizing
-  distinct(EXPORTER_ID, SUPPLIER_ID, .keep_all = TRUE) %>% 
-  group_by() %>%
-  summarize(
-    n = n_distinct(SUPPLIER_ID), 
-    mean_conc_area_ha = mean(area_ha, na.rm = TRUE)
-  ) %>%
-  print(n = Inf)
+# hti_supp_to_mills_conc_avg_area <- ws_2015_2022 %>%
+#   left_join(select(hti_conc_area, SUPPLIER_ID = supplier_id, area_ha), by = "SUPPLIER_ID") %>%
+#   filter(!str_detect(SUPPLIER_ID, "S-")) %>%
+#   # ensure uniqueness at the Exporter-Supplier level before summarizing
+#   distinct(EXPORTER_ID, SUPPLIER_ID, .keep_all = TRUE) %>% 
+#   group_by() %>%
+#   summarize(
+#     n = n_distinct(SUPPLIER_ID), 
+#     mean_conc_area_ha = mean(area_ha, na.rm = TRUE)
+#   ) %>%
+#   print(n = Inf)
 
