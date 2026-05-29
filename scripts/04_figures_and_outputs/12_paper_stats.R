@@ -58,8 +58,8 @@ kab <- read_sf(paste0(wdir,"/01_data/01_in/big/idn_kabupaten_big.shp"))
 # hti concessions
 hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp"))
 
-# wood supply
-ws <- read_csv(paste0(wdir,"/01_data/01_in/wwi/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv"))
+# wood supply (2015-2022)
+ws_2015_2022 <- read_csv(paste0(wdir,"/01_data/02_out/tables/ws_merge_clean_2015_2022.csv"))
 
 # add islands
 islands <- kab %>%
@@ -74,9 +74,6 @@ islands <- kab %>%
     )
   ) %>%
   distinct(prov_code, island)
-
-# wood supply (2015-2022)
-ws_2015_2022 <- read_csv(paste0(wdir,"/01_data/02_out/tables/ws_merge_clean_2015_2022.csv"))
 
 # pulpwood conversion from forest and non-forest within and outside hti concessions
 hti_nonhti_conv <- read_csv(paste0(wdir,"/01_data/02_out/tables/idn_pulp_conversion_hti_nonhti_treemap.csv"))
