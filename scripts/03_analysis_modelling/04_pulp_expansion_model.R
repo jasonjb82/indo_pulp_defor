@@ -42,7 +42,6 @@ p2_df <- read_csv(paste0(wdir, data_dir,"/02_out/tables/pulp_exp_model_var_1km_2
          hti_start = hti_risk_2022, dist_mill = dist_mill_2022) %>%
   rename_with(~ str_replace(., "^y2022_a", "ya_"), starts_with("y2022_a")) %>%
   mutate(across(c(tmmx, tmmn, pr, pet, def, clay_content, soil_ph, gaez_cat), ~ na_if(., -9999)))
-# admin_df <- read_csv(paste0(wdir, "01_data/02_out/tables/grid_10km_adm_prov_kab.csv"))
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # set up estimation dataframe --------------
@@ -90,9 +89,6 @@ est_df <- est_df %>%
          gaez_cat = factor(gaez_cat, levels = as.integer(names(gaez_levels)), labels = gaez_levels))
 
 
-# est_df <- est_df %>%
-#   sample_n(10000)
-
 glimpse(est_df)
 count(est_df, pulp_end)  # check class balance
 count(est_df, kh)        # verify kh encoding
@@ -127,11 +123,16 @@ pct_dropped <- (n_before - nrow(model_df)) / n_before
 message(sprintf("Dropped %d pixels with NAs (%.1f%% of sample)", n_before - nrow(model_df), pct_dropped * 100))
 stopifnot("More than 2% of pixels dropped — check NA sources" = pct_dropped < 0.02)
 
-# Class weights to compensate for class imbalance (replaces step_downsample)
+# Two-pronged class-imbalance strategy:
+#   1. Downsample majority class to 10:1 for memory and compute efficiency
+#      (heuristic: retains enough no_pulp variation while keeping training set
+#      to ~200k rows for feasible compute).
+#   2. Apply class weights derived from the *original* prevalence (~1% pulp)
+#      so ranger corrects predicted probabilities toward the true base rate,
+#      counteracting the artificially inflated minority-class share after downsampling.
 prevalence <- mean(model_df$pulp_end == "pulp")
 class_wts  <- c(pulp = 1 - prevalence, no_pulp = prevalence)
 
-# Cap majority class at 10:1 ratio for memory/speed
 n_pulp   <- sum(model_df$pulp_end == "pulp")
 model_df <- bind_rows(
   model_df %>% filter(pulp_end == "pulp"),
@@ -143,6 +144,8 @@ set.seed(42)
 data_split <- group_initial_split(model_df, group = kab_code, prop = 0.8)
 train_df   <- training(data_split)
 test_df    <- testing(data_split)
+# Spatial CV: hold out entire kabupaten (districts) per fold to prevent
+# geographic data leakage between training and validation pixels.
 cv_folds   <- group_vfold_cv(train_df, group = kab_code, v = 5)
 
 # --- 3. Recipe ---
@@ -165,10 +168,13 @@ rf_workflow <- workflow() %>%
   add_model(rf_spec)
 
 # --- 6. Hyperparameter tuning over spatial CV folds ---
+# Grid: mtry up to 30 (feature set has ~75 predictors; sqrt(75) ≈ 9 but a
+# wider range captures potential benefit of larger subsets for spatial data).
+# 4 levels = 16 combinations; computationally feasible with spatial CV.
 rf_grid <- grid_regular(
   mtry(range = c(5, 30)),
   min_n(range = c(5, 30)),
-  levels = 4  # 4x4 = 16 combinations
+  levels = 4
 )
 
 set.seed(5597, kind = "L'Ecuyer-CMRG")  # parallel-safe RNG: streams to each worker reproducibly
@@ -358,7 +364,8 @@ pred_sf <- predictions_df %>%
   drop_na(lon, lat) %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326)
 
-nrow(pred_sf) == nrow(predictions_df)  # sanity check: no pixels lost
+stopifnot("Pixels lost in left_join — check for duplicate pixel_ids" =
+            nrow(pred_sf) == nrow(predictions_df))
 
 # --- 3. Aggregate 1km predictions to 10km raster (~0.1 degree resolution) ---
 pred_vect <- pred_sf %>%
@@ -419,7 +426,7 @@ pulp_map <- tm_shape(pred_rast) +
     col     = "pred_pulp",
     palette = "brewer.yl_or_rd",
     col_alpha   = 0.8,
-    title   = "Predicted pulp expansion, 2017-2022)"
+    title   = "Predicted pulp expansion (2017-2022)"
   ) +
 tm_shape(obs_rast, group = "Observed conversion rate (2017-2022)") +
   tm_raster(
@@ -433,7 +440,7 @@ tm_shape(pred2027_rast, group = "Predicted P(pulp expansion, 2022-2027)") +
     col     = "pred_pulp_2027",
     palette = "brewer.yl_or_rd",
     col_alpha   = 0.8,
-    title   = "Predicted pulp expansion, 2022-2027)"
+    title   = "Predicted pulp expansion (2022-2027)"
   ) +
 tm_shape(prov_sf) +
   tm_borders(col = "grey40", lwd = 1) +
@@ -460,7 +467,6 @@ write_csv(
 
 
 # CV performance of the best hyperparameter combination
-best_params <- select_best(rf_tune, metric = "roc_auc")
 collect_metrics(rf_tune) %>%
   inner_join(best_params %>% select(mtry, min_n), by = c("mtry", "min_n")) %>%
   filter(.metric %in% c("roc_auc", "pr_auc")) %>%
