@@ -24,18 +24,11 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 ### Load packages
 library(stringr)
 library(data.table)
-library(naniar)
-library(visdat)
 library(tidyverse)
-library(readxl)
-library(janitor)
 library(lubridate)
 library(sf)
-library(scales)
 library(dtplyr)
 library(tidyfast)
-library(showtext)
-library(khroma) # palettes for color blindness
 
 '%ni%' <- Negate('%in%') # filter out function
 
