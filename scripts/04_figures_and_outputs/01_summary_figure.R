@@ -27,8 +27,6 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 ### Load packages
 library(stringr)
 library(data.table)
-library(naniar)
-library(visdat)
 library(tidyverse)
 library(readxl)
 library(tidylog)
@@ -41,50 +39,45 @@ library(dtplyr)
 library(testthat)
 library(tidyfast)
 library(patchwork)
-library(concordance)
 library(rcartocolor)
-library(vistime)
+library(showtext)
 library(svglite)
 library(khroma) # palettes for color blindness
+
+font_add_google(name = "DM Sans", family = "DM Sans")
 
 ## set working directory -------------------------------------
 wdir <- "remote"
 
 ## read data -------------------------------------------------
 
-## increase memory size
-memory.limit(size=60000)
-
 ## load color palette
 colorBlind8  <- c("#999999", "#E69F00", "#56B4E9", "#009E73", 
                   "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
 # policy timeline (updated)
-policy_tl <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\policy_timeline_cats_rev1.csv")) %>%
+policy_tl <- read_csv(paste0(wdir,"/01_data/01_in/tables/policy_timeline_cats_rev1.csv")) %>%
   mutate(year_col = as.Date(year_proper,format="%d/%m/%Y"))
 
 # pulp conversion from forest (Indonesia wide) - TreeMap
-pulp_for_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_annual_defor_forest_id.csv")) %>%
+pulp_for_id <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaveau/pulp_annual_defor_forest_id.csv")) %>%
   select(-`system:index`,-constant,-.geo)
 
 # pulp conversion from non-forest (Indonesia wide) - TreeMap
-pulp_nonfor_id <- read_csv(paste0(wdir,"\\01_data\\02_out\\gee\\gaveau\\pulp_annual_defor_non-forest_id.csv")) %>%
+pulp_nonfor_id <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaveau/pulp_annual_defor_non-forest_id.csv")) %>%
   select(-`system:index`,-constant,-.geo)
 
 # timber for pulp production (Obidzinski Dermawan)
-timber_for_pulp <- read_csv(paste0(wdir,"\\01_data\\01_in\\obidzinski_dermawan\\plot_data.csv"))
-
-# pulp exports (WITS)
-pulp_exports <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\pulp_exports_wits.csv"))
+timber_for_pulp <- read_csv(paste0(wdir,"/01_data/01_in/obidzinski_dermawan/plot_data.csv"))
 
 # pulp prices (FRED)
-pulp_prices <- read_csv(paste0(wdir,"\\01_data\\01_in\\tables\\WPU0911_FRED.csv"))
+pulp_prices <- read_csv(paste0(wdir,"/01_data/01_in/tables/WPU0911_FRED.csv"))
 
 # pulp production data (MoEF)
-pulp_production <- read_excel(paste0(wdir,"\\01_data\\01_in\\tables\\annual_pulp_shr_prod.xlsx"))
+pulp_production <- read_excel(paste0(wdir,"/01_data/01_in/tables/annual_pulp_shr_prod.xlsx"))
 
 # kabupaten
-kab <- read_sf(paste0(wdir,"\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
+kab <- read_sf(paste0(wdir,"/01_data/01_in/big/idn_kabupaten_big.shp"))
 prov_slim <- kab %>% select(prov,prov_code) %>% st_drop_geometry() %>% distinct() %>%
   mutate(prov_code = ifelse(prov == "PAPUA",92,prov_code))
 
@@ -366,5 +359,5 @@ comb_plot <- comb_plot +
 comb_plot
 
 ## save to image format
-ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_updated.png"), dpi=400, w=12, h=15,type="cairo-png") 
-ggsave(comb_plot,file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\fig_0X_summary_figure_rev4.svg"), dpi=400, w=12, h=15) 
+ggsave(comb_plot,file=paste0(wdir,"/01_data/02_out/plots/001_figures/fig_0X_summary_figure_updated.png"), dpi=400, w=12, h=15,type="cairo-png") 
+ggsave(comb_plot,file=paste0(wdir,"/01_data/02_out/plots/001_figures/fig_0X_summary_figure_rev4.svg"), dpi=400, w=12, h=15) 
