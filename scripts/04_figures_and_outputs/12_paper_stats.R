@@ -84,6 +84,9 @@ hti_nonhti_conv <- read_csv(paste0(wdir,"/01_data/02_out/tables/idn_pulp_convers
 # treemap annual expansion stats
 id_annual_exp_stats <- read_csv(paste0(wdir,"/01_data/02_out/tables/id_annual_expansion_stats_ttm.csv"))
 
+# kalimantan annual pulp forest expansion stats
+kali_annual_pulp_exp_stats <- read_csv(paste0(wdir,"/01_data/02_out/tables/kali_annual_pulp_exp_stats_ttm.csv"))
+
 # pulpwood areas (Indonesia and within HTI)
 pw_area_hti <- read_csv(paste0(wdir, "/01_data/02_out/gee/pulp_annual_area_hti_only.csv")) 
 
@@ -220,14 +223,11 @@ overall_pulp_change %>% print()
 
 # The expansion of pulp processing infrastructure into Kalimantan is particularly important 
 #since the region has been responsible for XX%  of pulp-driven deforestation since 2017
-kali_pulp_driven_defor <- read_excel(paste0(wdir,"/01_data/01_in/gaveau/IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="PULPWOOD EXPANSION",skip=5,n_max =22 ) %>% 
-  clean_names() %>%
-  select(year,kali_forest_loss_ha=area_of_forest_converted_to_pulpwood_pw_each_year_ha) %>%
-  mutate(year=as.double(year)+2000) %>%
+kali_pulp_driven_defor <- kali_annual_pulp_exp_stats %>%
   left_join(annual_conv,by="year") %>%
   filter(year >= 2017) %>%
   group_by() %>%
-  summarize(shr_kali_pulp_defor = sum(kali_forest_loss_ha)/sum(area_ha)*100) %>%
+  summarize(shr_kali_pulp_defor = sum(forest_loss_ha)/sum(area_ha)*100) %>%
   print()
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
