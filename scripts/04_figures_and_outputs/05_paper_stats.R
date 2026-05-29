@@ -393,6 +393,56 @@ cat(sprintf(paste0(
   fmt_ha(scenario_stats$peat_high_ha)
 ))
 
+new_demand_pct_increase <- scenario_stats$new_wood_demand_mm3 / (current_wood_demand / 1e6) * 100
+cat(sprintf(paste0(
+  "\nSI paragraph, line 572:\n",
+  "Entering these data into Equation 4, we estimate that, once fully operational, the new\n",
+  "production lines detailed in Table 7 will demand \033[1m%.1f\033[0m million m3 of delivered\n",
+  "pulpwood per year. This represents an increase of \033[1m%.0f\033[0m%% over total Indonesian\n",
+  "pulpwood consumption in 2022.\n\n"),
+  scenario_stats$new_wood_demand_mm3,
+  new_demand_pct_increase
+))
+
+prior_plantations_mha  <- rs_acc_df %>% filter(stat_name == "total_pp_area_2022") %>% pull(estimated_area_kha) / 1e3
+extra_prod_central     <- scenario_stats$pct_demand_met_central * scenario_stats$new_wood_demand_mm3 / 100
+extra_prod_low         <- scenario_stats$pct_demand_met_low     * scenario_stats$new_wood_demand_mm3 / 100
+extra_prod_high        <- scenario_stats$pct_demand_met_high    * scenario_stats$new_wood_demand_mm3 / 100
+
+cat(sprintf(paste0(
+  "\nSI paragraph, line 591:\n",
+  "Assuming that planned capacity expansions will require a further \033[1m%.1f\033[0m million m3 of\n",
+  "delivered pulpwood per year and that, in practice, each hectare of pulpwood plantation\n",
+  "will continue to generate approximately \033[1m%.1f\033[0m m3 of net deliverable pulpwood per year,\n",
+  "we estimate that \033[1m%.2f\033[0m million hectares of new Indonesian pulpwood plantations (net\n",
+  "planted area) would be needed. However, if productivity continued to increase by\n",
+  "\033[1m%.1f\033[0m (±\033[1m%.1f\033[0m) percent per year for a further five years, average delivered mean\n",
+  "annual increment would reach \033[1m%.1f\033[0m (95%% confidence interval: \033[1m%.1f\033[0m–\033[1m%.1f\033[0m) m3 of wood\n",
+  "per hectare per year by 2028. Given these yield improvements, Indonesia's existing\n",
+  "\033[1m%.2f\033[0m million hectares of plantation forests could provide a further\n",
+  "\033[1m%.1f\033[0m (\033[1m%.1f\033[0m–\033[1m%.1f\033[0m) million m3 of pulpwood per year, or\n",
+  "\033[1m%.0f\033[0m (\033[1m%.1f\033[0m–\033[1m%.1f\033[0m) percent of anticipated demand growth. Even under\n",
+  "this highly optimistic scenario, \033[1m%s\033[0m (\033[1m%s\033[0m–\033[1m%s\033[0m) hectares of additional\n",
+  "plantations would be needed to meet the pulpwood demand from new pulp mill production lines.\n\n"),
+  scenario_stats$new_wood_demand_mm3,
+  mai_df$dmai,
+  area_demand_historical,
+  scenario_stats$mai_growth_central_pct,
+  mai_ci,
+  scenario_stats$mai_2028_central,
+  scenario_stats$mai_2028_lb,
+  scenario_stats$mai_2028_ub,
+  prior_plantations_mha,
+  extra_prod_central,
+  extra_prod_low,
+  extra_prod_high,
+  scenario_stats$pct_demand_met_central,
+  scenario_stats$pct_demand_met_low,
+  scenario_stats$pct_demand_met_high,
+  fmt_ha(scenario_stats$area_demand_central_mha * 1e6),
+  fmt_ha(scenario_stats$area_demand_low_mha     * 1e6),
+  fmt_ha(scenario_stats$area_demand_high_mha    * 1e6)
+))
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Remaining forests in plantations ---------------------------------------
