@@ -34,14 +34,17 @@ library(khroma) # palettes for color blindness
 
 '%ni%' <- Negate('%in%') # filter out function
 
+font_add_google(name = "DM Sans", family = "DM Sans")
+
 ## set working directory -------------------------------------
 
 wdir <- "remote"
+data_dir <- "/01_data/"
 
 ## read data -------------------------------------------------
 
 # concession annual land use changes
-hti_gav_annual_lc <- read_csv(paste0(wdir,"\\01_data\\02_out\\tables\\hti_land_use_change_areas.csv"))
+hti_gav_annual_lc <- read_csv(paste0(wdir,data_dir,"/02_out/tables/hti_land_use_change_areas.csv"))
 
 ## Plotting -------------------------------------------------
 
@@ -123,6 +126,6 @@ for(concession_ in concessions) {
   }
   
   print(hti_plots[[concession_]])
-  ggsave(hti_plots[[concession_]], file=paste0(wdir,"\\01_data\\02_out\\plots\\001_figures\\lu_traj_plots_check\\",gsub(" ","_",concession_),"_TreeMap_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
+  ggsave(hti_plots[[concession_]], file=paste0(wdir,data_dir,"/02_out/plots/001_figures/lu_traj_plots_check/",gsub(" ","_",concession_),"_TreeMap_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
 
 }

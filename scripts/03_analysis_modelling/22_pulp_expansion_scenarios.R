@@ -22,22 +22,24 @@ library(patchwork)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # load data --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-wdir <- "remote/"
+
+wdir <- "remote"
+data_dir <- "/01_data/"
 
 # Predicted expansion probabilities from 21_pulp_expansion_model.R
 # (lat/lon pre-joined; no need to reload p2_df)
 pred_df <- read_csv(
-  paste0(wdir, "01_data/02_out/tables/pulp_predictions.csv")
+  paste0(wdir, data_dir,"/02_out/tables/pulp_predictions.csv")
 )
 
 # Province boundaries for maps
-kab_sf  <- read_sf(paste0(wdir, "01_data/01_in/big/idn_kabupaten_big.shp"))
+kab_sf  <- read_sf(paste0(wdir, data_dir,"/01_in/big/idn_kabupaten_big.shp"))
 prov_sf <- kab_sf %>%
   group_by(prov, prov_code) %>%
   summarise(.groups = "drop")
 
 # Parameters from MAI analysis
-mai_df <- read_csv(paste0(wdir, "/01_data/04_results/key_parameters.csv"))
+mai_df <- read_csv(paste0(wdir,data_dir,"/04_results/key_parameters.csv"))
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -270,7 +272,7 @@ tm_title("Pulp expansion scenarios, 2022-2027")
 scenario_map
 htmlwidgets::saveWidget(
   tmap_leaflet(scenario_map),
-  file          = paste0(wdir, "01_data/04_results/figures/pulp_expansion_scenarios.html"),
+  file          = paste0(wdir,data_dir,"/04_results/figures/pulp_expansion_scenarios.html"),
   selfcontained = TRUE
 )
 
@@ -333,7 +335,7 @@ pub_map <- ggplot() +
   )
 
 pub_map
-ggsave(paste0(wdir, "01_data/04_results/figures/fig_expansion_map.png"),
+ggsave(paste0(wdir, data_dir,"/04_results/figures/fig_expansion_map.png"),
        pub_map, width = 9, height = 5, dpi = 300)
 
 
@@ -352,7 +354,7 @@ combined_fig <- (pub_map + theme(plot.margin = margin(4, 4, 2, 4, "pt"))) /
   plot_layout(heights = c(1.8, 1))
 
 combined_fig
-ggsave(paste0(wdir, "01_data/04_results/figures/fig_expansion_combined.png"),
+ggsave(paste0(wdir,data_dir,"/04_results/figures/fig_expansion_combined.png"),
        combined_fig, width = 7.5, height = 8, dpi = 300)
 
 
@@ -449,4 +451,4 @@ scenario_stats <- tibble(
   peat_low_ha             = peat_stats$scenario_1_ha,
   peat_high_ha            = peat_stats$scenario_3_ha
 )
-write_csv(scenario_stats, paste0(wdir, "01_data/04_results/scenario_stats.csv"))
+write_csv(scenario_stats, paste0(wdir,data_dir,"/04_results/scenario_stats.csv"))

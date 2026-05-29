@@ -22,21 +22,22 @@ library(testthat)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # load data --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-wdir <- "remote/"
+wdir <- "remote"
+data_dir <- "/01_data/"
 
 # Deforestation data
-defor_df <- read_csv(paste0(wdir, "/01_data/02_out/tables/tbl_long_pulp_clearing_gfc_forest.csv"))
+defor_df <- read_csv(paste0(wdir,data_dir,"/02_out/tables/tbl_long_pulp_clearing_gfc_forest.csv"))
 
 # Bleached Hardwood Kraft, Acacia, from Indonesia (net price) and South America from RISI
 # Measured in nominal USD / tonnes of BHKP
-risi_prices <- readxl::read_excel(paste0(wdir,"/01_data/01_in/wwi/Fastmarkets_2025_01_14-103617.xlsx"),skip=4) %>%
+risi_prices <- readxl::read_excel(paste0(wdir,data_dir,"/01_in/wwi/Fastmarkets_2025_01_14-103617.xlsx"),skip=4) %>%
   clean_names() %>% 
   select(date,indo_net_price=fp_plp_0045, sa_net_price = fp_plp_0056,nasc_net_price = fp_plp_0053)
 
 # WRQ data on pulpwood prices (USD/m3). 
 # Used to convert global interannual variation in pulp prices (RISI data) into 
 # local pulpwood prices to improve interpretation
-wrq_prices <- readxl::read_excel(paste0(wdir,"/01_data/01_in/wwi/WRQ_pulpwood_prices.xlsx")) %>%
+wrq_prices <- readxl::read_excel(paste0(wdir,data_dir,"/01_in/wwi/WRQ_pulpwood_prices.xlsx")) %>%
   clean_names() %>% 
   drop_na() %>% 
   group_by(year)
@@ -49,7 +50,7 @@ wrq_prices <- wrq_prices %>%
   summarize(wrq_indo_prices = mean(indonesia, na.rm = TRUE))
 
 # FRED data on IDR to USD exchange rate (to convert global prices to local currency)
-fred_idr_usd <- read_csv(paste0(wdir,"/01_data/01_in/tables/FRED_CCUSSP02IDM650N.csv")) %>%
+fred_idr_usd <- read_csv(paste0(wdir,data_dir,"/01_in/tables/FRED_CCUSSP02IDM650N.csv")) %>%
   mutate(date = as.Date(observation_date,format="%d/%m/%Y"),
          year = year(date)) %>%
   group_by(year) %>% 
@@ -57,36 +58,34 @@ fred_idr_usd <- read_csv(paste0(wdir,"/01_data/01_in/tables/FRED_CCUSSP02IDM650N
   filter(year > 1999, year < 2023)
 
 # FRED data on Indonesian CPI (to adjust for inflation, reference year = 2015)
-fred_idn_cpi <- read_csv(paste0(wdir,"/01_data/01_in/tables/FRED_IDNCPIALLAINMEI.csv")) %>%
+fred_idn_cpi <- read_csv(paste0(wdir,data_dir,"/01_in/tables/FRED_IDNCPIALLAINMEI.csv")) %>%
   mutate(date = as.Date(observation_date,format="%d/%m/%Y"),
          year = year(date)) %>% 
   select(year, idn_cpi = IDNCPIALLAINMEI)
 
 # Transport costs (2006 USD / m3, used for robustness test)
-trnsprt_cst_df <- read_csv(paste0(wdir, "/01_data/02_out/tables/centroids_mills_cost.csv")) %>% 
+trnsprt_cst_df <- read_csv(paste0(wdir,data_dir,"/02_out/tables/centroids_mills_cost.csv")) %>% 
   rename(pixel_id = id) %>% 
   mutate(year = 2006)
 
 # Data about grid cell composition along GAEZ classes
-grid_gaez <- read_csv(paste0(wdir, "/01_data/02_out/tables/gaez_grid_share.csv"))
+grid_gaez <- read_csv(paste0(wdir,data_dir,"/02_out/tables/gaez_grid_share.csv"))
 
 # Data about hti composition along GAEZ classes
-hti_gaez <- read_csv(paste0(wdir, "/01_data/02_out/tables/gaez_hti_areas.csv")) %>% 
+hti_gaez <- read_csv(paste0(wdir,data_dir,"/02_out/tables/gaez_hti_areas.csv")) %>% 
   select(-total_area_ha, supplier_id = ID)
 
 # Data about hti productivity (produced in R script 08_calc_mai.R)
-hti_mai <- read_csv(paste0(wdir, "/01_data/02_out/tables/hti_mai.csv"))
+hti_mai <- read_csv(paste0(wdir,data_dir,"/02_out/tables/hti_mai.csv"))
 
 # Add administrative labels
-grid_admin <- read_csv(paste0(wdir, "/01_data/02_out/tables/grid_10km_adm_prov_kab_kec.csv"))
+grid_admin <- read_csv(paste0(wdir,data_dir,"/02_out/tables/grid_10km_adm_prov_kab_kec.csv"))
 
 # mill capacities
-cap_df <- read_excel(paste0(wdir, "/01_data/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
+cap_df <- read_excel(paste0(wdir,data_dir,"/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
 
 # mill-level production
-mill_prod <- read_excel(paste0(wdir, '/01_data/01_in/wwi/MILL_PRODUCTION_2015_2024.xlsx'))
-
-
+mill_prod <- read_excel(paste0(wdir,data_dir,'/01_in/wwi/MILL_PRODUCTION_2015_2024.xlsx'))
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # clean price data --------------
@@ -152,8 +151,6 @@ trnsprt_cst_df <- trnsprt_cst_df %>%
          cost_kidr_perton_real = cost_kidr_perton / idn_cpi * 100, # Adjust for inflation, reference year is 2015
          trnsprt_cost_real = cost_kidr_perton_real / 1.142) %>%  # Convert from USD/tonne to USD/m3 (assuming 1.142 m3 per tonne)
   select(pixel_id, trnsprt_cost_real)
-
-
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # merge datasets --------------
@@ -304,7 +301,7 @@ tbl_args <- list(
 )
 
 do.call(msummary, tbl_args)  # display
-do.call(msummary, c(tbl_args, list(output = paste0(wdir, "/01_data/04_results/tables/defor_elast_main.docx"))))  # save
+do.call(msummary, c(tbl_args, list(output = paste0(wdir,data_dir,"/04_results/tables/defor_elast_main.docx"))))  # save
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -365,7 +362,7 @@ rtbl_args <- list(
 
 do.call(msummary, rtbl_args)  # display
 do.call(msummary, c(rtbl_args, 
-  list(output = paste0(wdir, "/01_data/04_results/tables/defor_elast_robust.docx"))))  # save
+  list(output = paste0(wdir,data_dir,"/04_results/tables/defor_elast_robust.docx"))))  # save
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -456,7 +453,7 @@ defor_plot <- ggplot(total_pulp_defor %>% filter(year > 2000, year < 2023), aes(
   annotate("text", x = 2020, y = 107, label = "Deforestation as predicted\nby price variation", color = "black") +
   annotate("text", x = 2018, y = 20, label = "Observed deforestation", color = "black")
 defor_plot
-ggsave(paste0(wdir, "/01_data/04_results/figures/SI_f3_elasticity.png"), width = 7, height = 5)
+ggsave(paste0(wdir,data_dir,"/04_results/figures/SI_f3_elasticity.png"), width = 7, height = 5)
 
 
 
