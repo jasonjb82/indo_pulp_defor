@@ -99,31 +99,13 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">Single CSV; annual harvested area per HTI concession with peat splits and weather covariates</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">RPBBI wood supply 2015–2019</td>
-<td style="text-align: left;"><code>remote/01_data/01_in/wwi/RPBBI_2015_2019_compiled.xlsx</code></td>
+<td style="text-align: left;">Merged wood supply 2015–2022</td>
+<td style="text-align: left;"><code>remote/01_data/02_out/tables/ws_merge_clean_2015_2022.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
-<td style="text-align: left;">xlsx</td>
-<td style="text-align: left;">WWI / RPBBI (MoEF reporting)</td>
-<td style="text-align: left;">08_calc_mai.R</td>
-<td style="text-align: left;">Compiled wood-supply records per supplier-year</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">RPBBI wood supply 2020</td>
-<td style="text-align: left;"><code>remote/01_data/01_in/wwi/RPBBI_2020_compiled.xlsx</code></td>
-<td style="text-align: left;">Non-spatial</td>
-<td style="text-align: left;">xlsx</td>
-<td style="text-align: left;">WWI / RPBBI</td>
-<td style="text-align: left;">08_calc_mai.R</td>
-<td style="text-align: left;">Single xlsx, same schema as 2015–2019</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">RPBBI wood supply 2021</td>
-<td style="text-align: left;"><code>remote/01_data/01_in/wwi/RPBBI_2021_compiled.xlsx</code></td>
-<td style="text-align: left;">Non-spatial</td>
-<td style="text-align: left;">xlsx</td>
-<td style="text-align: left;">WWI / RPBBI</td>
-<td style="text-align: left;">08_calc_mai.R</td>
-<td style="text-align: left;">Single xlsx, same schema</td>
+<td style="text-align: left;">csv</td>
+<td style="text-align: left;">Intermediate output (consolidated RPBBI)</td>
+<td style="text-align: left;">08_calc_mai.R, 12_paper_stats.R</td>
+<td style="text-align: left;">Single CSV replacing the four annual RPBBI xlsx files</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">HTI MAI (intermediate)</td>
@@ -441,33 +423,24 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">Single cleaned CSV</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Merged wood supply 2015–2022</td>
-<td style="text-align: left;"><code>remote/01_data/02_out/tables/ws_merge_clean_2015_2022.csv</code></td>
-<td style="text-align: left;">Non-spatial</td>
-<td style="text-align: left;">csv</td>
-<td style="text-align: left;">Intermediate output (consolidated RPBBI)</td>
-<td style="text-align: left;">12_paper_stats.R</td>
-<td style="text-align: left;">Single CSV replacing four annual RPBBI xlsx files</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Indonesia LCC workbook (Gaveau, Kalimantan tab only)</td>
-<td style="text-align: left;"><code>remote/01_data/01_in/gaveau/IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx</code></td>
-<td style="text-align: left;">Non-spatial</td>
-<td style="text-align: left;">xlsx</td>
-<td style="text-align: left;">Gaveau / TreeMap</td>
-<td style="text-align: left;">12_paper_stats.R</td>
-<td style="text-align: left;">Multi-sheet xlsx; only <code>PULPWOOD EXPANSION</code> sheet (<code>skip=5, n_max=22</code>) is now read</td>
-</tr>
-<tr class="even">
 <td style="text-align: left;">Annual expansion stats (TreeMap)</td>
 <td style="text-align: left;"><code>remote/01_data/02_out/tables/id_annual_expansion_stats_ttm.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
 <td style="text-align: left;">csv</td>
-<td style="text-align: left;">Intermediate output (replaces Gaveau xlsx)</td>
+<td style="text-align: left;">Intermediate output</td>
 <td style="text-align: left;">12_paper_stats.R</td>
-<td style="text-align: left;">Annual national pulp + palm forest/non-forest expansion</td>
+<td style="text-align: left;">Annual national pulp + palm forest / non-forest expansion</td>
 </tr>
 <tr class="odd">
+<td style="text-align: left;">Kalimantan annual pulp expansion stats</td>
+<td style="text-align: left;"><code>remote/01_data/02_out/tables/kali_annual_pulp_exp_stats_ttm.csv</code></td>
+<td style="text-align: left;">Non-spatial</td>
+<td style="text-align: left;">csv</td>
+<td style="text-align: left;">Intermediate output (replaces Gaveau xlsx Kalimantan tab)</td>
+<td style="text-align: left;">12_paper_stats.R</td>
+<td style="text-align: left;">Single CSV of Kalimantan-only pulp forest loss</td>
+</tr>
+<tr class="even">
 <td style="text-align: left;">Annual pulp area within HTI</td>
 <td style="text-align: left;"><code>remote/01_data/02_out/gee/pulp_annual_area_hti_only.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
@@ -476,7 +449,7 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">12_paper_stats.R</td>
 <td style="text-align: left;">Single GEE export CSV</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td style="text-align: left;">Annual pulp area (Indonesia)</td>
 <td style="text-align: left;"><code>remote/01_data/02_out/gee/pulp_annual_area_id.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
@@ -485,7 +458,7 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">12_paper_stats.R</td>
 <td style="text-align: left;">Single GEE export CSV</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td style="text-align: left;">Group reclass (ownership)</td>
 <td style="text-align: left;"><code>remote/01_data/01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
@@ -494,7 +467,7 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">12_paper_stats.R</td>
 <td style="text-align: left;">Concession-to-conglomerate crosswalk</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td style="text-align: left;">Gaveau annual pulp areas (HTI)</td>
 <td style="text-align: left;"><code>remote/01_data/02_out/tables/gaveau_annual_pulp_areas.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
@@ -503,7 +476,7 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">12_paper_stats.R</td>
 <td style="text-align: left;">Sample-level annual pulp class table</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td style="text-align: left;">Pulp expansion on peat / mineral</td>
 <td style="text-align: left;"><code>remote/01_data/02_out/gee/gaveau/idn_pulp_annual_expansion_peat_mineral_soils.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
@@ -514,12 +487,11 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 </tbody>
 </table>
-<p><strong>Audit deltas vs.&nbsp;prior version (work has tightened up several inputs):</strong></p>
+<p><strong>Audit deltas vs.&nbsp;prior version:</strong></p>
 <ul>
-<li><code>samples_landuse_ttm.csv</code> and <code>samples_gfc_ttm.csv</code> are now single CSVs; the prior folder-of-CSVs reads (<code>gee/gaveau/*gaveau_classes.csv</code>, <code>gee/gfc_ttm/*.csv</code>) have been retired.</li>
-<li><code>12_paper_stats.R</code> no longer reads the four annual <code>RPBBI_*.xlsx</code> files directly — it now reads the consolidated <code>ws_merge_clean_2015_2022.csv</code> (RPBBI xlsx files are still used by <code>08_calc_mai.R</code>).</li>
-<li><code>12_paper_stats.R</code> no longer reads the Gaveau <code>IDN_2001_2022 ... xlsx</code> for the main pulp/palm trend stats — those are now in <code>id_annual_expansion_stats_ttm.csv</code>. The workbook is still read once for the Kalimantan-only tab.</li>
-<li><code>RPBBI_2022_compiled.xlsx</code>, <code>pulp_exports_wits.csv</code>, and the <code>annual_pulp_shr_prod.xlsx</code> reference in <code>12_paper_stats.R</code> have been removed from the active scripts (the production xlsx is still used by <code>01_summary_figure.R</code>).</li>
+<li><strong>08_calc_mai.R</strong> no longer reads the three annual RPBBI xlsx files (<code>RPBBI_2015_2019_compiled.xlsx</code>, <code>RPBBI_2020_compiled.xlsx</code>, <code>RPBBI_2021_compiled.xlsx</code>); it now consumes the consolidated <code>ws_merge_clean_2015_2022.csv</code> directly.</li>
+<li><strong>12_paper_stats.R</strong> no longer reads the Gaveau <code>IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx</code> at all — its Kalimantan-tab data has been promoted to a standalone CSV (<code>kali_annual_pulp_exp_stats_ttm.csv</code>).</li>
+<li>Net effect: the audit list has lost four <code>.xlsx</code> raw inputs (three RPBBI files + Gaveau LCC workbook) since the prior version. The replication bundle’s Excel surface area is shrinking on its own.</li>
 </ul>
 <hr>
 </section>
@@ -528,60 +500,58 @@ ul.task-list li input[type="checkbox"] {
 <section id="consolidation" class="level3">
 <h3 class="anchored" data-anchor-id="consolidation">1. Consolidation</h3>
 <ul>
-<li><strong>RPBBI wood supply (2015–2019, 2020, 2021)</strong> — three near-identical xlsx files are read separately in <code>08_calc_mai.R</code> and <code>rbind</code>ed.&nbsp;The downstream <code>12_paper_stats.R</code> already consumes a consolidated <code>ws_merge_clean_2015_2022.csv</code> — point <code>08_calc_mai.R</code> at the same file and retire the three xlsx inputs.</li>
-<li><strong>GAEZ grid + GAEZ HTI</strong> (<code>gaez_grid_share.csv</code>, <code>gaez_hti_areas.csv</code>) — both feed the same aggregated 4-class scheme in <code>17_defor_elasticity.R</code>; precompute the aggregated columns and ship a single slim file per scope (grid, HTI).</li>
-<li><strong>Two scalar parameter files</strong> (<code>key_parameters.csv</code>, <code>scenario_stats.csv</code>) are single-row handoff CSVs between scripts. Merge into one <code>parameters.csv</code> (or just have <code>12_paper_stats.R</code> recompute).</li>
+<li><strong>Wood supply pipeline</strong> is now consolidated upstream (<code>ws_merge_clean_2015_2022.csv</code>). Two cleanups remain: (a) confirm <code>PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv</code> isn’t a near-duplicate of the merged file — if it is, drop it; (b) ensure <code>08</code> and <code>12</code> actually read the same canonical file (they now both point at <code>ws_merge_clean_2015_2022.csv</code>, so this looks clean).</li>
+<li><strong>GAEZ grid + GAEZ HTI</strong> (<code>gaez_grid_share.csv</code>, <code>gaez_hti_areas.csv</code>) — both feed the same aggregated 4-class scheme in <code>17_defor_elasticity.R</code>; precompute the aggregated columns and ship one slim file per scope.</li>
+<li><strong>Two scalar parameter files</strong> (<code>key_parameters.csv</code>, <code>scenario_stats.csv</code>) are single-row handoff CSVs. Merge into one <code>parameters.csv</code> or have <code>12_paper_stats.R</code> recompute.</li>
 <li><strong>FRED IDR/USD + FRED CPI</strong> are both small annual series — merge to one <code>fred_macro.csv</code>.</li>
 <li>The two <code>pulp_annual_defor_*_id.csv</code> (forest / non-forest) and <code>pulp_annual_area_id.csv</code> are all GEE province-level wide tables — merge to one long-format file.</li>
-<li><strong>Indonesia LCC workbook (Kalimantan tab)</strong> — only ~22 rows of one sheet are read with hard-coded <code>skip=5, n_max=22</code>. Replace with a tiny <code>kali_pulp_forest_loss.csv</code> instead of shipping the full xlsx.</li>
+<li><strong>National + Kalimantan TreeMap stats</strong> (<code>id_annual_expansion_stats_ttm.csv</code>, <code>kali_annual_pulp_exp_stats_ttm.csv</code>) are now two tiny CSVs with the same schema — could be a single long-format file with a <code>region</code> column.</li>
 </ul>
 </section>
 <section id="pruning" class="level3">
 <h3 class="anchored" data-anchor-id="pruning">2. Pruning</h3>
 <ul>
 <li><strong>All GEE exports</strong> carry <code>system:index</code>, <code>.geo</code>, <code>constant</code>, <code>kab</code>, <code>kab_code</code>, <code>prov_code</code>, <code>type</code> columns that scripts immediately drop. Strip these before shipping (huge wins on <code>.geo</code> which is per-row WKT geometry).</li>
-<li><strong><code>MILLS_EXPORTERS_20200405.xlsx</code></strong> is read in three scripts and each time only <code>MILL_ID</code> and <code>PULP_CAP_MTPY</code> (or 2–3 cols) are kept. Ship a slim CSV with only the consumed columns.</li>
+<li><strong><code>MILLS_EXPORTERS_20200405.xlsx</code></strong> is read in three scripts and each time only 2–3 columns (<code>MILL_ID</code>, <code>PULP_CAP_MTPY</code>) are kept. Ship a slim CSV.</li>
 <li><strong><code>MILL_PRODUCTION_2015_2024.xlsx</code></strong> — only <code>MILL_ID, YEAR, TOTAL_PROD_KG_NET</code> are used.</li>
-<li><strong>RPBBI files (08_calc_mai.R)</strong> — only <code>YEAR, SUPPLIER_ID, VOLUME_M3</code> are read; drop everything else (or just use the consolidated CSV — see §1).</li>
 <li><strong>Fastmarkets pulp prices</strong> — only 3 series columns are kept (<code>fp_plp_0045 / 0053 / 0056</code>); drop other series and reformat to long.</li>
-<li><strong><code>IUPHHK_HTI_TRASE_20230314_proj.shp</code></strong> — scripts only use <code>ID</code> and <code>namaobj</code> (plus geometry). Drop all other attributes; consider also simplifying geometries (e.g.&nbsp;<code>ms_simplify</code> to ~50–100 m tolerance) since outputs are used at 1 km / 10 km grid scale.</li>
-<li><strong><code>idn_kabupaten_big.shp</code></strong> — only <code>prov, prov_code, kab, kab_code</code> columns are used and most maps are at country scale. Strongly recommend simplifying and dropping attribute columns.</li>
-<li><strong><code>pulp_exp_model_var_1km_*.csv</code></strong> — these are by far the heaviest tables (1 km × Sumatra+Kalimantan × ~25 covariates + 64 <code>ya_*</code> spectral anomaly indices). The <code>ya_*</code> indices dominate file size; check whether all 64 actually drive the RF post-tuning, and prune any that variable-importance shows as negligible.</li>
+<li><strong><code>IUPHHK_HTI_TRASE_20230314_proj.shp</code></strong> — scripts only use <code>ID</code> and <code>namaobj</code> (plus geometry). Drop other attributes; consider geometry simplification (~50–100 m tolerance) since outputs sit at 1 km / 10 km grid scale.</li>
+<li><strong><code>idn_kabupaten_big.shp</code></strong> — only <code>prov, prov_code, kab, kab_code</code> are used and maps are at country scale. Simplify geometries and drop other columns.</li>
+<li><strong><code>pulp_exp_model_var_1km_*.csv</code></strong> — by far the heaviest tables (1 km × Sumatra+Kalimantan × ~25 covariates + 64 <code>ya_*</code> spectral anomaly indices). The <code>ya_*</code> indices dominate file size; check variable importance and prune any negligible ones.</li>
 <li><strong><code>pulp_predictions.csv</code></strong> — already pruned by 21 to 7 columns; good.</li>
 </ul>
 </section>
 <section id="aggregation" class="level3">
 <h3 class="anchored" data-anchor-id="aggregation">3. Aggregation</h3>
 <ul>
-<li><strong><code>pulp_exp_model_var_1km_*.csv</code></strong>: the model averages predictions to 0.1° (~10 km) for plotting in <code>21</code> / <code>22</code>. If the public deliverable is the figures and tables (not RF retraining), ship a <strong>pre-aggregated 10 km panel</strong> instead of the full 1 km grid — likely a 100× size reduction. If reproducing the RF is required, keep 1 km but Parquet-encode it (see §4).</li>
+<li><strong><code>pulp_exp_model_var_1km_*.csv</code></strong>: the model averages predictions to 0.1° (~10 km) for plotting. If the public deliverable is the figures and tables (not RF retraining), ship a <strong>pre-aggregated 10 km panel</strong> — likely a 100× size reduction. If RF reproduction is required, keep 1 km but Parquet-encode (see §4).</li>
 <li><strong><code>tbl_long_pulp_clearing_gfc_forest.csv</code></strong> is a 10 km pixel-year panel; already coarse. Confirm it’s restricted to Sumatra+Kalimantan (the modelled extent) before shipping.</li>
-<li><strong>HTI annual land-use change</strong> (<code>hti_land_use_change_areas.csv</code>) drives a per-concession plot loop — already aggregated; fine.</li>
-<li><strong>Validation spreadsheet</strong> (<code>Validation_11classes...xlsx</code>) — only the <code>Points</code> sheet and <code>Inputs!A6:C17</code> ranges are used. Ship those as two tiny CSVs (<code>validation_points.csv</code>, <code>mapped_areas.csv</code>).</li>
+<li><strong>HTI annual land-use change</strong> (<code>hti_land_use_change_areas.csv</code>) — already aggregated; fine.</li>
+<li><strong>Validation spreadsheet</strong> (<code>Validation_11classes...xlsx</code>) — only the <code>Points</code> sheet and <code>Inputs!A6:C17</code> range are used. Ship as two tiny CSVs.</li>
 <li><strong>Fastmarkets daily prices</strong> — script collapses to annual means; ship the annual series rather than daily.</li>
 </ul>
 </section>
 <section id="reformatting" class="level3">
 <h3 class="anchored" data-anchor-id="reformatting">4. Reformatting</h3>
 <ul>
-<li><strong>All <code>.xlsx</code> reads</strong>: every Excel file in this audit is treated as a flat table. Convert them all to <code>.csv</code> (or <code>.csv.gz</code>). Excel parsing also forces <code>skip=</code> magic numbers (Fastmarkets <code>skip=4</code>, Gaveau Kalimantan tab <code>skip=5, n_max=22</code>, Validation <code>range="A6:C17"</code>) that are brittle. CSV inputs avoid this entirely.</li>
-<li><strong>Heavy intermediate panels</strong> (<code>pulp_exp_model_var_1km_*.csv</code>, <code>tbl_long_pulp_clearing_gfc_forest.csv</code>, <code>samples_*_ttm.csv</code>): ship as <strong>Parquet</strong> (<code>arrow::write_parquet</code>) — typically 5–10× smaller than CSV with native typing, and <code>read_parquet</code> is drop-in.</li>
+<li><strong>All remaining <code>.xlsx</code> reads</strong>: every Excel file in this audit is treated as a flat table. Convert to <code>.csv</code> (or <code>.csv.gz</code>). The remaining xlsx surface area is small now — only Fastmarkets, WRQ, MILLS_EXPORTERS, MILL_PRODUCTION, the Validation workbook, and <code>annual_pulp_shr_prod.xlsx</code> — so this is a low-effort, high-clarity win.</li>
+<li><strong>Heavy intermediate panels</strong> (<code>pulp_exp_model_var_1km_*.csv</code>, <code>tbl_long_pulp_clearing_gfc_forest.csv</code>, <code>samples_*_ttm.csv</code>): ship as <strong>Parquet</strong> (<code>arrow::write_parquet</code>) — typically 5–10× smaller than CSV with native typing.</li>
 <li><strong>Shapefiles</strong> (<code>IUPHHK_HTI_TRASE_*.shp</code>, <code>idn_kabupaten_big.shp</code>): each is a 4-file bundle. Replace with <strong>GeoPackage (<code>.gpkg</code>)</strong> — single file, smaller, no <code>.shx / .dbf / .prj</code> clutter.</li>
-<li>The <code>key_parameters.csv</code> / <code>scenario_stats.csv</code> single-row handoffs could just be saved as <code>.rds</code> or skipped entirely by sourcing scripts in order.</li>
+<li>The <code>key_parameters.csv</code> / <code>scenario_stats.csv</code> single-row handoffs could just be saved as <code>.rds</code> or skipped by sourcing scripts in order.</li>
 </ul>
 </section>
 <section id="general-feedback" class="level3">
 <h3 class="anchored" data-anchor-id="general-feedback">5. General Feedback</h3>
 <ul>
-<li><strong>Path standardization</strong>: <code>wdir</code> is set inconsistently — some scripts use <code>"remote"</code>, some <code>"remote/"</code>. <code>02_deforestation_timing.R</code> uses backslash paths (<code>"\\01_data\\02_out\\..."</code>) that will break on Linux/macOS reviewer machines. Standardize on forward slashes (<code>file.path()</code> or <code>here::here()</code>).</li>
-<li><strong><code>memory.limit(size=60000)</code></strong> has already been removed from <code>01_summary_figure.R</code> (was Windows-only and is gone in R ≥ 4.2) — good. Audit other scripts for similar Windows-only calls.</li>
-<li><strong>Hard-coded folder structure</strong> (<code>01_data/01_in</code>, <code>02_out</code>, <code>04_results</code>): include a short README diagram + ensure the bundle preserves these exact subfolders so all <code>paste0(wdir, "/01_data/...")</code> calls resolve without edits.</li>
-<li><strong>Intermediate-vs-input ambiguity</strong>: several files in <code>01_data/02_out/...</code> are <em>intermediate outputs</em> produced by upstream scripts that are <strong>not</strong> in the replication folders (e.g.&nbsp;<code>hti_harvest_yr.csv</code>, <code>tbl_long_pulp_clearing_gfc_forest.csv</code>, <code>hti_land_use_change_areas.csv</code>, <code>samples_landuse_ttm.csv</code>, <code>samples_gfc_ttm.csv</code>, <code>centroids_mills_cost.csv</code>, <code>grid_10km_adm_prov_kab_kec.csv</code>, <code>ws_merge_clean_2015_2022.csv</code>, <code>id_annual_expansion_stats_ttm.csv</code>, etc.). Reviewers need a clear README distinguishing <strong>(a) raw inputs they need</strong>, <strong>(b) intermediate artifacts shipped pre-built</strong>, and <strong>(c) outputs the scripts will create</strong>.</li>
-<li><strong>Circular dependency</strong>: <code>20_pulp_expansion_table.R</code> reads <code>pulp_expansion_areas_2001_2022.csv</code>, which is <em>written</em> by <code>12_paper_stats.R</code>. Document the required run order, or ship the file as a pre-built intermediate.</li>
-<li><strong>Font dependencies</strong> (<code>DM Sans</code>) and <code>type="cairo-png"</code> in <code>ggsave</code> will fail silently on systems without the font / cairo. Either embed the font, or fall back to <code>theme_bw()</code> for the replication package.</li>
-<li><strong>Per-HTI loop in <code>03_land_use_change.R</code></strong> writes hundreds of PNGs to <code>lu_traj_plots_check/</code>. For reviewers, default to writing a small sample (e.g.&nbsp;the 10 largest concessions) and gate the full loop behind a flag.</li>
-<li><strong>Folder hygiene</strong>: <code>01_data/01_in/</code> has provider-named subfolders (<code>wwi/</code>, <code>klhk/</code>, <code>big/</code>, <code>gaveau/</code>, <code>obidzinski_dermawan/</code>, <code>tables/</code>) — fine, but add a <code>01_data/01_in/README.md</code> documenting provenance and licensing for each provider.</li>
+<li><strong>Path standardization</strong>: <code>wdir</code> is set inconsistently — some scripts use <code>"remote"</code>, some <code>"remote/"</code>. Standardize via <code>file.path()</code> or <code>here::here()</code> and use forward slashes throughout.</li>
+<li><strong>Hard-coded folder structure</strong> (<code>01_data/01_in</code>, <code>02_out</code>, <code>04_results</code>): include a README diagram and preserve these exact subfolders so all <code>paste0(wdir, "/01_data/...")</code> calls resolve without edits.</li>
+<li><strong>Intermediate-vs-input ambiguity</strong>: many files in <code>01_data/02_out/...</code> are <em>intermediate outputs</em> produced by upstream scripts that are <strong>not</strong> in the replication folders (<code>hti_harvest_yr.csv</code>, <code>tbl_long_pulp_clearing_gfc_forest.csv</code>, <code>hti_land_use_change_areas.csv</code>, <code>samples_landuse_ttm.csv</code>, <code>samples_gfc_ttm.csv</code>, <code>centroids_mills_cost.csv</code>, <code>grid_10km_adm_prov_kab_kec.csv</code>, <code>ws_merge_clean_2015_2022.csv</code>, <code>id_annual_expansion_stats_ttm.csv</code>, <code>kali_annual_pulp_exp_stats_ttm.csv</code>, etc.). Reviewers need a README distinguishing <strong>(a) raw inputs</strong>, <strong>(b) intermediate artifacts shipped pre-built</strong>, and <strong>(c) outputs the scripts will create</strong>.</li>
+<li><strong>Circular dependency</strong>: <code>20_pulp_expansion_table.R</code> reads <code>pulp_expansion_areas_2001_2022.csv</code>, which is <em>written</em> by <code>12_paper_stats.R</code>. Document the run order, or ship the file as a pre-built intermediate.</li>
+<li><strong>Font dependencies</strong> (<code>DM Sans</code>) and <code>type="cairo-png"</code> in <code>ggsave</code> will fail silently on systems without the font / cairo. Either embed the font or fall back to <code>theme_bw()</code> for the replication package.</li>
+<li><strong>Per-HTI loop in <code>03_land_use_change.R</code></strong> writes hundreds of PNGs to <code>lu_traj_plots_check/</code>. Default to writing a small sample (e.g.&nbsp;10 largest concessions) and gate the full loop behind a flag.</li>
+<li><strong>Folder hygiene</strong>: <code>01_data/01_in/</code> has provider-named subfolders (<code>wwi/</code>, <code>klhk/</code>, <code>big/</code>, <code>gaveau/</code>, <code>obidzinski_dermawan/</code>, <code>tables/</code>) — fine, but add a <code>01_data/01_in/README.md</code> documenting provenance and licensing.</li>
 </ul>
-<p>Net effect: the bundle should drop from many xlsx + multi-file shapefiles + 1 km nationwide CSVs to a tidy mix of <code>.csv(.gz)</code> / <code>.parquet</code> / <code>.gpkg</code> files, likely a 5–20× reduction in total footprint and a much shorter file count.</p>
+<p>Net effect: the bundle should drop from many xlsx + multi-file shapefiles + 1 km nationwide CSVs to a tidy mix of <code>.csv(.gz)</code> / <code>.parquet</code> / <code>.gpkg</code> files — likely a 5–20× reduction in total footprint and a much shorter file count. The wood-supply and Gaveau-LCC consolidations have already removed four xlsx files from the active surface.</p>
 </section>
 </section>
 </section>
