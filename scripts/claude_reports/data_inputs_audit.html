@@ -414,15 +414,6 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">Concession-year-class area panel (drives per-HTI plot loop)</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Cleaned wood supply (aligned)</td>
-<td style="text-align: left;"><code>remote/01_data/01_in/wwi/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv</code></td>
-<td style="text-align: left;">Non-spatial</td>
-<td style="text-align: left;">csv</td>
-<td style="text-align: left;">WWI</td>
-<td style="text-align: left;">12_paper_stats.R</td>
-<td style="text-align: left;">Single cleaned CSV</td>
-</tr>
-<tr class="even">
 <td style="text-align: left;">Annual expansion stats (TreeMap)</td>
 <td style="text-align: left;"><code>remote/01_data/02_out/tables/id_annual_expansion_stats_ttm.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
@@ -431,7 +422,7 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">12_paper_stats.R</td>
 <td style="text-align: left;">Annual national pulp + palm forest / non-forest expansion</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td style="text-align: left;">Kalimantan annual pulp expansion stats</td>
 <td style="text-align: left;"><code>remote/01_data/02_out/tables/kali_annual_pulp_exp_stats_ttm.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
@@ -440,7 +431,7 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">12_paper_stats.R</td>
 <td style="text-align: left;">Single CSV of Kalimantan-only pulp forest loss</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td style="text-align: left;">Annual pulp area within HTI</td>
 <td style="text-align: left;"><code>remote/01_data/02_out/gee/pulp_annual_area_hti_only.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
@@ -449,7 +440,7 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">12_paper_stats.R</td>
 <td style="text-align: left;">Single GEE export CSV</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td style="text-align: left;">Annual pulp area (Indonesia)</td>
 <td style="text-align: left;"><code>remote/01_data/02_out/gee/pulp_annual_area_id.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
@@ -458,7 +449,7 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">12_paper_stats.R</td>
 <td style="text-align: left;">Single GEE export CSV</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td style="text-align: left;">Group reclass (ownership)</td>
 <td style="text-align: left;"><code>remote/01_data/01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
@@ -467,7 +458,7 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">12_paper_stats.R</td>
 <td style="text-align: left;">Concession-to-conglomerate crosswalk</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td style="text-align: left;">Gaveau annual pulp areas (HTI)</td>
 <td style="text-align: left;"><code>remote/01_data/02_out/tables/gaveau_annual_pulp_areas.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
@@ -476,7 +467,7 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: left;">12_paper_stats.R</td>
 <td style="text-align: left;">Sample-level annual pulp class table</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td style="text-align: left;">Pulp expansion on peat / mineral</td>
 <td style="text-align: left;"><code>remote/01_data/02_out/gee/gaveau/idn_pulp_annual_expansion_peat_mineral_soils.csv</code></td>
 <td style="text-align: left;">Non-spatial</td>
@@ -489,9 +480,8 @@ ul.task-list li input[type="checkbox"] {
 </table>
 <p><strong>Audit deltas vs.&nbsp;prior version:</strong></p>
 <ul>
-<li><strong>08_calc_mai.R</strong> no longer reads the three annual RPBBI xlsx files (<code>RPBBI_2015_2019_compiled.xlsx</code>, <code>RPBBI_2020_compiled.xlsx</code>, <code>RPBBI_2021_compiled.xlsx</code>); it now consumes the consolidated <code>ws_merge_clean_2015_2022.csv</code> directly.</li>
-<li><strong>12_paper_stats.R</strong> no longer reads the Gaveau <code>IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx</code> at all — its Kalimantan-tab data has been promoted to a standalone CSV (<code>kali_annual_pulp_exp_stats_ttm.csv</code>).</li>
-<li>Net effect: the audit list has lost four <code>.xlsx</code> raw inputs (three RPBBI files + Gaveau LCC workbook) since the prior version. The replication bundle’s Excel surface area is shrinking on its own.</li>
+<li><strong>12_paper_stats.R</strong> no longer reads <code>PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv</code>. Wood-supply data in this script is now sourced solely from the consolidated <code>ws_merge_clean_2015_2022.csv</code> (matching <code>08_calc_mai.R</code>). The <code>ws</code> variable has been retired.</li>
+<li>Net effect: one additional raw CSV input removed since the last run. No other reads have shifted.</li>
 </ul>
 <hr>
 </section>
@@ -500,7 +490,7 @@ ul.task-list li input[type="checkbox"] {
 <section id="consolidation" class="level3">
 <h3 class="anchored" data-anchor-id="consolidation">1. Consolidation</h3>
 <ul>
-<li><strong>Wood supply pipeline</strong> is now consolidated upstream (<code>ws_merge_clean_2015_2022.csv</code>). Two cleanups remain: (a) confirm <code>PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv</code> isn’t a near-duplicate of the merged file — if it is, drop it; (b) ensure <code>08</code> and <code>12</code> actually read the same canonical file (they now both point at <code>ws_merge_clean_2015_2022.csv</code>, so this looks clean).</li>
+<li><strong>Wood supply pipeline</strong> is now fully consolidated: both <code>08_calc_mai.R</code> and <code>12_paper_stats.R</code> read the single canonical <code>ws_merge_clean_2015_2022.csv</code>. The legacy <code>PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv</code> is no longer referenced and can be dropped from the bundle.</li>
 <li><strong>GAEZ grid + GAEZ HTI</strong> (<code>gaez_grid_share.csv</code>, <code>gaez_hti_areas.csv</code>) — both feed the same aggregated 4-class scheme in <code>17_defor_elasticity.R</code>; precompute the aggregated columns and ship one slim file per scope.</li>
 <li><strong>Two scalar parameter files</strong> (<code>key_parameters.csv</code>, <code>scenario_stats.csv</code>) are single-row handoff CSVs. Merge into one <code>parameters.csv</code> or have <code>12_paper_stats.R</code> recompute.</li>
 <li><strong>FRED IDR/USD + FRED CPI</strong> are both small annual series — merge to one <code>fred_macro.csv</code>.</li>

@@ -46,6 +46,7 @@ library(patchwork)
 ## set working directory -------------------------------------
 
 wdir <- "remote"
+data_dir <- "/01_data/"
 
 ## read data -------------------------------------------------
 
@@ -53,13 +54,13 @@ wdir <- "remote"
 indonesian_crs <- "+proj=cea +lon_0=115.0 +lat_ts=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
 
 # kabupaten
-kab <- read_sf(paste0(wdir,"/01_data/01_in/big/idn_kabupaten_big.shp"))
+kab <- read_sf(paste0(wdir,data_dir,"/01_in/big/idn_kabupaten_big.shp"))
 
 # hti concessions
-hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp"))
+hti <- read_sf(paste0(wdir,data_dir,"01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp"))
 
 # wood supply (2015-2022)
-ws_2015_2022 <- read_csv(paste0(wdir,"/01_data/02_out/tables/ws_merge_clean_2015_2022.csv"))
+ws_2015_2022 <- read_csv(paste0(wdir,data_dir,"/02_out/tables/ws_merge_clean_2015_2022.csv"))
 
 # add islands
 islands <- kab %>%
@@ -76,18 +77,18 @@ islands <- kab %>%
   distinct(prov_code, island)
 
 # pulpwood conversion from forest and non-forest within and outside hti concessions
-hti_nonhti_conv <- read_csv(paste0(wdir,"/01_data/02_out/tables/idn_pulp_conversion_hti_nonhti_treemap.csv"))
+hti_nonhti_conv <- read_csv(paste0(wdir,data_dir,"/02_out/tables/idn_pulp_conversion_hti_nonhti_treemap.csv"))
 
 # treemap annual expansion stats
-id_annual_exp_stats <- read_csv(paste0(wdir,"/01_data/02_out/tables/id_annual_expansion_stats_ttm.csv"))
+id_annual_exp_stats <- read_csv(paste0(wdir,data_dir,"/02_out/tables/id_annual_expansion_stats_ttm.csv"))
 
 # kalimantan annual pulp forest expansion stats
-kali_annual_pulp_exp_stats <- read_csv(paste0(wdir,"/01_data/02_out/tables/kali_annual_pulp_exp_stats_ttm.csv"))
+kali_annual_pulp_exp_stats <- read_csv(paste0(wdir,data_dir,"/02_out/tables/kali_annual_pulp_exp_stats_ttm.csv"))
 
 # pulpwood areas (Indonesia and within HTI)
-pw_area_hti <- read_csv(paste0(wdir, "/01_data/02_out/gee/pulp_annual_area_hti_only.csv")) 
+pw_area_hti <- read_csv(paste0(wdir,data_dir,"/02_out/gee/pulp_annual_area_hti_only.csv")) 
 
-pw_annual_area_id <- read_csv(paste0(wdir, "/01_data/02_out/gee/pulp_annual_area_id.csv")) 
+pw_annual_area_id <- read_csv(paste0(wdir,data_dir,"/02_out/gee/pulp_annual_area_id.csv")) 
 
 pw_2000 <- pw_annual_area_id %>%
   select(pulp_2000) %>%
@@ -95,16 +96,16 @@ pw_2000 <- pw_annual_area_id %>%
   summarize(area_ha = sum(pulp_2000))
 
 # reclasses ownership groups
-groups_reclass_hti <- read_csv(paste0(wdir,"/01_data/01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv"))
+groups_reclass_hti <- read_csv(paste0(wdir,data_dir,"/01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv"))
 
 # hti pulp conversion with timing information
-zdc_hti_conv <- read_csv(paste0(wdir, '/01_data/02_out/tables/hti_grps_deforestation_timing.csv'))
+zdc_hti_conv <- read_csv(paste0(wdir,data_dir,"02_out/tables/hti_grps_deforestation_timing.csv"))
 
 # Gaveau annual pulp areas (within HTI)
-gaveau_annual_pulp <- read_csv(paste0(wdir, '/01_data/02_out/tables/gaveau_annual_pulp_areas.csv'))
+gaveau_annual_pulp <- read_csv(paste0(wdir,data_dir,"/02_out/tables/gaveau_annual_pulp_areas.csv"))
 
 # Expansion on soil type (Gaveau)
-pulp_ttm_soil_type <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaveau/idn_pulp_annual_expansion_peat_mineral_soils.csv"))
+pulp_ttm_soil_type <- read_csv(paste0(wdir,data_dir,"/02_out/gee/gaveau/idn_pulp_annual_expansion_peat_mineral_soils.csv"))
 
 # HTI concession names
 hti_concession_names <- hti %>%
@@ -113,13 +114,13 @@ hti_concession_names <- hti %>%
   mutate(supplier_label = paste0(supplier," (",supplier_id,")"))
 
 ## GFC deforestation (modified by TreeMap)
-samples_gfc_ttm <- read_csv(paste0(wdir,"/01_data/02_out/tables/samples_gfc_ttm.csv"))
+samples_gfc_ttm <- read_csv(paste0(wdir,data_dir,"/02_out/tables/samples_gfc_ttm.csv"))
 
 # Parameters from MAI analysis
-mai_df <- read_csv(paste0(wdir, "/01_data/04_results/key_parameters.csv"))
+mai_df <- read_csv(paste0(wdir,data_dir,"/04_results/key_parameters.csv"))
 
 # mill capacities
-cap_df <- read_excel(paste0(wdir, "/01_data/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
+cap_df <- read_excel(paste0(wdir,data_dir,"/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Overarching trends in pulp expansion, deforestation, peat conversion -------------------

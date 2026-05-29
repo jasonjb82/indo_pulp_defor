@@ -60,7 +60,6 @@ Scripts audited:
 | Annual pulp production share (MoEF) | `remote/01_data/01_in/tables/annual_pulp_shr_prod.xlsx` | Non-spatial | xlsx | KLHK / MoEF | 01_summary_figure.R | Single xlsx, annual pulp production with MTH / plantation shares |
 | HTI deforestation timing | `remote/01_data/02_out/tables/hti_grps_deforestation_timing.csv` | Non-spatial | csv | Intermediate output | 02_deforestation_timing.R, 12_paper_stats.R | Concession-level pulp / non-pulp clearing × ZDC timing |
 | HTI annual land-use change | `remote/01_data/02_out/tables/hti_land_use_change_areas.csv` | Non-spatial | csv | Intermediate output | 03_land_use_change.R | Concession-year-class area panel (drives per-HTI plot loop) |
-| Cleaned wood supply (aligned) | `remote/01_data/01_in/wwi/PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv` | Non-spatial | csv | WWI | 12_paper_stats.R | Single cleaned CSV |
 | Annual expansion stats (TreeMap) | `remote/01_data/02_out/tables/id_annual_expansion_stats_ttm.csv` | Non-spatial | csv | Intermediate output | 12_paper_stats.R | Annual national pulp + palm forest / non-forest expansion |
 | Kalimantan annual pulp expansion stats | `remote/01_data/02_out/tables/kali_annual_pulp_exp_stats_ttm.csv` | Non-spatial | csv | Intermediate output (replaces Gaveau xlsx Kalimantan tab) | 12_paper_stats.R | Single CSV of Kalimantan-only pulp forest loss |
 | Annual pulp area within HTI | `remote/01_data/02_out/gee/pulp_annual_area_hti_only.csv` | Non-spatial | csv (GEE export) | GEE / TreeMap | 12_paper_stats.R | Single GEE export CSV |
@@ -71,16 +70,15 @@ Scripts audited:
 
 **Audit deltas vs. prior version:**
 
-- **08_calc_mai.R** no longer reads the three annual RPBBI xlsx files (`RPBBI_2015_2019_compiled.xlsx`, `RPBBI_2020_compiled.xlsx`, `RPBBI_2021_compiled.xlsx`); it now consumes the consolidated `ws_merge_clean_2015_2022.csv` directly.
-- **12_paper_stats.R** no longer reads the Gaveau `IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx` at all — its Kalimantan-tab data has been promoted to a standalone CSV (`kali_annual_pulp_exp_stats_ttm.csv`).
-- Net effect: the audit list has lost four `.xlsx` raw inputs (three RPBBI files + Gaveau LCC workbook) since the prior version. The replication bundle's Excel surface area is shrinking on its own.
+- **12_paper_stats.R** no longer reads `PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv`. Wood-supply data in this script is now sourced solely from the consolidated `ws_merge_clean_2015_2022.csv` (matching `08_calc_mai.R`). The `ws` variable has been retired.
+- Net effect: one additional raw CSV input removed since the last run. No other reads have shifted.
 
 ---
 
 ## Task 2: Data Optimization & Simplification Strategy
 
 ### 1. Consolidation
-- **Wood supply pipeline** is now consolidated upstream (`ws_merge_clean_2015_2022.csv`). Two cleanups remain: (a) confirm `PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv` isn't a near-duplicate of the merged file — if it is, drop it; (b) ensure `08` and `12` actually read the same canonical file (they now both point at `ws_merge_clean_2015_2022.csv`, so this looks clean).
+- **Wood supply pipeline** is now fully consolidated: both `08_calc_mai.R` and `12_paper_stats.R` read the single canonical `ws_merge_clean_2015_2022.csv`. The legacy `PULP_WOOD_SUPPLY_CLEAN_ALL_ALIGNED_2020_2022.csv` is no longer referenced and can be dropped from the bundle.
 - **GAEZ grid + GAEZ HTI** (`gaez_grid_share.csv`, `gaez_hti_areas.csv`) — both feed the same aggregated 4-class scheme in `17_defor_elasticity.R`; precompute the aggregated columns and ship one slim file per scope.
 - **Two scalar parameter files** (`key_parameters.csv`, `scenario_stats.csv`) are single-row handoff CSVs. Merge into one `parameters.csv` or have `12_paper_stats.R` recompute.
 - **FRED IDR/USD + FRED CPI** are both small annual series — merge to one `fred_macro.csv`.

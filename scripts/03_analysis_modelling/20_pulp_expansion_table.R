@@ -39,31 +39,32 @@ library(khroma) # palettes for color blindness
 ## set working directory -------------------------------------
 
 wdir <- "remote"
+data_dir <- "/01_data/"
 
 ## read data -------------------------------------------------
 
 # license dates of concessions
-lic_dates_hti <- readr::read_csv(paste0(wdir,"/01_data/01_in/wwi/HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
+lic_dates_hti <- readr::read_csv(paste0(wdir,data_dir,"/01_in/wwi/HTI_LICENSE_DATES.csv"),col_types = cols(license_date = col_date("%m/%d/%Y")))
 
 # sample IDs and HTI
-samples_hti <- read_csv(paste0(wdir,"/01_data/02_out/samples/samples_hti_id.csv"))
+samples_hti <- read_csv(paste0(wdir,data_dir,"/02_out/samples/samples_hti_id.csv"))
 
 # hti concessions
-hti <- read_sf(paste0(wdir,"/01_data/01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp"))
+hti <- read_sf(paste0(wdir,data_dir,"/01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp"))
 
 # annual pulp table
-ann_pulp_tbl <- read_csv(paste0(wdir,"/01_data/02_out/tables/pulp_expansion_areas_2001_2022.csv"))
+ann_pulp_tbl <- read_csv(paste0(wdir,data_dir,"/02_out/tables/pulp_expansion_areas_2001_2022.csv"))
 
 # pulpwood conversion from forest and non-forest within and outside hti concessions
-hti_nonhti_conv <- read_csv(paste0(wdir,"/01_data/02_out/tables/idn_pulp_conversion_hti_nonhti_treemap.csv"))
+hti_nonhti_conv <- read_csv(paste0(wdir,data_dir,"/02_out/tables/idn_pulp_conversion_hti_nonhti_treemap.csv"))
 
 ## read point sample extracted datasets ##
 
 ## TTM landuse classes
-samples_landuse_ttm <- read_csv(paste0(wdir,"/01_data/02_out/tables/samples_landuse_ttm.csv"))
+samples_landuse_ttm <- read_csv(paste0(wdir,data_dir,"/02_out/tables/samples_landuse_ttm.csv"))
 
 ## GFC deforestation (modified by TreeMap)
-samples_gfc_ttm <- read_csv(paste0(wdir,"/01_data/02_out/tables/samples_gfc_ttm.csv"))
+samples_gfc_ttm <- read_csv(paste0(wdir,data_dir,"/02_out/tables/samples_gfc_ttm.csv"))
 
 ## clean HTI concession names
 ## Note: 3 non-HTI active supplier concessions included - PT OKI PULP & PAPER MILLS & PT WANA SUBUR SAWIT INDAH are
@@ -145,7 +146,7 @@ hti_pulp_conv <- samples_df %>%
   group_by(sid,supplier_id) %>%
   slice_min(year)
 
-# Expansion between 2001-2022
+# expansion between 2001-2022
 hti_pulp_conv_all <- hti_pulp_conv %>%
   ungroup() %>%
   mutate(year = as.double(year_pulp)) %>%
@@ -153,7 +154,7 @@ hti_pulp_conv_all <- hti_pulp_conv %>%
   summarize(pulp_expansion_area_ha = n()) %>%
   print()
 
-# Expansion between 2001-2022 after license year
+# expansion between 2001-2022 after license year
 hti_pulp_conv_license <- hti_pulp_conv %>%
   ungroup() %>%
   filter(year_pulp > license_year) %>%
@@ -162,7 +163,7 @@ hti_pulp_conv_license <- hti_pulp_conv %>%
   summarize(pulp_permit_area_ha = n()) %>%
   print()
 
-# Annual conversion to pulp from forest in hti
+# annual conversion to pulp from forest in hti
 hti_pulp_driven_defor <- hti_nonhti_conv %>%
   filter(conv_type == 2 & !is.na(supplier_id)) %>%
   group_by(year) %>%
@@ -180,4 +181,4 @@ merged_table <- ann_pulp_tbl %>%
   mutate(Pulp_expansion_hti_kha=Pulp_expansion_hti_kha/1000,Pulp_expansion_hti_after_permit_year_kha=Pulp_expansion_hti_after_permit_year_kha/1000) %>%
   print()
   
-write_csv(merged_table,paste0(wdir,"/01_data/02_out/tables/pulp_expansion_areas_all_2001_2022.csv"))
+write_csv(merged_table,paste0(wdir,data_dir,"/02_out/tables/pulp_expansion_areas_all_2001_2022.csv"))

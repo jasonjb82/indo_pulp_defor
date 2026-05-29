@@ -47,7 +47,9 @@ library(khroma) # palettes for color blindness
 font_add_google(name = "DM Sans", family = "DM Sans")
 
 ## set working directory -------------------------------------
+
 wdir <- "remote"
+data_dir <- "/01_data/"
 
 ## read data -------------------------------------------------
 
@@ -56,30 +58,28 @@ colorBlind8  <- c("#999999", "#E69F00", "#56B4E9", "#009E73",
                   "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
 # policy timeline (updated)
-policy_tl <- read_csv(paste0(wdir,"/01_data/01_in/tables/policy_timeline_cats_rev1.csv")) %>%
+policy_tl <- read_csv(paste0(wdir,data_dir,"/01_in/tables/policy_timeline_cats_rev1.csv")) %>%
   mutate(year_col = as.Date(year_proper,format="%d/%m/%Y"))
 
 # pulp conversion from forest (Indonesia wide) - TreeMap
-pulp_for_id <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaveau/pulp_annual_defor_forest_id.csv")) %>%
+pulp_for_id <- read_csv(paste0(wdir,data_dir,"/02_out/gee/gaveau/pulp_annual_defor_forest_id.csv")) %>%
   select(-`system:index`,-constant,-.geo)
 
 # pulp conversion from non-forest (Indonesia wide) - TreeMap
-pulp_nonfor_id <- read_csv(paste0(wdir,"/01_data/02_out/gee/gaveau/pulp_annual_defor_non-forest_id.csv")) %>%
+pulp_nonfor_id <- read_csv(paste0(wdir,data_dir,"/02_out/gee/gaveau/pulp_annual_defor_non-forest_id.csv")) %>%
   select(-`system:index`,-constant,-.geo)
 
 # timber for pulp production (Obidzinski Dermawan)
-timber_for_pulp <- read_csv(paste0(wdir,"/01_data/01_in/obidzinski_dermawan/plot_data.csv"))
+timber_for_pulp <- read_csv(paste0(wdir,data_dir,"/01_in/obidzinski_dermawan/plot_data.csv"))
 
 # pulp prices (FRED)
-pulp_prices <- read_csv(paste0(wdir,"/01_data/01_in/tables/WPU0911_FRED.csv"))
+pulp_prices <- read_csv(paste0(wdir,data_dir,"/01_in/tables/WPU0911_FRED.csv"))
 
 # pulp production data (MoEF)
-pulp_production <- read_excel(paste0(wdir,"/01_data/01_in/tables/annual_pulp_shr_prod.xlsx"))
+pulp_production <- read_excel(paste0(wdir,data_dir,"/01_in/tables/annual_pulp_shr_prod.xlsx"))
 
 # kabupaten
-kab <- read_sf(paste0(wdir,"/01_data/01_in/big/idn_kabupaten_big.shp"))
-prov_slim <- kab %>% select(prov,prov_code) %>% st_drop_geometry() %>% distinct() %>%
-  mutate(prov_code = ifelse(prov == "PAPUA",92,prov_code))
+kab <- read_sf(paste0(wdir,data_dir,"/01_in/big/idn_kabupaten_big.shp"))
 
 # get table of islands
 islands <- kab %>%
@@ -94,9 +94,6 @@ islands <- kab %>%
   ) %>%
   distinct(prov_code,island) %>%
   drop_na(island)
-
-# mills
-mills <- read_excel(paste0(wdir, "/01_data/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
 
 ############################################################################
 # Clean / prep data --------------------------------------------------------

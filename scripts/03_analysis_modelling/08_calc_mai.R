@@ -34,10 +34,12 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## load data -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 wdir <- "remote"
+data_dir <- "/01_data/"
 
 # Harvest data
-harvest_csv <- paste0(wdir, "/01_data/02_out/tables/hti_harvest_yr.csv")
+harvest_csv <- paste0(wdir,data_dir,"/02_out/tables/hti_harvest_yr.csv")
 harvest_df <- read_csv(harvest_csv)
 
 # Calculate peat percentages
@@ -45,7 +47,7 @@ harvest_df <- harvest_df %>%
   mutate(peat_pct = ha_y_peat / ha_y)
 
 # wood production
-ws_df <- read_csv(paste0(wdir,"/01_data/02_out/tables/ws_merge_clean_2015_2022.csv")) %>% 
+ws_df <- read_csv(paste0(wdir,data_dir,"/02_out/tables/ws_merge_clean_2015_2022.csv")) %>% 
   clean_names() %>%
   rename(harvest_year = year)
 
@@ -217,7 +219,7 @@ hti_mai <- mai_df %>%
   mutate(dmai = volume_m3 / ha_y,
          dmai_winsorized  = map_dbl(dmai, winsorize_mai))
 
-hti_mai %>% write_csv(paste0(wdir, "/01_data/02_out/tables/hti_mai.csv"))
+hti_mai %>% write_csv(paste0(wdir,data_dir,"/02_out/tables/hti_mai.csv"))
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -355,7 +357,7 @@ output <- list("dmai" = sector_mai,
                "median_obs" = median_obs) %>%
   as_tibble()
 
-write_csv(output, paste0(wdir, "/01_data/04_results/key_parameters.csv"))
+write_csv(output, paste0(wdir,data_dir,"/04_results/key_parameters.csv"))
 
 
 
