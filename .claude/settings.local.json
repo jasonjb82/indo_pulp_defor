@@ -4,7 +4,8 @@
       "Bash(pdftotext \"/Users/rheilmayr/dev/indonesia/indo_pulp_defor/review/aeb9995_Blinded Review Report_seq1_v1 \\(4\\).pdf\" -)",
       "Bash(python3 -c \"import pypdf; print\\('pypdf available'\\)\")",
       "Skill(pdf)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(R *)"
     ]
   }
 }
