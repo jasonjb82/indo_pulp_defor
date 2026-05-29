@@ -51,7 +51,7 @@ ws_df <- read_csv(paste0(wdir,data_dir,"/02_out/tables/ws_merge_clean_2015_2022.
   clean_names() %>%
   filter(year < 2022) %>%
   group_by(year,supplier_id) %>%
-  summarize(volume_m3 = sum(volume_m3))
+  summarize(volume_m3 = sum(volume_m3)) %>%
   rename(harvest_year = year)
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
