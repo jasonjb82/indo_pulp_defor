@@ -356,5 +356,5 @@ comb_plot <- comb_plot +
 comb_plot
 
 ## save to image format
-ggsave(comb_plot,file=paste0(wdir,"/01_data/02_out/plots/001_figures/fig_0X_summary_figure_updated.png"), dpi=400, w=12, h=15) 
-ggsave(comb_plot,file=paste0(wdir,"/01_data/02_out/plots/001_figures/fig_0X_summary_figure_rev4.svg"), dpi=400, w=12, h=15) 
+ggsave(comb_plot,file=paste0(wdir,"/01_data/02_out/plots/001_figures/summary_figure.png"), dpi=400, w=12, h=15) 
+ggsave(comb_plot,file=paste0(wdir,"/01_data/02_out/plots/001_figures/summary_figure.svg"), dpi=400, w=12, h=15) 
