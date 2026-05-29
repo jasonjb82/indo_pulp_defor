@@ -122,41 +122,47 @@ mai_df <- read_csv(paste0(wdir,data_dir,"/04_results/key_parameters.csv"))
 # mill capacities
 cap_df <- read_excel(paste0(wdir,data_dir,"/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"))
 
+# RS accuracy assessment stats
+rs_acc_df <- read_csv(paste0(wdir,data_dir,"/04_results/rs_accuracy_paper_stats.csv"))
+
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Overarching trends in pulp expansion, deforestation, peat conversion -------------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# table of total pulp areas each year
-annual_pulp_areas <- pw_annual_area_id %>%
-  select(constant,starts_with("pulp_")) %>%
-  pivot_longer(cols = -c(constant),
-               names_to = 'year',values_to = 'area_ha') %>%
-  mutate(year = as.double(str_replace(year,"pulp_",""))) %>%
-  group_by(year) %>%
-  summarize(area_ha = sum(area_ha)-5000) %>% # GEE calculations adjustment
-  mutate(annual_pulp_area = area_ha - lag(area_ha, default = first(area_ha))) %>%
-  left_join(id_annual_exp_stats, by="year") %>%
-  select(year,annual_pulp_expansion_area_ha=annual_pulp_area,forest_loss_ha,forest_loss_pulp_ha,nonforest_loss_pulp_ha,annual_pulp_area_ha=area_ha) %>%
-  print()
+## Line 24:
+# Estimated area of pulp expansion 2001-2011
+pulp_defor_row <- rs_acc_df %>% filter(stat_name == "defor_2001_2011")
+forest_loss_pulp_ha <- pulp_defor_row %>%
+  pull(estimated_area_kha) * 1000
 
-# Line 24: ...contributing 14% of all of Indonesia’s primary forest loss over the same period 
-# Share of pulp deforestation over total annual deforestation (2001-2011)
 pulp_def_share_2001_2011 <- id_annual_exp_stats %>%
   filter(year < 2012) %>%
   group_by() %>%
-  summarize(forest_loss_pulp_ha = sum(forest_loss_pulp_ha),
-            forest_loss_ha = sum(forest_loss_ha)) %>%
-  mutate(shr_pulp_forest_loss = forest_loss_pulp_ha/forest_loss_ha*100) %>%
-  print()
+  summarize(forest_loss_ha = sum(forest_loss_ha)) %>%
+  mutate(shr_pulp_forest_loss = forest_loss_pulp_ha/forest_loss_ha*100)
 
-# Share of palm deforestation over total annual deforestation (2001-2011)
-palm_def_share_2001_2011 <- id_annual_exp_stats %>%
-  filter(year < 2012) %>%
-  group_by() %>%
-  summarize(forest_loss_palm_ha = sum(forest_loss_palm_ha),
-            forest_loss_ha = sum(forest_loss_ha)) %>%
-  mutate(shr_palm_forest_loss = forest_loss_palm_ha/forest_loss_ha*100) %>%
-  print()
+# # Share of palm deforestation over total annual deforestation (2001-2011)
+# palm_def_share_2001_2011 <- id_annual_exp_stats %>%
+#   filter(year < 2012) %>%
+#   group_by() %>%
+#   summarize(forest_loss_palm_ha = sum(forest_loss_palm_ha),
+#             forest_loss_ha = sum(forest_loss_ha)) %>%
+#   mutate(shr_palm_forest_loss = forest_loss_palm_ha/forest_loss_ha*100) %>%
+#   print()
+
+cat(sprintf(paste0(
+  "\nPaper sentence, line 24:\n",
+  "Between 2001 and 2011, \033[1m%s\033[0m (95%% CI: \033[1m%s\033[0m–\033[1m%s\033[0m) hectares of rainforest were directly\n",
+  "converted to pulpwood plantations (SI Section 1), representing \033[1m%.0f\033[0m%% of\n",
+  "Indonesian primary forest loss.\n\n"),
+  formatC(round(pulp_defor_row$estimated_area_kha * 1000, -3), format = "f", digits = 0, big.mark = ","),
+  formatC(round(pulp_defor_row$ci95_lower_kha      * 1000, -3), format = "f", digits = 0, big.mark = ","),
+  formatC(round(pulp_defor_row$ci95_upper_kha      * 1000, -3), format = "f", digits = 0, big.mark = ","),
+  pulp_def_share_2001_2011$shr_pulp_forest_loss
+))
+
+## Line 38
 
 # annual_conv <- pw_annual_area_id %>%
 #   select(-`system:index`,-constant,-kab,-kab_code,-prov_code,-.geo,-type) %>%
@@ -172,35 +178,42 @@ palm_def_share_2001_2011 <- id_annual_exp_stats %>%
 # annual_conv <- id_annual_pulp_stats %>%
 #   mutate(area_ha = total_forest_loss_pulp_ha + total_nonforest_loss_pulp_ha)
 
+
+# table of total pulp areas each year
+annual_pulp_areas <- pw_annual_area_id %>%
+  select(constant,starts_with("pulp_")) %>%
+  pivot_longer(cols = -c(constant),
+               names_to = 'year',values_to = 'area_ha') %>%
+  mutate(year = as.double(str_replace(year,"pulp_",""))) %>%
+  group_by(year) %>%
+  summarize(area_ha = sum(area_ha)-5000) %>% # GEE calculations adjustment
+  mutate(annual_pulp_area = area_ha - lag(area_ha, default = first(area_ha))) %>%
+  left_join(id_annual_exp_stats, by="year") %>%
+  select(year,annual_pulp_expansion_area_ha=annual_pulp_area,forest_loss_ha,forest_loss_pulp_ha,nonforest_loss_pulp_ha,annual_pulp_area_ha=area_ha)
+
 annual_conv <- annual_pulp_areas %>%
   group_by(year) %>%
   summarize(area_ha = sum(forest_loss_pulp_ha)) 
  
-annual_conv %>% 
-  ggplot(aes(x = year, y = area_ha)) +
-  geom_bar(stat = "identity")
-
-# Line 11/23: Between 2001 and 2011, 735,000 hectares of rainforest were directly converted to pulp plantations, ...
-annual_conv %>% 
-  filter(year > 2000 & year < 2012) %>% 
-  pull(area_ha) %>% 
-  sum()  
+# annual_conv %>% 
+#   ggplot(aes(x = year, y = area_ha)) +
+#   geom_bar(stat = "identity") 
 
 # Line 14 / 100: Over the following six years, pulp-driven deforestation declined by 95% 
-conv_2011 = annual_conv %>% filter(year == 2011) %>% pull(area_ha) %>% print()
-conv_2017 = annual_conv %>% filter(year==2017) %>% pull(area_ha) %>% print()
+conv_2011 = annual_conv %>% filter(year == 2011) %>% pull(area_ha)
+conv_2017 = annual_conv %>% filter(year==2017) %>% pull(area_ha)
 early_change <- (conv_2017 - conv_2011) / conv_2011
-early_change %>% print()
+cat(sprintf(paste0(
+  "\nPaper sentence, line 36 (also lines 14, 124, 204):\n",
+  "we describe how these four elements interacted over a period of time (2011-2017)\n",
+  "when pulp-driven deforestation fell by \033[1m%.0f\033[0m%%\n\n"),
+  abs(early_change) * 100
+))
 
 # Line 16 / 101: Indonesia has since seen ... a 372% increase in pulp-driven deforestation... 
 # Between 2017 and 2022, the annual rate of conversion of primary forests to pulp plantations increased 372%
-conv_2022 = annual_conv %>% filter(year==2022) %>% pull(area_ha) %>% print()
+conv_2022 = annual_conv %>% filter(year==2022) %>% pull(area_ha)
 late_change <- (conv_2022 - conv_2017) / conv_2017
-late_change %>% print()
-
-# Although deforestation rates in 2022 were still XX% lower than during the 2011 peak, major economic, ecological and policy changes call into question whether the sector will ever be able to achieve its desired end to deforestation 
-overall_change <- (conv_2022 - conv_2011) / conv_2011
-overall_change %>% print()
 
 # Conversion of peat between 2017 and 2022
 annual_pulp_conv <- pulp_ttm_soil_type %>%
@@ -212,12 +225,67 @@ annual_pulp_conv <- pulp_ttm_soil_type %>%
          year = as.numeric(gsub("[^0-9]", "", year))) %>%
   ungroup() %>%
   group_by(year,class) %>%
-  summarize(area_ha = sum(area_ha))
+  summarize(area_ha = sum(area_ha), .groups = "keep")
 
-pulp_conv_2017 = annual_pulp_conv %>% filter(class == "peat" & year==2017) %>% pull(area_ha) %>% print()
-pulp_conv_2022 = annual_pulp_conv %>% filter(class == "peat" & year==2022) %>% pull(area_ha) %>% print()
+pulp_conv_2017 = annual_pulp_conv %>% filter(class == "peat" & year==2017) %>% pull(area_ha)
+pulp_conv_2022 = annual_pulp_conv %>% filter(class == "peat" & year==2022) %>% pull(area_ha)
 overall_pulp_change <- (pulp_conv_2022 - pulp_conv_2017) / pulp_conv_2017
-overall_pulp_change %>% print()
+cat(sprintf(paste0(
+  "\nPaper sentence, line 125:\n",
+  "Between 2017 and 2022, the annual rate of conversion of primary forests to pulpwood\n",
+  "plantations increased from \033[1m%s\033[0m ha/year to \033[1m%s\033[0m ha/year (\033[1m%.0f\033[0m%% increase), while\n",
+  "pulp-driven conversion of peatlands increased from \033[1m%s\033[0m ha/year to \033[1m%s\033[0m ha/year\n",
+  "(\033[1m%.0f\033[0m%% increase).\n\n"),
+  formatC(round(conv_2017,       -2), format = "f", digits = 0, big.mark = ","),
+  formatC(round(conv_2022,       -2), format = "f", digits = 0, big.mark = ","),
+  late_change * 100,
+  formatC(round(pulp_conv_2017,  -2), format = "f", digits = 0, big.mark = ","),
+  formatC(round(pulp_conv_2022,  -2), format = "f", digits = 0, big.mark = ","),
+  overall_pulp_change * 100
+))
+
+
+pulp_exp_row <- rs_acc_df %>% filter(stat_name == "pulp_expansion_2001_2011")
+cat(sprintf(paste0(
+  "\nPaper sentence, line 81:\n",
+  "Many of these forests were cleared to make room for industrial acacia and eucalyptus\n",
+  "plantations, which expanded by \033[1m%.2f\033[0m (\033[1m%.2f\033[0m–\033[1m%.2f\033[0m) million hectares between 2001 and 2011.\n\n"),
+  pulp_exp_row$estimated_area_kha / 1e3,
+  pulp_exp_row$ci95_lower_kha     / 1e3,
+  pulp_exp_row$ci95_upper_kha     / 1e3
+))
+
+
+# Although deforestation rates in 2022 were still XX% lower than during the 2011 peak, major economic, ecological and policy changes call into question whether the sector will ever be able to achieve its desired end to deforestation 
+overall_change <- (conv_2022 - conv_2011) / conv_2011
+cat(sprintf(paste0(
+  "\nPaper sentence, line 131:\n",
+  "While pulp-driven deforestation rates in 2022 were still \033[1m%.0f\033[0m%% lower than the 2011 peak.\n\n"),
+  abs(overall_change) * 100
+))
+
+
+# more of Indonesia’s forests were converted to new pulpwood plantations than to industrial oil palm plantations in 2022.
+defor_2022 <- id_annual_exp_stats %>%
+  filter(year == 2022) %>%
+  summarize(pulp_ha = sum(forest_loss_pulp_ha), palm_ha = sum(forest_loss_palm_ha))
+cat(sprintf(paste0(
+  "\nValidation - paper claim (line ~130):\n",
+  "more of Indonesia’s forests were converted to new\n",
+  "pulpwood plantations than to industrial oil palm plantations in 2022:\n",
+  "\033[1m%s\033[0m\n\n"),
+  ifelse(defor_2022$pulp_ha > defor_2022$palm_ha, "TRUE", "FALSE")
+))
+
+
+# Line 85: pulp plantations now supply nearly all of Indonesia’s 47 million m3 of annual pulpwood demand (Figure 1). 
+current_wood_demand <- ws_2015_2022 %>% filter(YEAR == 2022) %>% pull(VOLUME_M3) %>% sum()
+cat(sprintf(paste0(
+  "\nPaper sentence, line 85:\n",
+  "As a result of this combination of pulpwood plantation expansion and intensification,\n",
+  "plantations now supply nearly all of Indonesia's \033[1m%.0f\033[0m million m3 of annual pulpwood demand.\n\n"),
+  current_wood_demand / 1e6
+))
 
 # The expansion of pulp processing infrastructure into Kalimantan is particularly important 
 #since the region has been responsible for XX%  of pulp-driven deforestation since 2017
@@ -225,41 +293,46 @@ kali_pulp_driven_defor <- kali_annual_pulp_exp_stats %>%
   left_join(annual_conv,by="year") %>%
   filter(year >= 2017) %>%
   group_by() %>%
-  summarize(shr_kali_pulp_defor = sum(forest_loss_ha)/sum(area_ha)*100) %>%
-  print()
+  summarize(shr_kali_pulp_defor = sum(forest_loss_ha)/sum(area_ha)*100)
+cat(sprintf(paste0(
+  "\nPaper sentence, line 138:\n",
+  "The expansion of pulp processing infrastructure into Kalimantan is particularly\n",
+  "important since the region has been responsible for \033[1m%.0f\033[0m%% of pulp-driven\n",
+  "deforestation since 2017.\n\n"),
+  kali_pulp_driven_defor$shr_kali_pulp_defor
+))
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Plantation yield changes -----------------------------------------------
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Line 67: Many of these forests were cleared to make room for industrial acacia and eucalyptus plantations, which expanded by ~1.62 million hectares between 2000 and 2015 
 
-annual_pulp <- annual_pulp_areas %>%
-  group_by(year) %>%
-  summarize(area_ha = sum(annual_pulp_area_ha)) %>%
-  print()
+# #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# # Plantation yield changes -----------------------------------------------
+# #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# # Line 67: Many of these forests were cleared to make room for industrial acacia and eucalyptus plantations, which expanded by ~1.62 million hectares between 2000 and 2015 
 
-pulp_2000 = annual_pulp %>% filter(year == 2000) %>% pull(area_ha)
-pulp_2015 = annual_pulp %>% filter(year==2015) %>% pull(area_ha)
-pulp_change <- (pulp_2015 - pulp_2000) %>% 
-  print()
+# annual_pulp <- annual_pulp_areas %>%
+#   group_by(year) %>%
+#   summarize(area_ha = sum(annual_pulp_area_ha)) %>%
+#   print()
 
-# Line 74: pulp plantations now supply nearly all of Indonesia’s 47 million m3 of annual pulpwood demand (Figure 1). 
-current_wood_demand <- ws_2015_2022 %>% filter(YEAR == 2022) %>% pull(VOLUME_M3) %>% sum() %>% print()
+# pulp_2000 = annual_pulp %>% filter(year == 2000) %>% pull(area_ha)
+# pulp_2015 = annual_pulp %>% filter(year==2015) %>% pull(area_ha)
+# pulp_change <- (pulp_2015 - pulp_2000) %>% 
+#   print()
 
-# Line 109: we find little evidence that plantation yields have increased over the past XX years 
 
-# Line 151: We find that 3 million hectares of primary forests, XX% of which are on peat soils,
-# still exist within Indonesia’s assigned industrial forest concessions
-undrained_peat_areas_hti <- samples_gfc_ttm %>%
-  filter(gfc_ttm == 600 | gfc_ttm == 400 | gfc_ttm == 100) %>%
-  group_by(gfc_ttm) %>%
-  summarize(area_ha = n()) %>%
-  ungroup() %>%
-  group_by() %>%
-  mutate(shr_class = prop.table(area_ha)*100) %>%
-  print()
 
-# Can we differentiate yields in euc and acacia plantations?
+# # Line 109: we find little evidence that plantation yields have increased over the past XX years 
+
+# # Line 151: We find that 3 million hectares of primary forests, XX% of which are on peat soils,
+# # still exist within Indonesia’s assigned industrial forest concessions
+# undrained_peat_areas_hti <- samples_gfc_ttm %>%
+#   filter(gfc_ttm == 600 | gfc_ttm == 400 | gfc_ttm == 100) %>%
+#   group_by(gfc_ttm) %>%
+#   summarize(area_ha = n()) %>%
+#   ungroup() %>%
+#   group_by() %>%
+#   mutate(shr_class = prop.table(area_ha)*100) %>%
+#   print()
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Description of ZDC violations -----------------------------------------------
@@ -342,10 +415,30 @@ ownership_defor <- hti_nonhti_conv %>%
   group_by(group_reclassed) %>%
   summarize(area_ha = sum(area_ha)) %>%
   group_by() %>%
-  mutate(share = prop.table(area_ha)*100) %>%
-  print()
-  
-ownership_defor %>% select(area_ha) %>% sum()
+  mutate(share = prop.table(area_ha)*100)
+
+total_defor_2015_2022 <- ownership_defor %>% pull(area_ha) %>% sum()
+app_april_ha  <- ownership_defor %>% filter(group_reclassed == "Owned or acknowledged") %>% pull(area_ha)
+linked_ha  <- ownership_defor %>% filter(group_reclassed == "NGO-linked") %>% pull(area_ha)
+linked_pct <- ownership_defor %>% filter(group_reclassed == "NGO-linked") %>% pull(share)
+external_pct  <- ownership_defor %>% filter(group_reclassed == "Indirect supplier" | is.na(group_reclassed)) %>% pull(share) %>% sum()
+
+cat(sprintf(paste0(
+  "\nPaper paragraph, line ~101:\n",
+  "Despite the sector's ambitious goals, we find that \033[1m%s\033[0m hectares of forests were\n",
+  "directly converted to pulpwood plantations between 2015 and 2022. Concessions\n",
+  "officially claimed by APP and APRIL had little pulp-driven deforestation after 2015\n",
+  "(\033[1m%s\033[0m ha). However, APP and APRIL's parent conglomerates, the Sinar Mas Group and\n",
+  "the Royal Golden Eagle Group (RGE), have suspected indirect ownership links to\n",
+  "concessions that were responsible for \033[1m%s\033[0m ha (\033[1m%.0f\033[0m%%) of pulp-driven deforestation\n",
+  "during this period. The remaining \033[1m%.0f\033[0m%% of pulp-driven deforestation occurred in\n",
+  "concessions controlled by external suppliers or outside of concessions.\n\n"),
+  formatC(round(total_defor_2015_2022, -2), format = "f", digits = 0, big.mark = ","),
+  formatC(round(app_april_ha,          -2), format = "f", digits = 0, big.mark = ","),
+  formatC(round(linked_ha,          -2), format = "f", digits = 0, big.mark = ","),
+  linked_pct,
+  external_pct
+))
 
 # ## Create supplier list for Brian to fill in indirect control
 # defor_by_supplier <- zdc_hti_conv %>%
