@@ -2,7 +2,15 @@
 # Land Cover Change Map – Accuracy Assessment & Area Estimation
 # =============================================================================
 #
-# Stratified estimator following Olofsson et al. (2013, 2014).
+# Project: Indonesia pulp deforestation
+#
+# Purpose of script: Implement stratified estimator for remote sensing accuracy
+# and area estimates following Olofsson et al. (2013, 2014).
+#
+# Author: Robert Heilmayr and Adria Descals
+#
+# Date Created: May 2026
+# 
 #
 # References:
 #   Olofsson P., Foody G.M., Stehman S.V., Woodcock C.E. (2013) Making better
@@ -40,17 +48,6 @@ library(readxl)
 wdir <- "remote"
 data_dir <- "/01_data/"
 
-# Path to the validation spreadsheet
-XLSX_PATH <- paste0(wdir, data_dir,"/01_in/gaveau/Validation_11classes_land-cover-change-map_v1-2.xlsx")
-
-# Mapped (pixel-counting) areas per stratum class (ha).
-# Read directly from the Inputs tab of the validation spreadsheet (A6:C17).
-inputs_raw <- read_excel(XLSX_PATH, sheet = "Inputs", range = "A6:C17")
-MAPPED_AREA_HA <- setNames(
-  as.numeric(inputs_raw[[3]]),
-  as.character(as.integer(inputs_raw[[1]]))
-)
-
 CLASS_NAMES <- c(
   "0"  = "Stable other",
   "1"  = "Stable pulpwood",
@@ -81,12 +78,24 @@ Z95         <- 1.96            # z-multiplier for 95% confidence intervals
 ALL_CLASSES <- as.character(0:10)
 
 # =============================================================================
-# 1.  LOAD SAMPLE DATA
+# 1.  LOAD DATA - VALIDATION SAMPLE AND MAPPED AREAS 
 # =============================================================================
 
+# Path to the validation spreadsheet
+XLSX_PATH <- paste0(wdir, data_dir,"/01_in/gaveau/Validation_11classes_land-cover-change-map_v1-2.xlsx")
+
+# Load validation sample
 pts <- read_excel(XLSX_PATH, sheet = "Points")
 stopifnot("Map"   %in% names(pts),
           "Truth" %in% names(pts))
+
+# Load mapped (pixel-counting) areas per stratum class (ha).
+# Read directly from the Inputs tab of the validation spreadsheet (A6:C17).
+inputs_raw <- read_excel(XLSX_PATH, sheet = "Inputs", range = "A6:C17")
+MAPPED_AREA_HA <- setNames(
+  as.numeric(inputs_raw[[3]]),
+  as.character(as.integer(inputs_raw[[1]]))
+)
 
 # =============================================================================
 # 2.  COUNT-BASED CONFUSION MATRIX
@@ -527,3 +536,4 @@ cat("
 ")
 
 cat("\nScript complete.\n")
+
