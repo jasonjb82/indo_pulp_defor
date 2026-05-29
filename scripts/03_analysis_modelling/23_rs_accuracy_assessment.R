@@ -36,10 +36,10 @@ library(readxl)
 # =============================================================================
 # 0.  USER-SUPPLIED PARAMETERS
 # =============================================================================
-wdir <- "remote/"
+wdir <- "remote"
 
 # Path to the validation spreadsheet
-XLSX_PATH <- paste0(wdir, "01_data/01_in/gaveau/Validation_11classes_land-cover-change-map_v1-2.xlsx")
+XLSX_PATH <- paste0(wdir, "/01_data/01_in/gaveau/Validation_11classes_land-cover-change-map_v1-2.xlsx")
 
 # Mapped (pixel-counting) areas per stratum class (ha).
 # Read directly from the Inputs tab of the validation spreadsheet (A6:C17).
