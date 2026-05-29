@@ -61,6 +61,12 @@ id_annual_palm_stats <- read_excel(paste0(wdir,"/01_data/01_in/gaveau/IDN_2001_2
   mutate(year=year+2000) %>%
   drop_na(year)
 
+# kalimantan pulp expansion
+kali_annual_pulp_exp_stats <- read_excel(paste0(wdir,"/01_data/01_in/gaveau/IDN_2001_2022 landcover change of Oil Palm and Pulpwood_05JUNE2023.xlsx"),sheet="PULPWOOD EXPANSION",skip=5,n_max =22 ) %>% 
+  clean_names() %>%
+  select(year,forest_loss_ha=area_of_forest_converted_to_pulpwood_pw_each_year_ha) %>%
+  mutate(year=as.double(year)+2000)
+
 # merge data ---------------------------------------------------
 
 id_annual_exp_stats <- id_annual_pulp_stats %>%
@@ -72,5 +78,7 @@ id_annual_exp_stats <- id_annual_pulp_stats %>%
 write_csv(samples_landuse_ttm,paste0(wdir,"/01_data/02_out/tables/samples_landuse_ttm.csv"))
 # gfc deforestation (1km samples)
 write_csv(samples_gfc_ttm,paste0(wdir,"/01_data/02_out/tables/samples_gfc_ttm.csv"))
+# kalimantan expansion area statistics
+write_csv(kali_annual_pulp_exp_stats,paste0(wdir,"/01_data/02_out/tables/kali_annual_pulp_exp_stats_ttm.csv"))
 # annual expansion area statistics
 write_csv(id_annual_exp_stats,paste0(wdir,"/01_data/02_out/tables/id_annual_expansion_stats_ttm.csv"))
