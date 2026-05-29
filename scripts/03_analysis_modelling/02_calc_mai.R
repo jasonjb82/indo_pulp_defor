@@ -374,7 +374,8 @@ output <- list("dmai" = sector_mai,
                "yield_growth" = yield_growth[1],
                "yield_growth_ci" = yield_growth_confint[1,1],
                "production_coverage" = prod_coverage,
-               "median_obs" = median_obs) %>%
+               "median_obs" = median_obs,
+               "hardiyanto_cagr" = hardiyanto_cagr) %>%
   as_tibble()
 
 write_csv(output, paste0(wdir,data_dir,"/04_results/key_parameters.csv"))
