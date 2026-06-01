@@ -140,5 +140,5 @@ defor_broken_plot <- defor_plot + scale_x_break(c(1000000, 2500000),space = 0.5)
 defor_broken_plot
 
 # export plot to png file
-ggsave(defor_broken_plot,file=paste0(wdir,data_dir,"/02_out/plots/001_figures/supplier_groups_defor_class_plot.png"), dpi=400, w=9, h=4,limitsize = FALSE)
+ggsave(defor_broken_plot,file=paste0(wdir,data_dir,"04_results/figures/f2_supplier_groups_defor_class_plot.png"), dpi=400, w=9, h=4,limitsize = FALSE)
 
