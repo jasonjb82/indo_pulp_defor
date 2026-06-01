@@ -1,5 +1,9 @@
 # Ignore data (it lives on Zenodo, not in the Docker build)
-01_data_replication/
+remote/01_data_replication/
+scripts/01_data_extraction/
+scripts/02_data_preparation/
+scripts/99_archive/
+scripts/claude_reports/
 
 # Ignore your local computer's R package installations
 renv/library/
