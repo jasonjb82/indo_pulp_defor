@@ -1,0 +1,20 @@
+# Ignore data (it lives on Zenodo, not in the Docker build)
+01_data_replication/
+
+# Ignore your local computer's R package installations
+renv/library/
+renv/staging/
+renv/cache/
+
+# Ignore local R session history and user settings
+.Rhistory
+.RData
+.Rproj.user/
+
+# Ignore Git tracking files (Docker doesn't need your version history)
+.git/
+.gitignore
+
+# Ignore operating system junk files
+.DS_Store
+Thumbs.db
