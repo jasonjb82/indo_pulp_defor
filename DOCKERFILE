@@ -1,0 +1,11 @@
+FROM rocker/geospatial:4.3.0
+WORKDIR /home/rstudio/indo_pulp_defor
+
+# Isolate package restore instructions
+COPY renv.lock renv.lock
+COPY renv/activate.R renv/activate.R
+COPY .Rprofile .Rprofile
+RUN R -e "renv::restore()"
+
+# Copy clean active replication scripts 
+COPY . .
