@@ -44,7 +44,7 @@ data_dir <- "/01_data/"
 '%ni%' <- Negate('%in%') # filter out function
 
 # read data on hti conversion timing
-hti_conv_timing <- read_csv(paste0(wdir,data_dir,"/02_out/tables/hti_grps_deforestation_timing.csv"))
+hti_conv_timing <- read_csv(paste0(wdir,data_dir,"02_out/tables/hti_grps_deforestation_timing.csv"))
 
 # plot -------------------------------------------------------
 
