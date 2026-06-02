@@ -1,10 +1,15 @@
-FROM rocker/geospatial:4.4.1
+FROM rocker/geospatial:4.5.2
 WORKDIR /home/rstudio/indo_pulp_defor
 
-# Isolate package restore instructions
+# Force renv to use a safe location completely outside the project folder
+ENV RENV_PATHS_LIBRARY=/renv/library
+
+# Copy your environment setup files
 COPY renv.lock renv.lock
 COPY renv/activate.R renv/activate.R
 COPY .Rprofile .Rprofile
+
+# Restore packages safely into /renv/library
 RUN R -e "renv::restore()"
 
 # Copy clean active replication scripts 
