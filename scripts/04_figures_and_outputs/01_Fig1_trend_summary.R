@@ -45,6 +45,7 @@ library(svglite)
 library(khroma) # palettes for color blindness
 
 font_add_google(name = "DM Sans", family = "DM Sans")
+showtext_auto()
 
 ## set working directory -------------------------------------
 
