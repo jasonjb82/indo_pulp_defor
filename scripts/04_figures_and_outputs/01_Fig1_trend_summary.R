@@ -201,7 +201,6 @@ defor_pp_plot <- ggplot(data = defor_price_comb, aes(x = year))+
   guides(fill = guide_legend(nrow = 1,reverse = FALSE),color = guide_legend(nrow = 1,reverse = TRUE),keyheight = 10) +
   theme_plot 
 
-defor_pp_plot
 
 # Panel B - Wood supply transition -------------------------------------
 
@@ -258,7 +257,6 @@ wt_plot <- ggplot(pulp_prod_ratio_merged) +
   guides(fill = guide_legend(title.position = "top",nrow=1)) + 
   ggtitle("") 
 
-wt_plot
 
 # Panel C - Timeline of key developments in the sector & government ----
 
@@ -347,14 +345,13 @@ tl_plot <- ggplot(tl_df,aes(x=year,y=0, col=type, label=type,shape=direction)) +
         legend.position = "bottom") 
 
 
-tl_plot
 
 # merge plot using patchwork
 comb_plot <- defor_pp_plot / wt_plot / tl_plot
 comb_plot <- comb_plot +
   plot_annotation(tag_levels="A") & 
   theme(plot.tag = element_text(face = 'bold', size=12))
-comb_plot
+
 
 ## save to image format
 ggsave(comb_plot,file=paste0(wdir,"/01_data/04_results/figures/f1_summary_figure.png"), dpi=400, w=12, h=15) 
