@@ -36,6 +36,7 @@ library(khroma) # palettes for color blindness
 
 font_add_google(name = "DM Sans", family = "DM Sans")
 showtext_auto()
+showtext_opts(dpi = 400)
 
 ## set working directory -------------------------------------
 
