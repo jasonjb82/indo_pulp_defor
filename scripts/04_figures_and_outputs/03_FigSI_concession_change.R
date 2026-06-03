@@ -36,7 +36,6 @@ library(khroma) # palettes for color blindness
 
 font_add_google(name = "DM Sans", family = "DM Sans")
 showtext_auto()
-showtext_opts(dpi = 400)
 
 ## set working directory -------------------------------------
 
@@ -127,7 +126,7 @@ for(concession_ in concessions) {
       guides(fill = guide_legend(nrow = 1,order=1),color = guide_legend(nrow=1,order=2),shape = guide_legend(nrow=2,order=3),keyheight = 10)
   }
   
-  print(hti_plots[[concession_]])
-  ggsave(hti_plots[[concession_]], file=paste0(wdir,data_dir,"/02_out/plots/001_figures/lu_traj_plots_check/",gsub(" ","_",concession_),"_TreeMap_AnnualChanges.png"), dpi=400, w=10, h=6,device="png")
-
+  showtext_opts(dpi = 400)
+  ggsave(hti_plots[[concession_]], file=paste0(wdir,data_dir,"/04_results/figures/",gsub(" ","_",concession_),"_TreeMap_AnnualChanges.png"), dpi=400, w=10, h=6,units="in",limitsize = FALSE)
+  showtext_opts(dpi = 96)
 }
