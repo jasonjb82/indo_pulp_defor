@@ -1,16 +1,21 @@
 FROM rocker/geospatial:4.5.2
+
 WORKDIR /home/rstudio/indo_pulp_defor
 
-# Force renv to use a safe location completely outside the project folder
+# Set up global renv library cache directory
 ENV RENV_PATHS_LIBRARY=/renv/library
+RUN mkdir -p /renv/library
 
-# Copy your environment setup files
+# Copy dependency definition files first for Docker caching
 COPY renv.lock renv.lock
 COPY renv/activate.R renv/activate.R
 COPY .Rprofile .Rprofile
 
-# Restore packages safely into /renv/library
-RUN R -e "renv::restore()"
+# Restore R package environment
+RUN R -e "renv::restore(prompt = FALSE)"
 
-# Copy clean active replication scripts 
+# Copy rest of codebase
 COPY . .
+
+# Execute targets pipeline when container runs
+CMD ["Rscript", "-e", "targets::tar_make(callr_function = NULL)"]
