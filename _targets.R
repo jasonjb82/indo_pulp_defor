@@ -5,6 +5,17 @@
 
 library(targets)
 
+list(
+  # 1. First target: Check and download Zenodo data automatically
+  tar_target(
+    zenodo_data_check,
+    download_zenodo_data(
+      zenodo_record_id = "20448607", 
+      output_dir = "data/01_data_replication"
+    ),
+    format = "file"
+  ),
+
 # =========================================================================
 # 1. PIPELINE OPTIONS & REQUIRED PACKAGES
 # =========================================================================
