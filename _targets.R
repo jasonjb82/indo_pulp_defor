@@ -5,17 +5,6 @@
 
 library(targets)
 
-list(
-  # 1. First target: Check and download Zenodo data automatically
-  tar_target(
-    zenodo_data_check,
-    download_zenodo_data(
-      zenodo_record_id = "20448607", 
-      output_dir = "data/01_data_replication"
-    ),
-    format = "file"
-  ),
-
 # =========================================================================
 # 1. PIPELINE OPTIONS & REQUIRED PACKAGES
 # =========================================================================
@@ -57,6 +46,15 @@ list(
   # -----------------------------------------------------------------------
   # A. FILE TRACKING (ZENODO DOWNLOAD LOCATION)
   # -----------------------------------------------------------------------
+  tar_target(
+    zenodo_data_check,
+    download_zenodo_data(
+      zenodo_record_id = "20448607",
+      output_dir = "data/01_data_replication"
+    ),
+    format = "file"
+  ),
+
   tar_target(
     kab_file,
     "data/01_data_replication/01_in/big/idn_kabupaten_big.shp",
