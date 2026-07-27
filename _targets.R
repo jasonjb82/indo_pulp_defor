@@ -32,13 +32,7 @@ tar_option_set(
 # =========================================================================
 # 2. SOURCE FUNCTION SCRIPTS
 # =========================================================================
-source("R/01_read_data.R")
-source("R/01_fig1_trend_summary.R")
-source("R/02_fig2_defor_timing.R")
-source("R/03_fig3_annual_lc_change_concessions.R")
-source("R/04_SI_table2_pulp_expansion.R")
-source("R/05_paper_stats.R")
-
+tar_source()
 # =========================================================================
 # 3. TARGET PIPELINE DEFINITION
 # =========================================================================
@@ -46,10 +40,11 @@ list(
   # -----------------------------------------------------------------------
   # A. FILE TRACKING (ZENODO DOWNLOAD LOCATION)
   # -----------------------------------------------------------------------
+
   tar_target(
     zenodo_data_check,
     download_zenodo_data(
-      zenodo_record_id = "20448607",
+      zenodo_record_id = "21542417",
       output_dir = "data/01_data_replication"
     ),
     format = "file"
@@ -57,132 +52,162 @@ list(
 
   tar_target(
     kab_file,
-    "data/01_data_replication/01_in/big/idn_kabupaten_big.shp",
+    file.path(zenodo_data_check, "01_in/big/idn_kabupaten_big.shp"),
     format = "file"
   ),
   tar_target(
     hti_file,
-    "data/01_data_replication/01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp",
+    file.path(
+      zenodo_data_check,
+      "01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp"
+    ),
     format = "file"
   ),
   tar_target(
     policy_tl_file,
-    "data/01_data_replication/01_in/tables/policy_timeline_cats_rev1.csv",
+    file.path(zenodo_data_check, "01_in/tables/policy_timeline_cats_rev1.csv"),
     format = "file"
   ),
   tar_target(
     pulp_for_id_file,
-    "data/01_data_replication/02_out/gee/gaveau/pulp_annual_defor_forest_id.csv",
+    file.path(
+      zenodo_data_check,
+      "02_out/gee/gaveau/pulp_annual_defor_forest_id.csv"
+    ),
     format = "file"
   ),
   tar_target(
     pulp_nonfor_id_file,
-    "data/01_data_replication/02_out/gee/gaveau/pulp_annual_defor_non-forest_id.csv",
+    file.path(
+      zenodo_data_check,
+      "02_out/gee/gaveau/pulp_annual_defor_non-forest_id.csv"
+    ),
     format = "file"
   ),
   tar_target(
     timber_for_pulp_file,
-    "data/01_data_replication/01_in/obidzinski_dermawan/plot_data.csv",
+    file.path(zenodo_data_check, "01_in/obidzinski_dermawan/plot_data.csv"),
     format = "file"
   ),
   tar_target(
     pulp_prices_file,
-    "data/01_data_replication/01_in/tables/WPU0911_FRED.csv",
+    file.path(zenodo_data_check, "01_in/tables/WPU0911_FRED.csv"),
     format = "file"
   ),
   tar_target(
     pulp_production_file,
-    "data/01_data_replication/01_in/tables/annual_pulp_shr_prod.xlsx",
+    file.path(zenodo_data_check, "01_in/tables/annual_pulp_shr_prod.xlsx"),
     format = "file"
   ),
   tar_target(
     hti_conv_timing_file,
-    "data/01_data_replication/02_out/tables/hti_grps_deforestation_timing.csv",
+    file.path(
+      zenodo_data_check,
+      "02_out/tables/hti_grps_deforestation_timing.csv"
+    ),
     format = "file"
   ),
   tar_target(
     hti_annual_lc_file,
-    "data/01_data_replication/02_out/tables/hti_land_use_change_areas.csv",
+    file.path(zenodo_data_check, "02_out/tables/hti_land_use_change_areas.csv"),
     format = "file"
   ),
   tar_target(
     lic_dates_hti_file,
-    "data/01_data_replication/01_in/wwi/HTI_LICENSE_DATES.csv",
+    file.path(zenodo_data_check, "01_in/wwi/HTI_LICENSE_DATES.csv"),
     format = "file"
   ),
   tar_target(
     samples_hti_file,
-    "data/01_data_replication/02_out/samples/samples_hti_id.csv",
+    file.path(zenodo_data_check, "02_out/samples/samples_hti_id.csv"),
     format = "file"
   ),
   tar_target(
     ann_pulp_tbl_file,
-    "data/01_data_replication/02_out/tables/pulp_expansion_areas_2001_2022.csv",
+    file.path(
+      zenodo_data_check,
+      "02_out/tables/pulp_expansion_areas_2001_2022.csv"
+    ),
     format = "file"
   ),
   tar_target(
     hti_nonhti_conv_file,
-    "data/01_data_replication/02_out/tables/idn_pulp_conversion_hti_nonhti_treemap.csv",
+    file.path(
+      zenodo_data_check,
+      "02_out/tables/idn_pulp_conversion_hti_nonhti_treemap.csv"
+    ),
     format = "file"
   ),
   tar_target(
     samples_landuse_ttm_file,
-    "data/01_data_replication/02_out/tables/samples_landuse_ttm.csv",
+    file.path(zenodo_data_check, "02_out/tables/samples_landuse_ttm.csv"),
     format = "file"
   ),
   tar_target(
     samples_gfc_ttm_file,
-    "data/01_data_replication/02_out/tables/samples_gfc_ttm.csv",
+    file.path(zenodo_data_check, "02_out/tables/samples_gfc_ttm.csv"),
     format = "file"
   ),
   tar_target(
     rs_acc_file,
-    "data/01_data_replication/04_results/rs_accuracy_paper_stats.csv",
+    file.path(zenodo_data_check, "04_results/rs_accuracy_paper_stats.csv"),
     format = "file"
   ),
   tar_target(
     id_annual_exp_file,
-    "data/01_data_replication/02_out/tables/id_annual_expansion_stats_ttm.csv",
+    file.path(
+      zenodo_data_check,
+      "02_out/tables/id_annual_expansion_stats_ttm.csv"
+    ),
     format = "file"
   ),
   tar_target(
     pw_annual_area_file,
-    "data/01_data_replication/02_out/gee/pulp_annual_area_id.csv",
+    file.path(zenodo_data_check, "02_out/gee/pulp_annual_area_id.csv"),
     format = "file"
   ),
   tar_target(
     pulp_soil_file,
-    "data/01_data_replication/02_out/gee/gaveau/idn_pulp_annual_expansion_peat_mineral_soils.csv",
+    file.path(
+      zenodo_data_check,
+      "02_out/gee/gaveau/idn_pulp_annual_expansion_peat_mineral_soils.csv"
+    ),
     format = "file"
   ),
   tar_target(
     kali_exp_file,
-    "data/01_data_replication/02_out/tables/kali_annual_pulp_exp_stats_ttm.csv",
+    file.path(
+      zenodo_data_check,
+      "02_out/tables/kali_annual_pulp_exp_stats_ttm.csv"
+    ),
     format = "file"
   ),
   tar_target(
     groups_reclass_file,
-    "data/01_data_replication/01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv",
+    file.path(
+      zenodo_data_check,
+      "01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv"
+    ),
     format = "file"
   ),
   tar_target(
     scenario_stats_file,
-    "data/01_data_replication/04_results/scenario_stats.csv",
+    file.path(zenodo_data_check, "04_results/scenario_stats.csv"),
     format = "file"
   ),
   tar_target(
     mai_file,
-    "data/01_data_replication/04_results/key_parameters.csv",
+    file.path(zenodo_data_check, "04_results/key_parameters.csv"),
     format = "file"
   ),
   tar_target(
     ws_2015_2022_file,
-    "data/01_data_replication/02_out/tables/ws_merge_clean_2015_2022.csv",
+    file.path(zenodo_data_check, "02_out/tables/ws_merge_clean_2015_2022.csv"),
     format = "file"
   ),
   tar_target(
     cap_df_file,
-    "data/01_data_replication/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx",
+    file.path(zenodo_data_check, "01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"),
     format = "file"
   ),
 
