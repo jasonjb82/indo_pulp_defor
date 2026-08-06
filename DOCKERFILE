@@ -1,4 +1,4 @@
-FROM rocker/geospatial:4.5.2
+FROM rocker/geospatial:4.6.1
 
 WORKDIR /home/rstudio/indo_pulp_defor
 
@@ -11,11 +11,9 @@ COPY renv.lock renv.lock
 COPY renv/activate.R renv/activate.R
 COPY .Rprofile .Rprofile
 
-# Restore R package environment
-RUN R -e "renv::restore(prompt = FALSE)"
-
 # Copy rest of codebase
 COPY . .
 
 # Execute targets pipeline when container runs
-CMD ["Rscript", "-e", "targets::tar_make(callr_function = NULL)"]
+# Note: renv::restore() happens at runtime to handle ARM64 platform
+CMD ["Rscript", "-e", "renv::restore(prompt = FALSE); targets::tar_make(callr_function = NULL)"]
