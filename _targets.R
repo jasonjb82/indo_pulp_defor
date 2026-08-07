@@ -4,6 +4,9 @@
 ## ---------------------------------------------------------
 
 library(targets)
+library(sf)
+library(tidyfast)
+library(ggbreak)
 
 # =========================================================================
 # 1. PIPELINE OPTIONS & REQUIRED PACKAGES
