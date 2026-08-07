@@ -15,5 +15,4 @@ COPY .Rprofile .Rprofile
 COPY . .
 
 # Execute targets pipeline when container runs
-# Note: renv::restore() happens at runtime to handle ARM64 platform
-CMD ["Rscript", "-e", "renv::restore(prompt = FALSE); targets::tar_make(callr_function = NULL)"]
+CMD ["Rscript", "-e", "options(renv.config.sandbox = FALSE); renv::restore(prompt = FALSE); targets::tar_make(callr_function = NULL)"]
