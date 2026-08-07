@@ -26,7 +26,8 @@ tar_option_set(
     "ggbreak",
     "ggrepel",
     "showtext",
-    "sysfonts"
+    "sysfonts",
+    "svglite"
   ),
   garbage_collection = TRUE,
   format = "rds"
