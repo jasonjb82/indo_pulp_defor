@@ -35,7 +35,7 @@ get_fig1_theme <- function() {
     panel.grid.major.y = element_line(
       color = "grey70",
       linetype = "dashed",
-      size = 0.35
+      linewidth = 0.35
     ),
     plot.title = element_text(hjust = 0.5),
     axis.line.x = element_line(),
@@ -455,7 +455,7 @@ plot_panel_c <- function(tl_df) {
     ) +
     theme(
       text = element_text(family = "DM Sans"),
-      panel.grid.major.x = element_line(colour = "grey95", size = 6),
+      panel.grid.major.x = element_line(colour = "grey95", linewidth = 6),
       axis.line.y = element_blank(),
       axis.text.y = element_blank(),
       axis.title.x = element_blank(),
