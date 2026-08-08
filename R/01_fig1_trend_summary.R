@@ -10,8 +10,16 @@
 
 #' Get the standard 8-color colorblind friendly palette
 get_colorblind_palette <- function() {
-  c("#999999", "#E69F00", "#56B4E9", "#009E73", 
-    "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+  c(
+    "#999999",
+    "#E69F00",
+    "#56B4E9",
+    "#009E73",
+    "#F0E442",
+    "#0072B2",
+    "#D55E00",
+    "#CC79A7"
+  )
 }
 
 #' Get standard figure theme
@@ -19,17 +27,26 @@ get_fig1_theme <- function() {
   sysfonts::font_add_google(name = "DM Sans", family = "DM Sans")
   showtext::showtext_auto()
   showtext::showtext_opts(dpi = 400)
-  
+
   theme(
     text = element_text(family = "DM Sans", colour = "#3A484F"),
     panel.background = element_rect(colour = NA, fill = NA),
     panel.grid.minor = element_blank(),
-    panel.grid.major.y = element_line(color = "grey70", linetype = "dashed", size = 0.35),
+    panel.grid.major.y = element_line(
+      color = "grey70",
+      linetype = "dashed",
+      size = 0.35
+    ),
     plot.title = element_text(hjust = 0.5),
     axis.line.x = element_line(),
     axis.ticks.x = element_blank(),
     axis.ticks.y = element_blank(),
-    axis.text.x = element_text(size = 8, color = "grey30", angle = 0, face = "bold"),
+    axis.text.x = element_text(
+      size = 8,
+      color = "grey30",
+      angle = 0,
+      face = "bold"
+    ),
     axis.text.y = element_text(size = 9, color = "grey30"),
     axis.title.x = element_text(size = 10, color = "grey30"),
     axis.title.y = element_text(size = 10, color = "grey30"),
@@ -70,7 +87,11 @@ clean_pulp_conversion <- function(pulp_df, islands, conv_type_label) {
   pulp_df %>%
     left_join(islands, by = "prov_code") %>%
     select(-prov, -kab, -kab_code, -prov_code, -type) %>%
-    dt_pivot_longer(cols = -c(island), names_to = 'year', values_to = 'area_ha') %>%
+    dt_pivot_longer(
+      cols = -c(island),
+      names_to = 'year',
+      values_to = 'area_ha'
+    ) %>%
     as_tibble() %>%
     filter(area_ha != "0") %>%
     mutate(
@@ -91,7 +112,11 @@ clean_pulp_prices <- function(pulp_prices) {
 }
 
 #' Combine deforestation and price data for Panel A
-prep_defor_price_comb <- function(id_pulp_conv_for, id_pulp_conv_nonfor, pulp_prices_clean) {
+prep_defor_price_comb <- function(
+  id_pulp_conv_for,
+  id_pulp_conv_nonfor,
+  pulp_prices_clean
+) {
   id_pulp_conv_for %>%
     bind_rows(id_pulp_conv_nonfor) %>%
     left_join(pulp_prices_clean, by = "year") %>%
@@ -115,7 +140,13 @@ prep_wood_supply_data <- function(timber_for_pulp, pulp_production) {
       names_to = 'woodtype',
       values_to = 'annual_prod_mtpy'
     ) %>%
-    mutate(woodtype = ifelse(woodtype == "timber_m3_plantation", "Plantation", "Mixed Tropical Hardwoods")) %>%
+    mutate(
+      woodtype = ifelse(
+        woodtype == "timber_m3_plantation",
+        "Plantation",
+        "Mixed Tropical Hardwoods"
+      )
+    ) %>%
     group_by(year) %>%
     mutate(ratio = annual_prod_mtpy / sum(annual_prod_mtpy)) %>%
     ungroup() %>%
@@ -131,7 +162,11 @@ prep_wood_supply_data <- function(timber_for_pulp, pulp_production) {
     ) %>%
     mutate(
       prod_woodtype = ratio * annual_prod_mtpy,
-      woodtype = ifelse(woodtype == "total_pulp_plantation", "Plantation", "Mixed Tropical Hardwoods"),
+      woodtype = ifelse(
+        woodtype == "total_pulp_plantation",
+        "Plantation",
+        "Mixed Tropical Hardwoods"
+      ),
       ratio = ifelse(is.na(ratio), 0, ratio)
     )
 
@@ -150,10 +185,14 @@ prep_wood_supply_data <- function(timber_for_pulp, pulp_production) {
 prep_timeline_data <- function(policy_tl) {
   policy_tl_clean <- policy_tl %>%
     mutate(year_col = as.Date(year_proper, format = "%d/%m/%Y"))
-  
+
   df <- policy_tl_clean[with(policy_tl_clean, order(year)), ]
-  
-  type_levels <- c("Indonesian government", "Companies", "International governments")
+
+  type_levels <- c(
+    "Indonesian government",
+    "Companies",
+    "International governments"
+  )
   df$type <- factor(df$type, levels = type_levels, ordered = TRUE)
 
   positions <- c(0.5)
@@ -202,8 +241,8 @@ plot_panel_a <- function(defor_price_comb) {
 
   ggplot(data = defor_price_comb, aes(x = year)) +
     geom_bar(
-      stat = "identity", 
-      position = "stack", 
+      stat = "identity",
+      position = "stack",
       aes(y = area_ha / 1000, fill = factor(island, levels = rev(island_order)))
     ) +
     geom_line(aes(y = PPI * pa_scale_factor, color = "Producer Price Index")) +
@@ -212,23 +251,26 @@ plot_panel_a <- function(defor_price_comb) {
     xlab("") +
     scale_fill_manual(
       values = c(colorBlind8[7], colorBlind8[3], colorBlind8[5]),
-      breaks = island_order, 
+      breaks = island_order,
       labels = island_order
-    ) + 
-    scale_color_manual(values = c("black")) + 
-    scale_x_continuous(breaks = seq(from = 2001, to = 2022, by = 1), expand = c(0, 1)) +
+    ) +
+    scale_color_manual(values = c("black")) +
+    scale_x_continuous(
+      breaks = seq(from = 2001, to = 2022, by = 1),
+      expand = c(0, 1)
+    ) +
     scale_y_continuous(
       sec.axis = sec_axis(
-        ~ . * 1, 
+        ~ . * 1,
         labels = number_format(scale = 1 / pa_scale_factor),
         name = "Producer Price Index\n"
-      ), 
+      ),
       limits = c(0, 150),
       expand = c(0, 0)
     ) +
     guides(
-      fill = guide_legend(nrow = 1, reverse = FALSE), 
-      color = guide_legend(nrow = 1, reverse = TRUE), 
+      fill = guide_legend(nrow = 1, reverse = FALSE),
+      color = guide_legend(nrow = 1, reverse = TRUE),
       keyheight = 10
     ) +
     theme_plot
@@ -240,7 +282,11 @@ plot_panel_b <- function(pulp_prod_ratio_merged) {
   theme_plot <- get_fig1_theme()
 
   ggplot(pulp_prod_ratio_merged) +
-    geom_bar(stat = "identity", position = "stack", aes(x = year, y = annual_prod_mtpy, fill = as.factor(woodtype))) +
+    geom_bar(
+      stat = "identity",
+      position = "stack",
+      aes(x = year, y = annual_prod_mtpy, fill = as.factor(woodtype))
+    ) +
     scale_x_continuous(breaks = seq(from = 2001, to = 2023, by = 1)) +
     xlab("") +
     scale_y_continuous(
@@ -248,66 +294,164 @@ plot_panel_b <- function(pulp_prod_ratio_merged) {
       limits = c(0, 10),
       breaks = seq(0, 19, by = 1),
       expand = c(0, 0)
-    ) + 
+    ) +
     theme_plot +
     labs(fill = "\n") +
-    scale_fill_manual(values = c(colorBlind8[4], colorBlind8[2])) + 
-    guides(fill = guide_legend(title.position = "top", nrow = 1)) + 
+    scale_fill_manual(values = c(colorBlind8[4], colorBlind8[2])) +
+    guides(fill = guide_legend(title.position = "top", nrow = 1)) +
     ggtitle("")
 }
 
 #' Render Panel C: Policy Timeline
 plot_panel_c <- function(tl_df) {
   colorBlind8 <- get_colorblind_palette()
-  type_levels <- c("Indonesian government", "Companies", "International governments")
+  type_levels <- c(
+    "Indonesian government",
+    "Companies",
+    "International governments"
+  )
   type_colors <- c(colorBlind8[4], colorBlind8[6], colorBlind8[8])
   type_fill <- c(colorBlind8[4], colorBlind8[6], colorBlind8[8])
   type_shape <- c(16)
 
-  ggplot(tl_df, aes(x = year, y = 0, col = type, label = type, shape = direction)) + 
+  ggplot(
+    tl_df,
+    aes(x = year, y = 0, col = type, label = type, shape = direction)
+  ) +
     geom_segment(
-      data = subset(tl_df, row_cat == 11), 
-      aes(y = text_position, yend = 1, x = min(year), xend = max(year), group = 1), 
-      alpha = 1, linewidth = 1.75, linetype = 'solid', color = c(colorBlind8[4])
+      data = subset(tl_df, row_cat == 11),
+      aes(
+        y = text_position,
+        yend = 1,
+        x = min(year),
+        xend = max(year),
+        group = 1
+      ),
+      alpha = 1,
+      linewidth = 1.75,
+      linetype = 'solid',
+      color = c(colorBlind8[4])
     ) +
     geom_segment(
-      data = subset(tl_df, row_cat == 21), 
-      aes(y = text_position, yend = 1.5, x = min(year), xend = max(year), group = 1), 
-      alpha = 1, linewidth = 1.75, linetype = 'solid', color = c(colorBlind8[6])
+      data = subset(tl_df, row_cat == 21),
+      aes(
+        y = text_position,
+        yend = 1.5,
+        x = min(year),
+        xend = max(year),
+        group = 1
+      ),
+      alpha = 1,
+      linewidth = 1.75,
+      linetype = 'solid',
+      color = c(colorBlind8[6])
     ) +
     geom_segment(
-      data = subset(tl_df, row_cat == 22), 
-      aes(y = text_position, yend = 2, x = min(year), xend = max(year), group = 1), 
-      alpha = 1, linewidth = 1.75, linetype = 'solid', color = c(colorBlind8[6])
+      data = subset(tl_df, row_cat == 22),
+      aes(
+        y = text_position,
+        yend = 2,
+        x = min(year),
+        xend = max(year),
+        group = 1
+      ),
+      alpha = 1,
+      linewidth = 1.75,
+      linetype = 'solid',
+      color = c(colorBlind8[6])
     ) +
     geom_segment(
-      data = subset(tl_df, row_cat == 23), 
-      aes(y = text_position, yend = 2.5, x = min(year), xend = max(year), group = 1), 
-      alpha = 1, linewidth = 1.75, linetype = 'solid', color = c(colorBlind8[6])
+      data = subset(tl_df, row_cat == 23),
+      aes(
+        y = text_position,
+        yend = 2.5,
+        x = min(year),
+        xend = max(year),
+        group = 1
+      ),
+      alpha = 1,
+      linewidth = 1.75,
+      linetype = 'solid',
+      color = c(colorBlind8[6])
     ) +
     geom_segment(
-      data = subset(tl_df, row_cat == 31), 
-      aes(y = text_position, yend = 3, x = min(year), xend = max(year), group = 1), 
-      alpha = 1, linewidth = 1.75, linetype = 'solid', color = c(colorBlind8[8])
+      data = subset(tl_df, row_cat == 31),
+      aes(
+        y = text_position,
+        yend = 3,
+        x = min(year),
+        xend = max(year),
+        group = 1
+      ),
+      alpha = 1,
+      linewidth = 1.75,
+      linetype = 'solid',
+      color = c(colorBlind8[8])
     ) +
     geom_segment(
-      data = subset(tl_df, row_cat == 32), 
-      aes(y = text_position, yend = 3.5, x = min(year), xend = max(year), group = 1), 
-      alpha = 1, linewidth = 1.75, linetype = 'solid', color = c(colorBlind8[8])
+      data = subset(tl_df, row_cat == 32),
+      aes(
+        y = text_position,
+        yend = 3.5,
+        x = min(year),
+        xend = max(year),
+        group = 1
+      ),
+      alpha = 1,
+      linewidth = 1.75,
+      linetype = 'solid',
+      color = c(colorBlind8[8])
     ) +
     ylab("\n") +
-    scale_color_manual(values = type_colors, labels = type_levels, drop = FALSE, guide = guide_legend(reverse = TRUE), name = "", na.translate = FALSE) + 
-    scale_fill_manual(values = type_fill, labels = type_levels, drop = FALSE, guide = "legend", name = "", na.translate = FALSE) + 
-    scale_shape_manual(values = type_shape, labels = type_levels, drop = TRUE, guide = FALSE, name = "", na.translate = FALSE) +
-    theme_classic() + 
+    scale_color_manual(
+      values = type_colors,
+      labels = type_levels,
+      drop = FALSE,
+      guide = guide_legend(reverse = TRUE),
+      name = "",
+      na.translate = FALSE
+    ) +
+    scale_fill_manual(
+      values = type_fill,
+      labels = type_levels,
+      drop = FALSE,
+      guide = "legend",
+      name = "",
+      na.translate = FALSE
+    ) +
+    scale_shape_manual(
+      values = type_shape,
+      labels = type_levels,
+      drop = TRUE,
+      guide = "none",
+      name = "",
+      na.translate = FALSE
+    ) +
+    theme_classic() +
     scale_x_continuous(expand = c(0, 0.5), breaks = seq(2001, 2023, by = 1)) +
     scale_y_discrete(expand = c(0, 0.2)) +
-    geom_point(aes(y = text_position), size = 4.5, alpha = 0.75) + 
-    geom_point(data = tl_df[tl_df$direction.x == 0, ], aes(y = text_position), size = 4.5, alpha = 1) + 
+    geom_point(aes(y = text_position), size = 4.5, alpha = 0.75) +
+    geom_point(
+      data = tl_df[tl_df$direction.x == 0, ],
+      aes(y = text_position),
+      size = 4.5,
+      alpha = 1,
+      na.rm = TRUE
+    ) +
     ggrepel::geom_text_repel(
-      aes(y = text_position_mod + 0.05, x = year, label = stringr::str_wrap(event, 25)), 
-      size = 2.75, hjust = 0, vjust = -1.25, family = "DM Sans", fontface = "bold", 
-      show.legend = FALSE, min.segment.length = 2.5
+      aes(
+        y = text_position_mod + 0.05,
+        x = year,
+        label = stringr::str_wrap(event, 25),
+        na.rm = TRUE
+      ),
+      size = 2.75,
+      hjust = 0,
+      vjust = -1.25,
+      family = "DM Sans",
+      fontface = "bold",
+      show.legend = FALSE,
+      min.segment.length = 2.5
     ) +
     theme(
       text = element_text(family = "DM Sans"),
@@ -316,7 +460,12 @@ plot_panel_c <- function(tl_df) {
       axis.text.y = element_blank(),
       axis.title.x = element_blank(),
       axis.ticks.y = element_blank(),
-      axis.text.x = element_text(vjust = 5, color = "grey30", angle = 0, face = "bold"),
+      axis.text.x = element_text(
+        vjust = 5,
+        color = "grey30",
+        angle = 0,
+        face = "bold"
+      ),
       axis.ticks.x = element_blank(),
       axis.line.x = element_blank(),
       legend.title = element_blank(),
@@ -331,8 +480,8 @@ plot_panel_c <- function(tl_df) {
 #' Combine Panels A, B, and C into a composite figure
 create_fig1_summary <- function(panel_a, panel_b, panel_c) {
   comb_plot <- panel_a / panel_b / panel_c
-  comb_plot + 
-    plot_annotation(tag_levels = "A") & 
+  comb_plot +
+    plot_annotation(tag_levels = "A") &
     theme(plot.tag = element_text(face = 'bold', size = 12))
 }
 
