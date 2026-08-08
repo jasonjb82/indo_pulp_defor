@@ -7,6 +7,7 @@ library(targets)
 library(sf)
 library(tidyfast)
 library(ggbreak)
+library(svglite)
 
 # =========================================================================
 # 1. PIPELINE OPTIONS & REQUIRED PACKAGES
