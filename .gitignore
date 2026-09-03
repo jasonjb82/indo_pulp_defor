@@ -13,3 +13,5 @@ scripts/audit_report.html
 scripts/data_inputs_audit.html
 CLAUDE.md
 .claude/settings.local.json
+data/ 
+_targets/
