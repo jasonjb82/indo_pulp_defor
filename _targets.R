@@ -364,6 +364,47 @@ list(
   ),
 
   # -----------------------------------------------------------------------
+  # E2. SCRIPT 6: SI SECTION 9 CONCESSION ATLAS (GENERATED PDF APPENDIX)
+  # -----------------------------------------------------------------------
+  # Tracking the template as a file target means editing the layout rebuilds
+  # only the PDF (about two seconds), not the 305 tiles.
+  tar_target(atlas_template_file, "typst/concession_atlas.typ", format = "file"),
+  tar_target(
+    atlas_meta,
+    build_atlas_metadata(hti_annual_lc, hti_conv_timing, groups_reclass_hti, hti)
+  ),
+  tar_target(
+    concession_tile_pngs,
+    render_and_save_concession_tiles(
+      hti_annual_lc,
+      atlas_meta,
+      "data/01_data_replication/04_results/figures/concession_tiles"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    atlas_data_typ,
+    write_atlas_data_typ(
+      concession_tile_pngs,
+      atlas_meta,
+      "data/01_data_replication/04_results/atlas/atlas_data.typ"
+    ),
+    format = "file"
+  ),
+  # sm_pages = 0 numbers the atlas from 1. The merge script recompiles with the
+  # exported SI's real page count so folios continue that document's numbering.
+  tar_target(
+    concession_atlas_pdf,
+    compile_concession_atlas(
+      atlas_template_file,
+      atlas_data_typ,
+      "data/01_data_replication/04_results/atlas/concession_atlas.pdf",
+      sm_pages = 0L
+    ),
+    format = "file"
+  ),
+
+  # -----------------------------------------------------------------------
   # F. SCRIPT 4: SI TABLE 2 (MAPPED PULP EXPANSION TABLE)
   # -----------------------------------------------------------------------
   tar_target(hti_concession_names, clean_hti_concession_names(hti)),
