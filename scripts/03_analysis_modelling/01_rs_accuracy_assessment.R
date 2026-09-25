@@ -77,7 +77,7 @@ ALL_CLASSES <- as.character(0:10)
 XLSX_PATH <- paste0(
   wdir,
   data_dir,
-  "/01_in/gaveau/Validation_11classes_land-cover-change-map_v1-2.xlsx"
+  "/01_in/gaveau/Validation_11classes_land-cover-change-map_v2.xlsx"
 )
 
 # Load validation sample
@@ -686,18 +686,59 @@ write.csv(
   row.names = FALSE
 )
 
+# Formatting helpers so the saved tables match the published SI layout:
+# percentages to one decimal and areas in Mha to two, each with its 95% CI on a
+# second line, as the published tables set them. The newline is inside a quoted
+# CSV field, which Excel and Word read as an in-cell line break, so a cell can be
+# pasted straight into the manuscript table.
+# Accuracy is a proportion, so the normal-approximation interval is
+# truncated to [0, 100] in both tables: an upper bound above 100% is not a
+# statement the parameter can satisfy. Note that truncation is a reporting
+# convention, not a fix for the approximation itself -- where a stratum has no
+# observed errors the standard error is zero and the interval collapses to
+# (100.0, 100.0), which reflects the absence of sampled errors rather than
+# certainty about the class.
+fmt_pct_ci <- function(est, ci95) {
+  lo <- pmax(0, est * 100 - ci95 * 100)
+  hi <- pmin(100, est * 100 + ci95 * 100)
+  sprintf("%.1f\n(%.1f, %.1f)", est * 100, lo, hi)
+}
+fmt_mha_ci <- function(est_ha, ci95_ha) {
+  sprintf(
+    "%.2f\n(%.2f, %.2f)",
+    est_ha / 1e6,
+    (est_ha - ci95_ha) / 1e6,
+    (est_ha + ci95_ha) / 1e6
+  )
+}
+
 # --- SI Table 4: Accuracy metrics for the 11-class land cover change map ---
+# Class numbering follows the published table (Class 1-11), which is the
+# internal 0-10 coding plus one.
 si_table4 <- data.frame(
-  class = as.integer(ALL_CLASSES),
-  name = unname(CLASS_NAMES[ALL_CLASSES]),
-  mapped_area_ha = as.numeric(MAPPED_AREA_HA[ALL_CLASSES]),
-  estimated_area_ha = as.numeric(A_j[ALL_CLASSES]),
-  se_area_ha = as.numeric(sqrt(V_A_j[ALL_CLASSES])),
-  ci95_area_ha = as.numeric(Z95 * sqrt(V_A_j[ALL_CLASSES])),
-  users_accuracy = as.numeric(U[ALL_CLASSES]),
-  users_accuracy_se = as.numeric(sqrt(V_U[ALL_CLASSES])),
-  producers_accuracy = as.numeric(P_j[ALL_CLASSES]),
-  producers_accuracy_se = as.numeric(sqrt(V_P_j[ALL_CLASSES])),
+  `Class label` = paste0(
+    "Class ",
+    as.integer(ALL_CLASSES) + 1,
+    " - ",
+    unname(CLASS_NAMES[ALL_CLASSES])
+  ),
+  `UA (%)` = fmt_pct_ci(
+    as.numeric(U[ALL_CLASSES]),
+    Z95 * as.numeric(sqrt(V_U[ALL_CLASSES]))
+  ),
+  `PA (%)` = fmt_pct_ci(
+    as.numeric(P_j[ALL_CLASSES]),
+    Z95 * as.numeric(sqrt(V_P_j[ALL_CLASSES]))
+  ),
+  `Mapped area (Mha)` = sprintf(
+    "%.2f",
+    as.numeric(MAPPED_AREA_HA[ALL_CLASSES]) / 1e6
+  ),
+  `Estimated area (Mha)` = fmt_mha_ci(
+    as.numeric(A_j[ALL_CLASSES]),
+    Z95 * as.numeric(sqrt(V_A_j[ALL_CLASSES]))
+  ),
+  check.names = FALSE,
   row.names = NULL
 )
 write.csv(
@@ -707,20 +748,6 @@ write.csv(
 )
 
 # --- SI Table 5: Binary PP/Other accuracy for static snapshot maps ---
-fmt_pct_ci <- function(est, ci95) {
-  lo <- pmax(0, est * 100 - ci95 * 100)
-  hi <- pmin(100, est * 100 + ci95 * 100)
-  sprintf("%.2f (%.2f, %.2f)", est * 100, lo, hi)
-}
-fmt_mha_ci <- function(est_ha, ci95_ha) {
-  sprintf(
-    "%.2f (%.2f, %.2f)",
-    est_ha / 1e6,
-    (est_ha - ci95_ha) / 1e6,
-    (est_ha + ci95_ha) / 1e6
-  )
-}
-
 static_rows <- lapply(seq_len(nrow(static_results)), function(i) {
   s <- static_results[i, ]
   list(
@@ -755,7 +782,16 @@ field_names <- c(
   "estimated_pp_mha"
 )
 
+# The published table splits these rows into two numbered panels; carrying the
+# panel as a column keeps that grouping without header rows a reader would have
+# to parse around.
+panel_labels <- c(
+  rep("1. Accuracy assessment of static maps", 5),
+  rep("2. Area estimates based upon accuracy assessment", 2)
+)
+
 si_table5 <- data.frame(
+  Panel = panel_labels,
   Metric = metric_labels,
   setNames(
     lapply(static_rows, function(r) sapply(field_names, function(f) r[[f]])),
