@@ -45,13 +45,13 @@ CLASS_NAMES <- c(
   "1" = "Stable pulpwood",
   "2" = "Other to pulpwood 2001-2011",
   "3" = "Other to pulpwood 2012-2017",
-  "4" = "Other to pulpwood 2018-2024",
+  "4" = "Other to pulpwood 2018-2022",
   "5" = "Forest to pulpwood 2001-2011",
   "6" = "Forest to pulpwood 2012-2017",
-  "7" = "Forest to pulpwood 2018-2024",
+  "7" = "Forest to pulpwood 2018-2022",
   "8" = "Peat to pulpwood 2001-2011",
   "9" = "Peat to pulpwood 2012-2017",
-  "10" = "Peat to pulpwood 2018-2024"
+  "10" = "Peat to pulpwood 2018-2022"
 )
 
 # Combined class sets for aggregate area reporting.
@@ -59,10 +59,10 @@ CLASS_NAMES <- c(
 COMBINED_CLASSES <- list(
   "PP expansion 2001-2011    [2+5+8]" = c("2", "5", "8"),
   "PP expansion 2012-2017    [3+6+9]" = c("3", "6", "9"),
-  "PP expansion 2018-2024    [4+7+10]" = c("4", "7", "10"),
+  "PP expansion 2018-2022    [4+7+10]" = c("4", "7", "10"),
   "Deforestation 2001-2011   [5+8]" = c("5", "8"),
   "Deforestation 2012-2017   [6+9]" = c("6", "9"),
-  "Deforestation 2018-2024   [7+10]" = c("7", "10"),
+  "Deforestation 2018-2022   [7+10]" = c("7", "10"),
   "All deforestation         [5+6+7+8+9+10]" = c("5", "6", "7", "8", "9", "10")
 )
 
@@ -592,7 +592,7 @@ periods <- list(
     peat = "9"
   ),
   list(
-    label = "2018-2024",
+    label = "2018-2022",
     pp = c("4", "7", "10"),
     def = c("7", "10"),
     peat = "10"
@@ -682,7 +682,7 @@ si_table3 <- data.frame(
 )
 write.csv(
   si_table3,
-  paste0(out_dir, "si_table3_class_descriptions.csv"),
+  paste0(out_dir, "tables/si_table3_class_descriptions.csv"),
   row.names = FALSE
 )
 
@@ -702,7 +702,7 @@ si_table4 <- data.frame(
 )
 write.csv(
   si_table4,
-  paste0(out_dir, "si_table4_change_map_accuracy.csv"),
+  paste0(out_dir, "tables/si_table4_change_map_accuracy.csv"),
   row.names = FALSE
 )
 
@@ -766,7 +766,7 @@ si_table5 <- data.frame(
 )
 write.csv(
   si_table5,
-  paste0(out_dir, "si_table5_static_map_accuracy.csv"),
+  paste0(out_dir, "tables/si_table5_static_map_accuracy.csv"),
   row.names = FALSE
 )
 
