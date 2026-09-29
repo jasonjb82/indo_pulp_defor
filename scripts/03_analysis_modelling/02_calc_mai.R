@@ -11,15 +11,35 @@
 ##
 ## ---------------------------------------------------------
 ##
-## Input datasets
-##        1)
-##
+## Input datasets (paths relative to remote/01_data/)
+##        1) 02_out/tables/hti_harvest_yr.csv: Concession-year harvest record --
+##               hectare-years harvested, area-weighted rotation length,
+##               harvest-year precipitation and PET, and hectare-years on peat.
+##               Also carries the alternate hectare-year columns used by the
+##               robustness specifications (ha_y_rw for truncated rotations;
+##               ha_y_if / ha_y_mf / ha_y_hf for alternate fire treatments).
+##               Produced by scripts/02_data_preparation/06_gaveau_harvests.R
+##        2) 02_out/tables/ws_merge_clean_2015_2022.csv: Pulpwood volumes
+##               delivered to mills by concession and year, from the RPBBI
+##               sourcing reports. Subset here to 2015-2021.
+##               Produced by scripts/02_data_preparation/04_merge_ws_data.R
 ##
 ## Outputs:
-##        1) SI Table 6: Robustness table of DMAI trend regressions
-##        2) 04_results/key_parameters.csv: Table with estimated
-##               parameters to pass to downstream scripts
-##        3) Figures for review round 2
+##        1) SI Table 6: Robustness table of DMAI trend regressions. Printed to
+##               the console and written to
+##               04_results/tables/yield_growth_table.docx (the .docx needs
+##               pandoc; the call is guarded so a missing pandoc only warns).
+##        2) 02_out/tables/hti_mai.csv: Concession-level DMAI, raw and
+##               Winsorized. Read by 03_analysis_modelling/03_defor_elasticity.R
+##        3) 04_results/key_parameters.csv: Sectoral DMAI, 2021 DMAI, yield
+##               growth rate and CI half-width, share of production with
+##               matched harvest data, median observations per concession, and
+##               the Hardiyanto et al. comparison CAGR. Read by
+##               03_analysis_modelling/05_pulp_expansion_scenarios.R and
+##               04_figures_and_outputs/05_paper_stats.R
+##        4) 04_results/si_section3_statements.txt: The numeric claims made in
+##               SI Section 3, reproduced in their sentence context with values
+##               interpolated from this run.
 ##
 ## ---------------------------------------------------------
 
