@@ -77,7 +77,7 @@ ALL_CLASSES <- as.character(0:10)
 XLSX_PATH <- paste0(
   wdir,
   data_dir,
-  "/01_in/gaveau/Validation_11classes_land-cover-change-map_v2.xlsx"
+  "01_in/gaveau/Validation_11classes_land-cover-change-map_v2.xlsx"
 )
 
 # Load validation sample
@@ -103,6 +103,13 @@ MAPPED_AREA_HA <- setNames(
 n_mat <- table(
   Map = factor(pts$Map, levels = 0:10, labels = ALL_CLASSES),
   Truth = factor(pts$Truth, levels = 0:10, labels = ALL_CLASSES)
+)
+
+# factor() maps any code outside 0-10 to NA, which table() then drops silently.
+# Fail loudly instead: a data refresh introducing a new class code must not
+# quietly reduce the sample.
+stopifnot(
+  "Map/Truth contain codes outside 0-10" = sum(n_mat) == nrow(pts)
 )
 
 # =============================================================================
@@ -671,6 +678,8 @@ print(round(cov_p * 1e12, 2))
 
 out_dir <- paste0(wdir, data_dir, "04_results/")
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+# The SI tables are written to a tables/ subdirectory, which must exist too.
+dir.create(paste0(out_dir, "tables"), showWarnings = FALSE, recursive = TRUE)
 
 # --- SI Table 3: Land cover class descriptions and sample sizes ---
 si_table3 <- data.frame(
