@@ -22,12 +22,35 @@
 #     sampling when the strata are different from the map classes. IJRS 35:4923.
 #   Cochran W.G. (1977) Sampling Techniques, 3rd ed. Wiley.
 #
-# INPUT:  "Points" sheet of the validation spreadsheet.
-#         Required columns:
-#           Map   – map class label (integer 0–10) for each sample point
-#           Truth – reference class label (integer 0–10) for each sample point
+# Input datasets (paths relative to remote/01_data/)
+#        1) 01_in/gaveau/Validation_11classes_land-cover-change-map_v2.xlsx:
+#               Photointerpreted validation sample. Two sheets are read --
+#               "Points", one row per sample point, requiring
+#                   Map   - map class label (integer 0-10)
+#                   Truth - reference class label (integer 0-10)
+#               and "Inputs" (range A6:C17), the mapped area (ha) of each of
+#               the 11 change classes, which supplies the stratum weights.
+#               Reference data are collected by the co-author team; this file
+#               is a project input, not the product of a script in this repo.
 #
-# OUTPUT: Sections 1–10 printed to the console.
+# Outputs:
+#        1) Sections 1-10 printed to the console: confusion matrices, stratum
+#               weights and sample sizes, accuracy measures, area estimates,
+#               combined-class aggregates and the estimator covariance matrix.
+#        2) 04_results/tables/si_table3_class_descriptions.csv: Class codes,
+#               names, mapped areas and sample sizes (SI Table 3).
+#        3) 04_results/tables/si_table4_change_map_accuracy.csv: User's and
+#               producer's accuracy with 95% CIs, plus mapped and estimated
+#               areas, for the 11 change classes (SI Table 4).
+#        4) 04_results/tables/si_table5_static_map_accuracy.csv: Binary
+#               pulpwood/other accuracy and area estimates for the 2000, 2011,
+#               2017 and 2022 static maps (SI Table 5).
+#        5) 04_results/rs_accuracy_paper_stats.csv: Area estimates with 95%
+#               confidence intervals for the deforestation and pulpwood
+#               expansion figures quoted in the main text and SI, each tagged
+#               with the location of the claim it supports. Read by
+#               03_analysis_modelling/05_pulp_expansion_scenarios.R and
+#               04_figures_and_outputs/05_paper_stats.R
 #
 # =============================================================================
 
