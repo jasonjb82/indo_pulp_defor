@@ -447,19 +447,23 @@ tbl_args <- list(
 )
 
 do.call(msummary, tbl_args) # display
-do.call(
-  msummary,
-  c(
-    tbl_args,
-    list(
-      output = paste0(
-        wdir,
-        data_dir,
-        "/04_results/tables/defor_elast_main.docx"
-      )
+# Writing .docx requires pandoc. Guard the call so a missing pandoc cannot halt
+# the script: everything below, including SI Figure 3 and the SI Section 4.2
+# capacity-utilisation statistics, sits downstream of this call.
+defor_elast_main_docx <- paste0(wdir, data_dir, "/04_results/tables/defor_elast_main.docx")
+tryCatch(
+  do.call(msummary, c(tbl_args, list(output = defor_elast_main_docx))),
+  error = function(e) {
+    warning(
+      "Could not write ",
+      defor_elast_main_docx,
+      ": ",
+      conditionMessage(e),
+      "\n  .docx output needs pandoc on the PATH; other outputs are unaffected.",
+      call. = FALSE
     )
-  )
-) # save
+  }
+)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -540,19 +544,22 @@ rtbl_args <- list(
 )
 
 do.call(msummary, rtbl_args) # display
-do.call(
-  msummary,
-  c(
-    rtbl_args,
-    list(
-      output = paste0(
-        wdir,
-        data_dir,
-        "/04_results/tables/defor_elast_robust.docx"
-      )
+# Writing .docx requires pandoc. Guard the call so a missing pandoc cannot halt
+# the script: the plots and SI statistics below sit downstream of this call.
+defor_elast_robust_docx <- paste0(wdir, data_dir, "/04_results/tables/defor_elast_robust.docx")
+tryCatch(
+  do.call(msummary, c(rtbl_args, list(output = defor_elast_robust_docx))),
+  error = function(e) {
+    warning(
+      "Could not write ",
+      defor_elast_robust_docx,
+      ": ",
+      conditionMessage(e),
+      "\n  .docx output needs pandoc on the PATH; other outputs are unaffected.",
+      call. = FALSE
     )
-  )
-) # save
+  }
+)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
