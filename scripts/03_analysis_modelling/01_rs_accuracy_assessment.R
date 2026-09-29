@@ -34,23 +34,25 @@
 #               is a project input, not the product of a script in this repo.
 #
 # Outputs:
-#        1) Sections 1-10 printed to the console: confusion matrices, stratum
+#        1) SI Table 3: Class codes, names, mapped areas and sample sizes.
+#               Written to 04_results/tables/si_table3_class_descriptions.csv
+#        2) SI Table 4: User's and producer's accuracy with 95% confidence
+#               intervals, plus mapped and estimated areas, for the 11 change
+#               classes. Written to
+#               04_results/tables/si_table4_change_map_accuracy.csv
+#        3) SI Table 5: Binary pulpwood/other accuracy and area estimates for
+#               the 2000, 2011, 2017 and 2022 static maps. Written to
+#               04_results/tables/si_table5_static_map_accuracy.csv
+#        4) Paper statistics: Area estimates with 95% confidence intervals for
+#               the deforestation and pulpwood expansion figures quoted in the
+#               main text and SI, each tagged with the location of the claim
+#               it supports. Written to
+#               04_results/rs_accuracy_paper_stats.csv
+#               Read by 03_analysis_modelling/05_pulp_expansion_scenarios.R
+#               and 04_figures_and_outputs/05_paper_stats.R
+#        5) Console diagnostics: Sections 1-10 -- confusion matrices, stratum
 #               weights and sample sizes, accuracy measures, area estimates,
 #               combined-class aggregates and the estimator covariance matrix.
-#        2) 04_results/tables/si_table3_class_descriptions.csv: Class codes,
-#               names, mapped areas and sample sizes (SI Table 3).
-#        3) 04_results/tables/si_table4_change_map_accuracy.csv: User's and
-#               producer's accuracy with 95% CIs, plus mapped and estimated
-#               areas, for the 11 change classes (SI Table 4).
-#        4) 04_results/tables/si_table5_static_map_accuracy.csv: Binary
-#               pulpwood/other accuracy and area estimates for the 2000, 2011,
-#               2017 and 2022 static maps (SI Table 5).
-#        5) 04_results/rs_accuracy_paper_stats.csv: Area estimates with 95%
-#               confidence intervals for the deforestation and pulpwood
-#               expansion figures quoted in the main text and SI, each tagged
-#               with the location of the claim it supports. Read by
-#               03_analysis_modelling/05_pulp_expansion_scenarios.R and
-#               04_figures_and_outputs/05_paper_stats.R
 #
 # =============================================================================
 
