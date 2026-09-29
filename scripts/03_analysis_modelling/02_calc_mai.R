@@ -160,34 +160,8 @@ nona_mai_df <- nona_mai_df %>%
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## Calculate sectoral MAI -------------------------------------
+## Calculate sectoral MAI over time ----------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-## Calculate baseline MAI (same value computed above in missing data section; reprinted here for reference)
-print(sector_mai)
-
-## Compare to alternate specifications with different treatments of burned areas:
-## a) Ignore all fire labels (keep all harvest blocks in dataset)
-if_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) /
-  sum(mai_df$ha_y_if, na.rm = TRUE)) %>%
-  print()
-
-## c) Drop all blocks with any recorded fires
-hf_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) /
-  sum(mai_df$ha_y_hf, na.rm = TRUE)) %>%
-  print()
-
-## Compare to alternate specifications with winsorization of outliers
-## a) Winsorize long rotations
-rw_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) /
-  sum(mai_df$ha_y_rw, na.rm = TRUE)) %>%
-  print()
-
-## b) Use adjusted volumes based on Winsorized versions of excessively large DMAIs
-(sum(nona_mai_df$volume_winsorized, na.rm = TRUE) /
-  sum(nona_mai_df$ha_y, na.rm = TRUE)) %>%
-  print()
-
-
 ## Calculate annual MAI in the sector
 year_mai <- mai_df %>%
   group_by(harvest_year) %>%
@@ -197,41 +171,6 @@ year_mai <- mai_df %>%
   ) %>%
   mutate(year_mai = volume_m3 / ha_y, ln_mai = log(year_mai)) %>%
   print()
-
-
-## MAI plots
-nona_mai_df %>%
-  ggplot(aes(x = mai_winsorized)) +
-  geom_histogram(bins = 20) +
-  geom_vline(xintercept = sector_mai, linetype = "longdash") +
-  theme_bw() +
-  xlab("Mean annual increment (m3 / ha / y)") +
-  ylab("Frequency")
-
-year_mai %>%
-  ggplot(aes(x = harvest_year, y = ha_y)) +
-  geom_line() +
-  theme_bw(base_size = 16) +
-  xlab("Harvest year") +
-  ylab("Total area harvested (ha)") +
-  ylim(c(0, 2700000))
-
-year_mai %>%
-  ggplot(aes(x = harvest_year, y = volume_m3)) +
-  geom_line() +
-  theme_bw(base_size = 16) +
-  xlab("Harvest year") +
-  ylab("Total volume produced (m3)") +
-  ylim(c(0, 50000000))
-
-year_mai %>%
-  ggplot(aes(x = harvest_year, y = year_mai)) +
-  geom_line() +
-  theme_bw() +
-  xlab("Harvest year") +
-  ylab("Mean annual increment (m3/ha/y)") +
-  ylim(c(0, 32)) +
-  geom_smooth(method = "lm")
 
 mai_2021 <- year_mai %>%
   filter(harvest_year == 2021) %>%
@@ -259,14 +198,6 @@ hti_mai %>% write_csv(paste0(wdir, data_dir, "/02_out/tables/hti_mai.csv"))
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Regressions to describe trends in MAI -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-grow_yield <- function(current_mai, growth_rate, nyears) {
-  yield_growth <- growth_rate + 1
-  future_mai <- (yield_growth^nyears) * current_mai
-  return(future_mai)
-}
-
-nyears <- 10
-
 nona_mai_df <- nona_mai_df %>%
   mutate(
     outlier = dmai != mai_winsorized,
@@ -302,7 +233,6 @@ nocntrl_mod <- feols(
   data = nona_mai_df
 )
 summary(nocntrl_mod)
-grow_yield(sector_mai, coef(nocntrl_mod)["harvest_year"], nyears)
 
 base_mod <- feols(
   as.formula(paste0("ln_mai_w ~", controls, " + harvest_year | Supplier")),
@@ -310,7 +240,6 @@ base_mod <- feols(
   data = nona_mai_df
 )
 summary(base_mod)
-ci <- confint(base_mod, "harvest_year", level = 0.95) %>% print()
 
 
 trim_mod <- feols(
@@ -337,8 +266,6 @@ rw_mod <- feols(
   data = nona_mai_df
 )
 summary(rw_mod)
-rw_mai
-grow_yield(rw_mai, coef(rw_mod)["harvest_year"], nyears)
 
 if_mod <- feols(
   as.formula(paste("ln_if ~", controls, "+ harvest_year | Supplier")),
@@ -346,8 +273,6 @@ if_mod <- feols(
   data = nona_mai_df
 )
 summary(if_mod)
-if_mai
-grow_yield(if_mai, coef(if_mod)["harvest_year"], nyears)
 
 hf_mod <- feols(
   as.formula(paste("ln_hf ~", controls, "+ harvest_year | Supplier")),
@@ -355,8 +280,6 @@ hf_mod <- feols(
   data = nona_mai_df
 )
 summary(hf_mod)
-hf_mai
-grow_yield(hf_mai, coef(hf_mod)["harvest_year"], nyears)
 
 models <- list(
   "(1)" = ols_mod,
