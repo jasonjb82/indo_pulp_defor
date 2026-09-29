@@ -14,9 +14,6 @@ library(tidyverse)
 library(fixest)
 library(janitor)
 library(modelsummary)
-library(patchwork)
-library(sf)
-library(testthat)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -42,8 +39,7 @@ risi_prices <- readxl::read_excel(
   select(
     date,
     indo_net_price = fp_plp_0045,
-    sa_net_price = fp_plp_0056,
-    nasc_net_price = fp_plp_0053
+    sa_net_price = fp_plp_0056
   )
 
 # WRQ data on pulpwood prices (USD/m3).
@@ -139,20 +135,18 @@ risi_prices_annual <- risi_prices %>%
   group_by(year, month) %>%
   summarize(
     indo_net_price = mean(indo_net_price),
-    sa_net_price = mean(sa_net_price),
-    nasc_net_price = mean(nasc_net_price)
+    sa_net_price = mean(sa_net_price)
   ) %>%
   # filter(year <= 2023 & !is.na(risi_monthly_net_price)) %>%
   group_by(year) %>%
   summarize(
     indo_prices = mean(indo_net_price),
-    sa_prices = mean(sa_net_price),
-    nasc_prices = mean(nasc_net_price)
-  ) %>% # Note - missing a few observations for SA in 2001
-  select(year, sa_prices, indo_prices, nasc_prices) %>%
+    sa_prices = mean(sa_net_price)
+  ) %>%
+  # No na.rm here: a year missing any month yields NA and drops out. This is
+  # what removes 2001 from the Indonesian series, which has no 2001 data at all.
+  select(year, sa_prices, indo_prices) %>%
   filter(!is.na(year)) # drop the empty row produced by undated source rows
-# Note: nasc_prices (North American softwood) is carried through for reference
-# but is not used in any reported model.
 
 # Convert global (or indonesian) pulp prices (RISI) into
 # local pulpwood-equivalent prices (WRQ).
@@ -276,10 +270,6 @@ grid_gaez <- grid_gaez %>%
     other = (class_32_pct + class_33_pct) / 100
   ) %>%
   select(pixel_id, noLimitations, hydromorphic, terrain, other)
-
-# Report out proportions in grouped classes
-grid_gaez %>%
-  summary()
 
 # Recalculate removing "other" class (water and developed)
 grid_gaez <- grid_gaez %>%
@@ -594,81 +584,28 @@ tryCatch(
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# plot basic trends --------------
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# plot sa_prices variable in risi_prices_annual
-# (built for inspection; not printed or saved below)
-price_plot <- ggplot(
-  risi_prices_annual %>% filter(year > 2000, year < 2023),
-  aes(x = year, y = sa_prices_real)
-) +
-  geom_line() +
-  labs(
-    title = "RISI South America Pulp Prices",
-    x = "Year",
-    y = "Real price (million IDR per m3, 2015 base)"
-  ) +
-  theme_minimal()
-
-# plot total deforestation across pixel_id for each year
-# Note: pulp_forest_ha is rescaled to thousand ha for plotting below; the other
-# two area columns are left in hectares and are not currently plotted.
-total_pulp_exp <- defor_df %>%
-  group_by(year) %>%
-  summarize(
-    pulp_forest_ha = sum(pulp_forest_ha, na.rm = TRUE) / 1000,
-    pulp_non_forest_ha = sum(pulp_non_forest_ha, na.rm = TRUE),
-    pulp_exp_ha = sum(pulp_exp_ha, na.rm = TRUE),
-    pot_revenues = mean(pot_revenues, na.rm = TRUE)
-  )
-rev_plot <- ggplot(
-  total_pulp_exp %>% filter(year > 2000, year < 2023),
-  aes(x = year, y = pot_revenues)
-) +
-  geom_line() +
-  labs(
-    title = "Potential returns to pulpwood production",
-    x = "Year",
-    y = "Value (Million IDR)"
-  ) +
-  theme_minimal() +
-  ylim(0, 12)
-
-
-defor_plot <- ggplot(
-  total_pulp_exp %>% filter(year > 2000, year < 2023),
-  aes(x = year, y = pulp_forest_ha)
-) +
-  geom_line() +
-  labs(
-    title = "Total Pulp Deforestation by Year",
-    x = "Year",
-    y = "Pulp-driven deforestation (thousand ha)"
-  ) +
-  theme_minimal()
-rev_plot / defor_plot
-
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Interpretation - text in SI --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # How big of an impact does an increase in prices have?
-# every 1000 IDR increase in potential returns (XX% increase relative to mean)
-# leads to an XX hectare increase in pulp-driven deforestation (XX% increase relative to mean)
+# SI 5.3: "every 1,000,000 IDR increase in potential returns (12% increase
+# relative to mean) leads to an 0.89 hectare increase in pulp-driven
+# deforestation in a grid cell." pot_revenues is in million IDR, so the first
+# figure is 1 / mean(pot_revenues) and the second is the Column 1 coefficient.
 1 / (defor_df$pot_revenues %>% mean())
 mod_1$coefficients[1]
-mod_1$coefficients[1] / (defor_df$pulp_forest_ha %>% mean())
 
 
-# Percent of decline in deforestation between 2011 and 2017 explained by price deviation
-# Price change
+# SI 5.3 notes that pulp-driven deforestation peaked in 2011 and bottomed in
+# 2017, yet potential returns were slightly HIGHER in 2017 than in 2011.
+# (This previously compared 2011 with 2016, which does not support that claim:
+# returns in 2016 were below those in 2011.)
 pot_returns_2011 <- defor_df %>%
   filter(year == 2011) %>%
   pull(pot_revenues) %>%
   mean() %>%
   print()
-pot_returns_2016 <- defor_df %>%
-  filter(year == 2016) %>%
+pot_returns_2017 <- defor_df %>%
+  filter(year == 2017) %>%
   pull(pot_revenues) %>%
   mean() %>%
   print()
@@ -750,38 +687,11 @@ cap_usage_trend <- mill_prod %>%
   mutate(cap_usage = prod / cap) %>%
   rename(year = YEAR)
 
-mill_prod %>%
-  filter(!(MILL_ID == "M-0003" & YEAR < 2019), MILL_ID != "M-0007") %>%
-  mutate(all = 1) %>%
-  group_by(all) %>%
-  summarize(cap = sum(PULP_CAP_MTPY), prod = sum(prod_mtpy)) %>%
-  mutate(cap_usage = prod / cap)
-
 cap_usage_trend <- cap_usage_trend %>%
   left_join(
     risi_prices_annual %>% select(year, indo_prices_real_idr),
     by = 'year'
   )
-
-cap_usage_plot <- cap_usage_trend %>%
-  ggplot(aes(x = year, y = cap_usage)) +
-  geom_line() +
-  scale_x_continuous(breaks = scales::breaks_width(1), minor_breaks = NULL) +
-  ylim(0, 1.2) +
-  theme_bw() +
-  xlab("Year") +
-  ylab("Capacity utilization rate (percent)")
-
-price_trend_plot <- cap_usage_trend %>%
-  ggplot(aes(x = year, y = indo_prices_real_idr)) +
-  geom_line() +
-  scale_x_continuous(breaks = scales::breaks_width(1), minor_breaks = NULL) +
-  ylim(0, NA) +
-  theme_bw() +
-  xlab("Year") +
-  ylab("Indonesian pulp prices\n(constant 2015 million IDR per tonne)")
-
-cap_usage_plot / price_trend_plot
 
 # Statistics reported in SI Section 4.2
 cat(
