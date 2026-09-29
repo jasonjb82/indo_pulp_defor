@@ -66,19 +66,15 @@ wrq_prices <- wrq_prices %>%
   filter(year %in% keep_years) %>%
   summarize(wrq_indo_prices = mean(indonesia, na.rm = TRUE))
 
-# FRED data on IDR to USD exchange rate (to convert global prices to local currency)
-fred_idr_usd <- read_csv(paste0(
+# IDR to USD exchange rate, used to convert global prices to local currency.
+# World Bank official rate (PA.NUS.FCRF, LCU per US$, period average), covering
+# 2000-2024.
+idr_usd_annual <- read_csv(paste0(
   wdir,
   data_dir,
-  "/01_in/tables/FRED_CCUSSP02IDM650N.csv"
+  "/01_in/tables/idr_usd_annual_worldbank.csv"
 )) %>%
-  mutate(
-    date = as.Date(observation_date, format = "%d/%m/%Y"),
-    year = year(date)
-  ) %>%
-  group_by(year) %>%
-  summarize(idr_usd = mean(CCUSSP02IDM650N, na.rm = TRUE)) %>%
-  filter(year > 1999, year < 2023)
+  filter(year > 1999)
 
 # FRED data on Indonesian CPI (to adjust for inflation, reference year = 2015)
 fred_idn_cpi <- read_csv(paste0(
@@ -198,7 +194,7 @@ risi_prices_annual <- risi_prices_annual %>%
 
 # Convert currency
 risi_prices_annual <- risi_prices_annual %>%
-  left_join(fred_idr_usd, by = "year") %>%
+  left_join(idr_usd_annual, by = "year") %>%
   mutate(
     sa_prices_idr = sa_prices_remap * idr_usd / 1000000, # Convert from USD to million IDR
     indo_prices_idr = indo_prices_remap * idr_usd / 1000000,
@@ -211,7 +207,11 @@ risi_prices_annual <- risi_prices_annual %>%
   mutate(
     sa_prices_real = sa_prices_idr / idn_cpi * 100, # Adjust for inflation - reference year is 2015
     indo_prices_real = indo_prices_idr / idn_cpi * 100,
-    indo_prices_real_usd = indo_prices / idn_cpi * 100,
+    # Real Indonesian pulp price: convert the USD/tonne price to IDR at the
+    # market rate, then deflate by Indonesian CPI (2015 = 100). This measures
+    # the domestic purchasing power of mill revenue, which is the price a
+    # producer's capacity decision responds to.
+    indo_prices_real_idr = indo_prices * idr_usd / 1e6 / idn_cpi * 100,
     wrq_prices_real = wrq_prices_idr / idn_cpi * 100,
     sa_prices_dev = (sa_prices_remap -
       zoo::rollmean(sa_prices_remap, k = 5, fill = NA, align = "right")) /
@@ -415,6 +415,12 @@ summary(mod_4)
 # Generate summary table (SI Table 9)  --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+# Suppress modelsummary's automatic significance note: the thresholds are
+# already stated in the table notes below, matching the published SI. Note this
+# is a global option in modelsummary >= 2.4.0; the old stars_note argument is
+# silently ignored.
+options(modelsummary_stars_note = FALSE)
+
 ### Format summary table
 # glance_custom.fixest injects n_clusters into modelsummary's GOF machinery
 glance_custom.fixest <- function(x, ...) {
@@ -423,9 +429,16 @@ glance_custom.fixest <- function(x, ...) {
 
 # gof_map: Num.Obs. then Num. Clusters; FE rows excluded
 gof_map_defor <- tribble(
-  ~raw         , ~clean          , ~fmt ,
-  "nobs"       , "Num.Obs."      ,    0 ,
-  "n_clusters" , "Num. Clusters" ,    0
+  ~raw         , ~clean            , ~fmt ,
+  "nobs"       , "N. Observations" ,    0 ,
+  "n_clusters" , "N. Clusters"     ,    0
+)
+
+# SI Table 10 prints the same two labels in lower case
+gof_map_robust <- tribble(
+  ~raw         , ~clean            , ~fmt ,
+  "nobs"       , "N. observations" ,    0 ,
+  "n_clusters" , "N. clusters"     ,    0
 )
 
 # Custom summary table
@@ -438,11 +451,17 @@ tbl_args <- list(
   coef_omit = "^(?!.*revenues)",
   coef_rename = c(
     "pot_revenues" = "Potential revenues",
-    "post_2015FALSE" = "y<=2015",
-    "post_2015TRUE" = "y>2015"
+    "post_2015FALSE:pot_revenues" = "Potential revenues (y<=2015)",
+    "post_2015TRUE:pot_revenues" = "Potential revenues (y>2015)"
   ),
   gof_map = gof_map_defor,
-  notes = "Standard errors clustered by concession. * p < 0.1, ** p < 0.05, *** p < 0.01",
+  # Clustering is on kec_code (district), not concession -- the previous note
+  # said "concession", which the published SI does not.
+  notes = paste(
+    "All models include grid cell and year fixed effects.",
+    "Standard errors clustered by district (kecamatan) in parentheses.",
+    "* p < 0.1, ** p < 0.05, *** p < 0.01"
+  ),
   shape = "cbind"
 )
 
@@ -450,7 +469,11 @@ do.call(msummary, tbl_args) # display
 # Writing .docx requires pandoc. Guard the call so a missing pandoc cannot halt
 # the script: everything below, including SI Figure 3 and the SI Section 4.2
 # capacity-utilisation statistics, sits downstream of this call.
-defor_elast_main_docx <- paste0(wdir, data_dir, "/04_results/tables/defor_elast_main.docx")
+defor_elast_main_docx <- paste0(
+  wdir,
+  data_dir,
+  "/04_results/tables/defor_elast_main.docx"
+)
 tryCatch(
   do.call(msummary, c(tbl_args, list(output = defor_elast_main_docx))),
   error = function(e) {
@@ -521,32 +544,41 @@ rmod_4 <- feols(
 summary(rmod_4)
 
 
-# Variable labels
-rows <- tribble(
-  ~term                      , ~a  , ~b  , ~c  , ~d  , ~e  ,
-  'Productivity time trends' , 'X' , 'X' , 'X' , 'X' , 'X' ,
-  'Province time trends'     , 'X' , 'X' , 'X' , 'X' , 'X'
-)
-attr(rows, 'position') <- c(10, 11)
-
-
 # Custom summary table
+# Column titles follow the published SI Table 10. Each model sits in its own
+# named group so the table carries both the descriptive header and the column
+# number, matching the published layout.
 rtbl_args <- list(
-  list(rmod_0, rmod_1, rmod_2, rmod_3, rmod_4),
+  list(
+    "Primary spec." = list("(1)" = rmod_0),
+    "Control for suitability time-trend" = list("(2)" = rmod_1),
+    "Lagged returns" = list("(3)" = rmod_2),
+    "Price shocks" = list("(4)" = rmod_3),
+    "Indonesian price series" = list("(5)" = rmod_4)
+  ),
   stars = c('*' = .1, '**' = .05, '***' = .01),
   coef_omit = "^(?!.*revenues)",
   coef_rename = c(
-    "pot_revenues_r" = "Potential revenues",
-    "post_2015FALSE" = "y<=2015",
-    "post_2015TRUE" = "y>2015"
+    "post_2015FALSE:pot_revenues_r" = "Potential revenues (y<=2015)",
+    "post_2015TRUE:pot_revenues_r" = "Potential revenues (y>2015)"
   ),
-  gof_omit = "R2|Adj|Within|Pseudo|Log|AIC|BIC|RMSE|FE" # remove R2, fit stats, and FE indicators
+  gof_map = gof_map_robust,
+  notes = paste(
+    "All models include grid cell and year fixed effects.",
+    "Standard errors clustered by district (kecamatan) in parentheses.",
+    "* p < 0.1, ** p < 0.05, *** p < 0.01"
+  ),
+  shape = "cbind"
 )
 
 do.call(msummary, rtbl_args) # display
 # Writing .docx requires pandoc. Guard the call so a missing pandoc cannot halt
 # the script: the plots and SI statistics below sit downstream of this call.
-defor_elast_robust_docx <- paste0(wdir, data_dir, "/04_results/tables/defor_elast_robust.docx")
+defor_elast_robust_docx <- paste0(
+  wdir,
+  data_dir,
+  "/04_results/tables/defor_elast_robust.docx"
+)
 tryCatch(
   do.call(msummary, c(rtbl_args, list(output = defor_elast_robust_docx))),
   error = function(e) {
@@ -728,7 +760,7 @@ mill_prod %>%
 
 cap_usage_trend <- cap_usage_trend %>%
   left_join(
-    risi_prices_annual %>% select(year, indo_prices_real_usd),
+    risi_prices_annual %>% select(year, indo_prices_real_idr),
     by = 'year'
   )
 
@@ -742,23 +774,41 @@ cap_usage_plot <- cap_usage_trend %>%
   ylab("Capacity utilization rate (percent)")
 
 price_trend_plot <- cap_usage_trend %>%
-  ggplot(aes(x = year, y = indo_prices_real_usd)) +
+  ggplot(aes(x = year, y = indo_prices_real_idr)) +
   geom_line() +
   scale_x_continuous(breaks = scales::breaks_width(1), minor_breaks = NULL) +
-  ylim(0, 700) +
+  ylim(0, NA) +
   theme_bw() +
   xlab("Year") +
-  ylab("Indonesian pulp prices\n(year 2023 USD per tonne)")
+  ylab("Indonesian pulp prices\n(constant 2015 million IDR per tonne)")
 
 cap_usage_plot / price_trend_plot
 
-cap_usage_trend$indo_prices_real_usd %>% mean()
-cap_usage_trend$indo_prices_real_usd %>% min()
-cap_usage_trend$indo_prices_real_usd %>% max()
-cap_usage_trend$indo_prices_real_usd %>% sd()
-
-cap_usage_trend$cap_usage %>% mean()
-cap_usage_trend$cap_usage %>% min()
-cap_usage_trend$cap_usage %>% max()
-cap_usage_trend$cap_usage %>% sd()
-cap_usage_trend$cap_usage %>% sd() / cap_usage_trend$cap_usage %>% mean()
+# Statistics reported in SI Section 4.2
+cat(
+  "\nSI Section 4.2 -- years",
+  min(cap_usage_trend$year),
+  "to",
+  max(cap_usage_trend$year),
+  "\n"
+)
+cat(sprintf(
+  "  Capacity utilization: mean=%.0f%%  min=%.0f%%  max=%.0f%%  sd=%.0f%%\n",
+  100 * mean(cap_usage_trend$cap_usage),
+  100 * min(cap_usage_trend$cap_usage),
+  100 * max(cap_usage_trend$cap_usage),
+  100 * sd(cap_usage_trend$cap_usage)
+))
+cat(sprintf(
+  "  Real pulp price (constant 2015 million IDR/tonne): mean=%.2f  min=%.2f  max=%.2f  sd=%.2f\n",
+  mean(cap_usage_trend$indo_prices_real_idr),
+  min(cap_usage_trend$indo_prices_real_idr),
+  max(cap_usage_trend$indo_prices_real_idr),
+  sd(cap_usage_trend$indo_prices_real_idr)
+))
+cat(sprintf(
+  "  Coefficient of variation: utilization=%.3f  price=%.3f\n",
+  sd(cap_usage_trend$cap_usage) / mean(cap_usage_trend$cap_usage),
+  sd(cap_usage_trend$indo_prices_real_idr) /
+    mean(cap_usage_trend$indo_prices_real_idr)
+))
