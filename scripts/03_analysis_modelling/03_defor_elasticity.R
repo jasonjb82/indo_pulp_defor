@@ -3,7 +3,8 @@
 # Project: Indonesia pulp deforestation
 # Date: 6-2-2025
 # Purpose: Estimate the deforestation elasticity. Largely the foundation
-#   for SI section 5, but also includes some stats reported in SI Section 4.
+#   for SI section 5, but also includes some stats on pulp price trends
+#   reported in a single sentence in SI Section 4.2.
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -240,10 +241,20 @@ defor_df <- defor_df %>%
 # Re-assign GAEZ into aggregated classes.
 # NOTE on class 2: the HTI aggregation folds GAEZ classes 2, 3 and 6 into
 # "noLimitations", while the grid aggregation below uses only classes 3 and 6.
-# This asymmetry is not an omission. gaez_grid_share.csv has no class_2_pct
-# column because no class-2 land falls within the 10 km grid -- its class
-# percentages already sum to 100 -- and class 2 is 0.67% of HTI area. The two
-# definitions therefore differ on paper but describe the same land in the data.
+# The asymmetry is real, and follows from the two extractions covering
+# different geographies:
+#   - The 10 km grid spans Sumatra and Kalimantan only (all 15 provinces in
+#     grid_10km_adm_prov_kab_kec.csv), not the whole of Indonesia. HTI
+#     concessions are therefore NOT a subset of the grid.
+#   - GAEZ class 2 ("Tropics, lowland; sub-humid") occurs in the drier
+#     southeast. In our data it appears only in five Nusa Tenggara concessions
+#     (75,330 ha; 0.67% of HTI area) and in no grid cell at all: class 2 is NA
+#     for all 11,712 pixels of the raw GEE extraction, so the pivot_wider in
+#     18_gaez_classes_hti_centroids.R never creates a class_2_pct column.
+# The shorter grid formula therefore misallocates no grid area, and pot_mai is
+# unaffected. It does mean the regression is trained on concessions containing
+# a land class the prediction domain cannot contain, so the training and
+# prediction populations are not identical.
 hti_gaez <- hti_gaez %>%
   mutate(
     class_noLimitations = class_2 + class_3 + class_6, # tropic lowlands; sub-humid tropic lowlands; humid topic highlands
