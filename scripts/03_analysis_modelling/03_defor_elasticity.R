@@ -5,6 +5,61 @@
 # Purpose: Estimate the deforestation elasticity. Largely the foundation
 #   for SI section 5, but also includes some stats on pulp price trends
 #   reported in a single sentence in SI Section 4.2.
+#
+# Input datasets (paths relative to remote/01_data/)
+#        1) 02_out/tables/tbl_long_pulp_clearing_gfc_forest.csv: Annual
+#               pulp-driven deforestation and other pulp expansion by 10 km
+#               grid cell, 2001-2022. The estimation panel.
+#               Produced by scripts/02_data_preparation/16_create_long_data_10km_gc.R
+#        2) 02_out/tables/grid_10km_adm_prov_kab_kec.csv: Province, kabupaten
+#               and kecamatan labels per grid cell. Supplies the kecamatan
+#               used for clustering. Note the grid spans Sumatra and
+#               Kalimantan only, not all of Indonesia.
+#               Produced by scripts/02_data_preparation/16_create_long_data_10km_gc.R
+#        3) 01_in/wwi/Fastmarkets_2025_01_14-103617.xlsx: RISI/Fastmarkets
+#               monthly bleached hardwood kraft pulp prices (nominal USD per
+#               tonne) for Indonesia and South America. The Indonesian series
+#               has no observations before May 2001.
+#        4) 01_in/wwi/WRQ_pulpwood_prices.xlsx: WRQ pulpwood prices (USD/m3),
+#               used only to rescale the pulp price series into pulpwood-
+#               equivalent units for interpretability.
+#        5) 01_in/tables/idr_usd_annual_worldbank.csv: IDR per USD, annual
+#               period average (World Bank PA.NUS.FCRF), 2000-2024. Replaces
+#               the OECD series FRED CCUSSP02IDM650N, which ends in 2023.
+#        6) 01_in/tables/FRED_IDNCPIALLAINMEI.csv: Indonesian consumer price
+#               index, 2015 = 100, used to deflate prices.
+#        7) 02_out/tables/gaez_hti_areas.csv and 02_out/tables/gaez_grid_share.csv:
+#               Agro-ecological zone composition of concessions (areas, ha) and
+#               of grid cells (percentages).
+#               Produced by scripts/02_data_preparation/18_gaez_classes_hti_centroids.R
+#        8) 02_out/tables/hti_mai.csv: Concession-level delivered mean annual
+#               increment, used with the AEZ shares to predict potential
+#               productivity per grid cell.
+#               Produced by scripts/03_analysis_modelling/02_calc_mai.R
+#        9) 01_in/wwi/MILLS_EXPORTERS_20200405.xlsx and
+#               01_in/wwi/MILL_PRODUCTION_2015_2024.xlsx: Mill pulp capacity
+#               and annual production, used for the capacity-utilisation
+#               statistics reported in SI Section 4.2.
+#
+# Outputs:
+#        1) SI Table 8: Equation 8 coefficients relating delivered mean annual
+#               increment to agro-ecological zone shares. Written to
+#               04_results/tables/si_table8_aez_productivity.csv
+#        2) SI Table 9: Responsiveness of pulp-driven deforestation to
+#               potential returns. Printed to the console and written to
+#               04_results/tables/defor_elast_main.docx
+#        3) SI Table 10: Robustness tests of that responsiveness. Printed to
+#               the console and written to
+#               04_results/tables/defor_elast_robust.docx
+#               Both .docx writes need pandoc; the calls are guarded so a
+#               missing pandoc only warns.
+#        4) SI Figure 3: Observed pulp-driven deforestation against the
+#               deforestation predicted by price variation alone. Written to
+#               04_results/figures/SI_f3_elasticity.png
+#        5) SI Sections 4.2, 5.2 and 5.3 text statements: The numeric claims
+#               made in those sections, reproduced in their sentence context
+#               with values interpolated from this run. Printed to the console
+#               and written to 04_results/si_sections4_5_statements.txt
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -292,12 +347,12 @@ hti_gaez <- hti_gaez %>%
 hti_gaez <- hti_gaez %>%
   group_by(supplier_id)
 
-# Report out proportions in grouped classes (included in supplement)
-hti_gaez %>%
+# Report out proportions in grouped classes (quoted in SI Section 5.2)
+aez_shares <- hti_gaez %>%
   group_by(class) %>%
   summarize(area_ha = sum(area_ha, na.rm = TRUE)) %>%
-  mutate(prop_area = area_ha / sum(area_ha, na.rm = TRUE)) %>%
-  print()
+  mutate(prop_area = area_ha / sum(area_ha, na.rm = TRUE))
+print(aez_shares)
 
 hti_gaez <- hti_gaez %>%
   filter(class != "other") %>%
@@ -456,8 +511,7 @@ tbl_args <- list(
 
 do.call(msummary, tbl_args) # display
 # Writing .docx requires pandoc. Guard the call so a missing pandoc cannot halt
-# the script: everything below, including SI Figure 3 and the SI Section 4.2
-# capacity-utilisation statistics, sits downstream of this call.
+# the script.
 defor_elast_main_docx <- paste0(
   wdir,
   data_dir,
@@ -693,31 +747,137 @@ cap_usage_trend <- cap_usage_trend %>%
     by = 'year'
   )
 
-# Statistics reported in SI Section 4.2
-cat(
-  "\nSI Section 4.2 -- years",
-  min(cap_usage_trend$year),
-  "to",
-  max(cap_usage_trend$year),
-  "\n"
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Reproduce the numeric claims made in the SI -----------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Prints each statement from the SI that depends on this script, with its
+## numbers interpolated live, and writes the same text to 04_results.
+## Reproducing the sentences in context makes it straightforward to check the
+## manuscript against the analysis, and any change in the underlying data
+## surfaces directly in the wording below.
+
+aez_pct <- function(cls) {
+  100 * aez_shares$prop_area[aez_shares$class == cls]
+}
+# SI 5.3 describes the peak and trough "over the past 15 years", i.e. the last
+# 15 years of the panel. The window matters: 2004 is the all-time peak of the
+# 2001-2022 series (137.1 kha), so over the full panel the peak is 2004 rather
+# than the 2011 the SI reports. From 2005 onward the peak is 2011 (105.7 kha).
+recent_window_start <- max(total_pulp_defor$year) - 14
+defor_by_year <- total_pulp_defor %>%
+  filter(year >= recent_window_start)
+peak_year <- defor_by_year$year[which.max(defor_by_year$pulp_forest_ha_true)]
+trough_year <- defor_by_year$year[which.min(defor_by_year$pulp_forest_ha_true)]
+returns_in <- function(y) {
+  total_pulp_defor$pot_revenues[total_pulp_defor$year == y]
+}
+
+si_para <- function(...) c(strwrap(sprintf(...), width = 78), "")
+
+si_text <- c(
+  "SI SECTIONS 4.2 AND 5: DEFORESTATION ELASTICITY",
+  strrep("=", 78),
+  paste(
+    "Generated by scripts/03_analysis_modelling/03_defor_elasticity.R on",
+    Sys.Date()
+  ),
+  "",
+  "4.2 Projected increases in pulpwood demand",
+  strrep("-", 78),
+  si_para(
+    paste(
+      "Between %d and %d, sector-wide capacity utilization rates remained",
+      "stable and high (mean = %.0f percent; minimum = %.0f percent; maximum =",
+      "%.0f percent; standard deviation = %.0f percent), despite much larger",
+      "fluctuations in real pulp prices (mean = %.2f million IDR/tonne;",
+      "minimum = %.2f million IDR/tonne; maximum = %.2f million IDR/tonne;",
+      "standard deviation = %.2f million IDR/tonne). Prices are expressed in",
+      "constant 2015 Indonesian rupiah, converting the reported USD price",
+      "series at the annual average market exchange rate and deflating by the",
+      "Indonesian consumer price index. Relative to their means, prices varied",
+      "more than three times as much as capacity utilization (coefficients of",
+      "variation of %.2f and %.2f, respectively)."
+    ),
+    min(cap_usage_trend$year),
+    max(cap_usage_trend$year),
+    100 * mean(cap_usage_trend$cap_usage),
+    100 * min(cap_usage_trend$cap_usage),
+    100 * max(cap_usage_trend$cap_usage),
+    100 * sd(cap_usage_trend$cap_usage),
+    mean(cap_usage_trend$indo_prices_real_idr),
+    min(cap_usage_trend$indo_prices_real_idr),
+    max(cap_usage_trend$indo_prices_real_idr),
+    sd(cap_usage_trend$indo_prices_real_idr),
+    sd(cap_usage_trend$indo_prices_real_idr) /
+      mean(cap_usage_trend$indo_prices_real_idr),
+    sd(cap_usage_trend$cap_usage) / mean(cap_usage_trend$cap_usage)
+  ),
+  "5.2 Data sources: agro-ecological zone composition",
+  strrep("-", 78),
+  si_para(
+    paste(
+      "Areas with few limitations for agricultural production represent %.1f%%",
+      "of concession area; areas with hydromorphic soils %.1f%%; areas with",
+      "topographic limitations %.1f%%; and areas that cannot be used for",
+      "pulpwood production due to other land cover %.2f%%. The final class is",
+      "removed from all analyses."
+    ),
+    aez_pct("noLimitations"),
+    aez_pct("hydromorphic"),
+    aez_pct("terrain"),
+    aez_pct("other")
+  ),
+  si_para(
+    paste(
+      "Equation 8 coefficients (SI Table 8) are written to",
+      "04_results/tables/si_table8_aez_productivity.csv."
+    )
+  ),
+  "5.3 Results",
+  strrep("-", 78),
+  si_para(
+    paste(
+      "Every 1,000,000 IDR increase in potential returns (%.0f%% increase",
+      "relative to mean) leads to an %.2f hectare increase in pulp-driven",
+      "deforestation in a grid cell."
+    ),
+    100 / mean(defor_df$pot_revenues, na.rm = TRUE),
+    mod_1$coefficients[["pot_revenues"]]
+  ),
+  si_para(
+    paste(
+      "Over the past 15 years (%d-%d) the highest level of pulp-driven",
+      "deforestation occurred in %d (%.1f thousand ha) and the lowest in %d",
+      "(%.1f thousand ha). However, producers faced slightly higher real",
+      "potential returns in %d (%.2f million IDR) than in %d (%.2f million",
+      "IDR)."
+    ),
+    recent_window_start,
+    max(total_pulp_defor$year),
+    peak_year,
+    max(defor_by_year$pulp_forest_ha_true),
+    trough_year,
+    min(defor_by_year$pulp_forest_ha_true),
+    trough_year,
+    returns_in(trough_year),
+    peak_year,
+    returns_in(peak_year)
+  ),
+  si_para(
+    paste(
+      "Regression results (SI Tables 9 and 10) are written to",
+      "04_results/tables/defor_elast_main.docx and defor_elast_robust.docx;",
+      "SI Figure 3 is written to 04_results/figures/SI_f3_elasticity.png."
+    )
+  )
 )
-cat(sprintf(
-  "  Capacity utilization: mean=%.0f%%  min=%.0f%%  max=%.0f%%  sd=%.0f%%\n",
-  100 * mean(cap_usage_trend$cap_usage),
-  100 * min(cap_usage_trend$cap_usage),
-  100 * max(cap_usage_trend$cap_usage),
-  100 * sd(cap_usage_trend$cap_usage)
-))
-cat(sprintf(
-  "  Real pulp price (constant 2015 million IDR/tonne): mean=%.2f  min=%.2f  max=%.2f  sd=%.2f\n",
-  mean(cap_usage_trend$indo_prices_real_idr),
-  min(cap_usage_trend$indo_prices_real_idr),
-  max(cap_usage_trend$indo_prices_real_idr),
-  sd(cap_usage_trend$indo_prices_real_idr)
-))
-cat(sprintf(
-  "  Coefficient of variation: utilization=%.3f  price=%.3f\n",
-  sd(cap_usage_trend$cap_usage) / mean(cap_usage_trend$cap_usage),
-  sd(cap_usage_trend$indo_prices_real_idr) /
-    mean(cap_usage_trend$indo_prices_real_idr)
-))
+
+cat(si_text, sep = "\n")
+
+si_text_path <- paste0(
+  wdir,
+  data_dir,
+  "/04_results/si_sections4_5_statements.txt"
+)
+writeLines(si_text, si_text_path)
+cat("\nSI statements written to", si_text_path, "\n")
