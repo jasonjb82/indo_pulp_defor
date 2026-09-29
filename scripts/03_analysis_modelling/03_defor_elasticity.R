@@ -91,17 +91,6 @@ fred_idn_cpi <- read_csv(paste0(
   ) %>%
   select(year, idn_cpi = IDNCPIALLAINMEI)
 
-# Transport costs, nominal 2006 USD per tonne. Converted below to real
-# thousand IDR per m3 and joined to defor_df, but not currently used by any
-# reported model.
-trnsprt_cst_df <- read_csv(paste0(
-  wdir,
-  data_dir,
-  "/02_out/tables/centroids_mills_cost.csv"
-)) %>%
-  rename(pixel_id = id) %>%
-  mutate(year = 2006)
-
 # Data about grid cell composition along GAEZ classes
 grid_gaez <- read_csv(paste0(
   wdir,
@@ -228,16 +217,6 @@ risi_prices_annual <- risi_prices_annual %>%
       1000
   ) # Deviation in 1000 USD
 
-# Adjust transport costs for currency and inflation
-trnsprt_cst_df <- trnsprt_cst_df %>%
-  left_join(fred_idr_usd, by = "year") %>%
-  left_join(fred_idn_cpi, by = "year") %>%
-  mutate(
-    cost_kidr_perton = cost_usd_perton * idr_usd / 1000, # Convert from USD to thousand IDR
-    cost_kidr_perton_real = cost_kidr_perton / idn_cpi * 100, # Adjust for inflation, reference year is 2015
-    trnsprt_cost_real = cost_kidr_perton_real / 1.142
-  ) %>% # Convert per tonne to per m3 (assuming 1.142 m3 per tonne); units are real thousand IDR / m3
-  select(pixel_id, trnsprt_cost_real)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # merge datasets --------------
@@ -245,10 +224,6 @@ trnsprt_cst_df <- trnsprt_cst_df %>%
 # Add administrative unit labels
 defor_df <- defor_df %>%
   left_join(grid_admin, by = "pixel_id")
-
-# Join transport cost data to defor_df
-defor_df <- defor_df %>%
-  left_join(trnsprt_cst_df, by = "pixel_id")
 
 # Add total pulp expansion variable
 defor_df <- defor_df %>%
