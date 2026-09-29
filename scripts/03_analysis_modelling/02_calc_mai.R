@@ -1,5 +1,5 @@
 ## ---------------------------------------------------------
-## 
+##
 ## Project: Indonesia pulp deforestation
 ##
 ## Purpose of script:  SI section 3 - Calculate MAI for HTI concessions
@@ -8,21 +8,20 @@
 ## Author: Robert Heilmayr and Jason Jon Benedict
 ##
 ## Date Created: 2022-02-13
-## 
+##
 ## ---------------------------------------------------------
 ##
 ## Input datasets
-##        1) 
+##        1)
 ##
 ##
 ## Outputs:
 ##        1) SI Table 6: Robustness table of DMAI trend regressions
-##        2) 04_results/key_parameters.csv: Table with estimated 
+##        2) 04_results/key_parameters.csv: Table with estimated
 ##               parameters to pass to downstream scripts
 ##        3) Figures for review round 2
 ##
 ## ---------------------------------------------------------
-
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Load packages
@@ -46,7 +45,7 @@ wdir <- "remote"
 data_dir <- "/01_data"
 
 # Harvest data
-harvest_csv <- paste0(wdir,data_dir,"/02_out/tables/hti_harvest_yr.csv")
+harvest_csv <- paste0(wdir, data_dir, "/02_out/tables/hti_harvest_yr.csv")
 harvest_df <- read_csv(harvest_csv)
 
 # Calculate peat percentages
@@ -54,10 +53,14 @@ harvest_df <- harvest_df %>%
   mutate(peat_pct = ha_y_peat / ha_y)
 
 # wood production
-ws_df <- read_csv(paste0(wdir,data_dir,"/02_out/tables/ws_merge_clean_2015_2022.csv")) %>% 
+ws_df <- read_csv(paste0(
+  wdir,
+  data_dir,
+  "/02_out/tables/ws_merge_clean_2015_2022.csv"
+)) %>%
   clean_names() %>%
   filter(year < 2022) %>%
-  group_by(year,supplier_id) %>%
+  group_by(year, supplier_id) %>%
   summarize(volume_m3 = sum(volume_m3)) %>%
   rename(harvest_year = year)
 
@@ -65,22 +68,24 @@ ws_df <- read_csv(paste0(wdir,data_dir,"/02_out/tables/ws_merge_clean_2015_2022.
 ## clean data -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Join datasets
-harvest_df <- harvest_df %>% 
+harvest_df <- harvest_df %>%
   filter(harvest_year >= 2015)
 
-mai_df <- ws_df %>% 
+mai_df <- ws_df %>%
   full_join(harvest_df, by = c("supplier_id", "harvest_year"))
 ## NOTE: We are missing production reports for some harvested concessions, and are missing harvests for some concessions with production data. We dig into the scale of this below
 
 # Clean new merged data
-mai_df <- mai_df %>% 
-  mutate(dmai = volume_m3 / ha_y,
-         dmai_rw = volume_m3 / ha_y_rw,
-         dmai_if = volume_m3 / ha_y_if,
-         dmai_mf = volume_m3 / ha_y_mf,
-         dmai_hf = volume_m3 / ha_y_hf)
+mai_df <- mai_df %>%
+  mutate(
+    dmai = volume_m3 / ha_y,
+    dmai_rw = volume_m3 / ha_y_rw,
+    dmai_if = volume_m3 / ha_y_if,
+    dmai_mf = volume_m3 / ha_y_mf,
+    dmai_hf = volume_m3 / ha_y_hf
+  )
 
-mai_df <- mai_df %>% 
+mai_df <- mai_df %>%
   arrange(supplier_id, harvest_year)
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -99,10 +104,10 @@ mai_df %>%
 
 
 # Confirm that large majority of reported production has associated harvest data
-prod_coverage <- mai_df %>% 
-  mutate(missing_harvests = is.na(ha_y)) %>% 
-  group_by(missing_harvests) %>% 
-  summarise(volume_m3 = sum(volume_m3, na.rm = TRUE)) %>% 
+prod_coverage <- mai_df %>%
+  mutate(missing_harvests = is.na(ha_y)) %>%
+  group_by(missing_harvests) %>%
+  summarise(volume_m3 = sum(volume_m3, na.rm = TRUE)) %>%
   mutate(prop = prop.table(volume_m3)) %>%
   print()
 prod_coverage <- prod_coverage %>%
@@ -111,15 +116,17 @@ prod_coverage <- prod_coverage %>%
 
 
 # Confirm that large majority of reported harvesting has associated production data
-mai_df %>% 
-  mutate(missing_prod = is.na(volume_m3)) %>% 
-  group_by(missing_prod) %>% 
-  summarise(ha_y = sum(ha_y, na.rm = TRUE)) %>% 
+mai_df %>%
+  mutate(missing_prod = is.na(volume_m3)) %>%
+  group_by(missing_prod) %>%
+  summarise(ha_y = sum(ha_y, na.rm = TRUE)) %>%
   mutate(prop = prop.table(ha_y))
 
 # Two possibilities for missing harvest / production data. Show these yield similar estimates of DMAI
 # a) if they're both accurate, but assigned to different concessions. Sector MAI should just include them both in the numerator and denominator:
-sector_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y, na.rm = TRUE)) %>% print()
+sector_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) /
+  sum(mai_df$ha_y, na.rm = TRUE)) %>%
+  print()
 
 # b) if they're invalid, all should be dropped from sectoral calculations
 # Restrict to rows with both volume and harvest area (needed to compute DMAI); weather NAs handled within regressions
@@ -132,22 +139,24 @@ nona_mai_df <- mai_df %>%
 ## Winsorize individual MAIs -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Winsorize MAI
-# From Hardiyanto et al., 2023: The best treatment (comprising low impact harvesting, removal of only merchantable stem wood, conservation of organic matter, planting with improved germplasm, weed control and application of P at planting), yielded an MAI of 52.5 m3 ha-1 y-1, one of the highest growth rates reported for 230 tropical plantations (Nambiar, 2008).
+# From Hardiyanto et al., 2024: The best treatment (comprising low impact harvesting, removal of only merchantable stem wood, conservation of organic matter, planting with improved germplasm, weed control and application of P at planting), yielded an MAI of 52.5 m3 ha-1 y-1, one of the highest growth rates reported for 230 tropical plantations (Nambiar, 2008).
 mai_limit <- 52.5
-winsorize_mai <- function(mai){
+winsorize_mai <- function(mai) {
   max_mai <- mai_limit
-  if(mai > max_mai){
+  if (mai > max_mai) {
     mai <- max_mai
   }
   return(mai)
 }
 
-nona_mai_df <- nona_mai_df %>% 
-  mutate(mai_winsorized  = map_dbl(dmai, winsorize_mai),
-         volume_winsorized = mai_winsorized * ha_y,
-         dmai_rw = map_dbl(dmai_rw, winsorize_mai),
-         dmai_if = map_dbl(dmai_if, winsorize_mai),
-         dmai_hf = map_dbl(dmai_hf, winsorize_mai))
+nona_mai_df <- nona_mai_df %>%
+  mutate(
+    mai_winsorized = map_dbl(dmai, winsorize_mai),
+    volume_winsorized = mai_winsorized * ha_y,
+    dmai_rw = map_dbl(dmai_rw, winsorize_mai),
+    dmai_if = map_dbl(dmai_if, winsorize_mai),
+    dmai_hf = map_dbl(dmai_hf, winsorize_mai)
+  )
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -158,31 +167,40 @@ print(sector_mai)
 
 ## Compare to alternate specifications with different treatments of burned areas:
 ## a) Ignore all fire labels (keep all harvest blocks in dataset)
-if_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y_if, na.rm = TRUE)) %>% print()
+if_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) /
+  sum(mai_df$ha_y_if, na.rm = TRUE)) %>%
+  print()
 
 ## c) Drop all blocks with any recorded fires
-hf_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y_hf, na.rm = TRUE)) %>% print()
+hf_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) /
+  sum(mai_df$ha_y_hf, na.rm = TRUE)) %>%
+  print()
 
 ## Compare to alternate specifications with winsorization of outliers
 ## a) Winsorize long rotations
-rw_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) / sum(mai_df$ha_y_rw, na.rm = TRUE)) %>% print()
+rw_mai <- (sum(mai_df$volume_m3, na.rm = TRUE) /
+  sum(mai_df$ha_y_rw, na.rm = TRUE)) %>%
+  print()
 
 ## b) Use adjusted volumes based on Winsorized versions of excessively large DMAIs
-(sum(nona_mai_df$volume_winsorized, na.rm = TRUE) / sum(nona_mai_df$ha_y, na.rm = TRUE)) %>% print()
+(sum(nona_mai_df$volume_winsorized, na.rm = TRUE) /
+  sum(nona_mai_df$ha_y, na.rm = TRUE)) %>%
+  print()
 
 
 ## Calculate annual MAI in the sector
-year_mai <- mai_df %>% 
-  group_by(harvest_year) %>% 
-  summarise(ha_y = sum(ha_y, na.rm = TRUE),
-            volume_m3 = sum(volume_m3, na.rm = TRUE)) %>% 
-  mutate(year_mai = volume_m3 / ha_y,
-         ln_mai = log(year_mai)) %>% 
+year_mai <- mai_df %>%
+  group_by(harvest_year) %>%
+  summarise(
+    ha_y = sum(ha_y, na.rm = TRUE),
+    volume_m3 = sum(volume_m3, na.rm = TRUE)
+  ) %>%
+  mutate(year_mai = volume_m3 / ha_y, ln_mai = log(year_mai)) %>%
   print()
 
 
 ## MAI plots
-nona_mai_df %>% 
+nona_mai_df %>%
   ggplot(aes(x = mai_winsorized)) +
   geom_histogram(bins = 20) +
   geom_vline(xintercept = sector_mai, linetype = "longdash") +
@@ -190,52 +208,58 @@ nona_mai_df %>%
   xlab("Mean annual increment (m3 / ha / y)") +
   ylab("Frequency")
 
-year_mai %>% 
+year_mai %>%
   ggplot(aes(x = harvest_year, y = ha_y)) +
   geom_line() +
-  theme_bw(base_size = 16) + 
+  theme_bw(base_size = 16) +
   xlab("Harvest year") +
   ylab("Total area harvested (ha)") +
   ylim(c(0, 2700000))
 
-year_mai %>% 
+year_mai %>%
   ggplot(aes(x = harvest_year, y = volume_m3)) +
   geom_line() +
-  theme_bw(base_size = 16) + 
+  theme_bw(base_size = 16) +
   xlab("Harvest year") +
   ylab("Total volume produced (m3)") +
-  ylim(c(0, 45000000))
+  ylim(c(0, 50000000))
 
-year_mai %>% 
+year_mai %>%
   ggplot(aes(x = harvest_year, y = year_mai)) +
   geom_line() +
-  theme_bw() + 
+  theme_bw() +
   xlab("Harvest year") +
   ylab("Mean annual increment (m3/ha/y)") +
   ylim(c(0, 32)) +
   geom_smooth(method = "lm")
 
-mai_2021 <- year_mai %>% filter(harvest_year == 2021) %>% pull(year_mai) %>% print()
+mai_2021 <- year_mai %>%
+  filter(harvest_year == 2021) %>%
+  pull(year_mai) %>%
+  print()
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Calculate hti-level average MAI -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-hti_mai <- mai_df %>% 
-  group_by(supplier_id) %>% 
-  summarise(volume_m3 = sum(volume_m3, na.rm = TRUE),
-            ha_y = sum(ha_y, na.rm = TRUE)) %>% 
-  filter(volume_m3 > 0,
-         ha_y > 0) %>% 
-  mutate(dmai = volume_m3 / ha_y,
-         dmai_winsorized  = map_dbl(dmai, winsorize_mai))
+hti_mai <- mai_df %>%
+  group_by(supplier_id) %>%
+  summarise(
+    volume_m3 = sum(volume_m3, na.rm = TRUE),
+    ha_y = sum(ha_y, na.rm = TRUE)
+  ) %>%
+  filter(volume_m3 > 0, ha_y > 0) %>%
+  mutate(
+    dmai = volume_m3 / ha_y,
+    dmai_winsorized = map_dbl(dmai, winsorize_mai)
+  )
 
-hti_mai %>% write_csv(paste0(wdir,data_dir,"/02_out/tables/hti_mai.csv"))
+hti_mai %>% write_csv(paste0(wdir, data_dir, "/02_out/tables/hti_mai.csv"))
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Regressions to describe trends in MAI -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-grow_yield <- function(current_mai, growth_rate, nyears){
+grow_yield <- function(current_mai, growth_rate, nyears) {
   yield_growth <- growth_rate + 1
   future_mai <- (yield_growth^nyears) * current_mai
   return(future_mai)
@@ -243,68 +267,113 @@ grow_yield <- function(current_mai, growth_rate, nyears){
 
 nyears <- 10
 
-nona_mai_df <- nona_mai_df %>% 
-  mutate(outlier = dmai != mai_winsorized, 
-         ln_mai = log(dmai),
-         ln_mai_w = log(mai_winsorized),
-         ln_rw = log(dmai_rw),
-         ln_if = log(dmai_if),
-         ln_hf = log(dmai_hf),
-         Supplier = supplier_id)
+nona_mai_df <- nona_mai_df %>%
+  mutate(
+    outlier = dmai != mai_winsorized,
+    ln_mai = log(dmai),
+    ln_mai_w = log(mai_winsorized),
+    ln_rw = log(dmai_rw),
+    ln_if = log(dmai_if),
+    ln_hf = log(dmai_hf),
+    Supplier = supplier_id
+  )
 
 # Result to report in appendix
-nona_mai_df %>% group_by(outlier) %>% summarise(volume_m3 = sum(volume_m3)) %>% mutate(shr = prop.table(volume_m3))
+nona_mai_df %>%
+  group_by(outlier) %>%
+  summarise(volume_m3 = sum(volume_m3)) %>%
+  mutate(shr = prop.table(volume_m3))
 
 
 # Controls include rotation characteristics and harvest-year precipitation/PET. Temperature and
 # rotation-period weather are excluded; their effects on MAI are analyzed separately.
 controls <- "rotation_length + peat_pct + pr_harvest + pet_harvest"
 
-ols_mod <- feols(as.formula(paste0("ln_mai_w ~", controls, " + harvest_year")), cluster = ~Supplier, data = nona_mai_df)
+ols_mod <- feols(
+  as.formula(paste0("ln_mai_w ~", controls, " + harvest_year")),
+  cluster = ~Supplier,
+  data = nona_mai_df
+)
 summary(ols_mod)
 
-nocntrl_mod <- feols(as.formula(paste("ln_mai_w ~ harvest_year | Supplier")), cluster = ~Supplier, data = nona_mai_df)
+nocntrl_mod <- feols(
+  as.formula(paste("ln_mai_w ~ harvest_year | Supplier")),
+  cluster = ~Supplier,
+  data = nona_mai_df
+)
 summary(nocntrl_mod)
 grow_yield(sector_mai, coef(nocntrl_mod)["harvest_year"], nyears)
 
-base_mod <- feols(as.formula(paste0("ln_mai_w ~", controls, " + harvest_year | Supplier")), cluster = ~Supplier, data = nona_mai_df)
+base_mod <- feols(
+  as.formula(paste0("ln_mai_w ~", controls, " + harvest_year | Supplier")),
+  cluster = ~Supplier,
+  data = nona_mai_df
+)
 summary(base_mod)
 ci <- confint(base_mod, "harvest_year", level = 0.95) %>% print()
 
 
-trim_mod <- feols(as.formula(paste("ln_mai_w ~", controls, "+ harvest_year | Supplier")), cluster = ~Supplier, data = nona_mai_df %>% filter(outlier == 0))
+trim_mod <- feols(
+  as.formula(paste("ln_mai_w ~", controls, "+ harvest_year | Supplier")),
+  cluster = ~Supplier,
+  data = nona_mai_df %>% filter(outlier == 0)
+)
 summary(trim_mod)
 grow_yield(sector_mai, coef(trim_mod)["harvest_year"], nyears)
 
-nowin_mod <- feols(as.formula(paste("ln_mai ~", controls, "+ harvest_year | Supplier")), cluster = ~Supplier, data = nona_mai_df)
+nowin_mod <- feols(
+  as.formula(paste("ln_mai ~", controls, "+ harvest_year | Supplier")),
+  cluster = ~Supplier,
+  data = nona_mai_df
+)
 summary(nowin_mod)
 
 # # Show these coefficient estimates fall within 95% confidence interval of base model
 # confint(base_mod, "harvest_year", level = 0.95)
 
-rw_mod <- feols(as.formula(paste("ln_rw ~", controls, "+ harvest_year | Supplier")), cluster = ~Supplier, data = nona_mai_df)
+rw_mod <- feols(
+  as.formula(paste("ln_rw ~", controls, "+ harvest_year | Supplier")),
+  cluster = ~Supplier,
+  data = nona_mai_df
+)
 summary(rw_mod)
 rw_mai
 grow_yield(rw_mai, coef(rw_mod)["harvest_year"], nyears)
 
-if_mod <- feols(as.formula(paste("ln_if ~", controls, "+ harvest_year | Supplier")), cluster = ~Supplier, data = nona_mai_df)
+if_mod <- feols(
+  as.formula(paste("ln_if ~", controls, "+ harvest_year | Supplier")),
+  cluster = ~Supplier,
+  data = nona_mai_df
+)
 summary(if_mod)
 if_mai
 grow_yield(if_mai, coef(if_mod)["harvest_year"], nyears)
 
-hf_mod <- feols(as.formula(paste("ln_hf ~", controls, "+ harvest_year | Supplier")), cluster = ~Supplier, data = nona_mai_df)
+hf_mod <- feols(
+  as.formula(paste("ln_hf ~", controls, "+ harvest_year | Supplier")),
+  cluster = ~Supplier,
+  data = nona_mai_df
+)
 summary(hf_mod)
 hf_mai
 grow_yield(hf_mai, coef(hf_mod)["harvest_year"], nyears)
 
-models <- list("(1)" = ols_mod, "(2)" = nocntrl_mod, "(3)" = base_mod, "(4)" = trim_mod,
-               "(5)" = nowin_mod, "(6)" = rw_mod, "(7)" = if_mod, "(8)" = hf_mod)
+models <- list(
+  "(1)" = ols_mod,
+  "(2)" = nocntrl_mod,
+  "(3)" = base_mod,
+  "(4)" = trim_mod,
+  "(5)" = nowin_mod,
+  "(6)" = rw_mod,
+  "(7)" = if_mod,
+  "(8)" = hf_mod
+)
 
 # gof_map: show only Num.Obs. and FE: Supplier (Concessions added via add_rows below)
 gof_map_custom <- tribble(
-  ~raw,           ~clean,         ~fmt,
-  "nobs",         "Num.Obs.",     0,
-  "FE: Supplier", "FE: Supplier", NA
+  ~raw           , ~clean         , ~fmt ,
+  "nobs"         , "Num.Obs."     ,    0 ,
+  "FE: Supplier" , "FE: Supplier" , NA
 )
 
 # Compute concession count per model.
@@ -312,52 +381,91 @@ gof_map_custom <- tribble(
 # OLS (no FE, fit on full nona_mai_df): use obs() to index into nona_mai_df directly.
 get_n_concessions <- function(m) {
   fe <- tryCatch(fixef(m), error = function(e) NULL)
-  if (!is.null(fe) && "Supplier" %in% names(fe)) as.character(length(fe$Supplier))
-  else as.character(n_distinct(nona_mai_df$Supplier[obs(m)]))
+  if (!is.null(fe) && "Supplier" %in% names(fe)) {
+    as.character(length(fe$Supplier))
+  } else {
+    as.character(n_distinct(nona_mai_df$Supplier[obs(m)]))
+  }
 }
 n_conc <- sapply(models, get_n_concessions)
 
-rows <- tribble(~term, ~OLS,  ~NoCntrls, ~Base, ~Trimmed, ~NoWins, ~ShortenRot, ~IgFire, ~DropFire,
-                'Treatment of outliers', 'Winsorize',  'Winsorize', 'Winsorize', 'Drop', 'Keep', 'Winsorize', 'Winsorize', 'Winsorize',
-                'Shorten long rotations', 'False', 'False', 'False', 'False', 'False', 'True', 'False', 'False',
-                'Treatment of fires', 'Impute', 'Impute', 'Impute', 'Impute', 'Impute', 'Impute', 'Keep', 'Drop',
-                'Controls', 'X', '', 'X', 'X', 'X', 'X', 'X', 'X') %>%
-  bind_rows(tibble(term = "Concessions", !!!setNames(as.list(n_conc), names(.)[-1])))
-# Table layout: 1=Year, 2=(SE), 3=Num.Obs., 4=FE: Supplier (from gof_map).
-# add_rows positions: Concessions inserted at 4 (pushing FE: Supplier to 5), descriptors after.
-attr(rows, 'position') <- c(5, 6, 7, 8, 4)
+rows <- tribble(
+  ~term                    , ~OLS        , ~NoCntrls   , ~Base       , ~Trimmed , ~NoWins  , ~ShortenRot , ~IgFire     , ~DropFire   ,
+  'Treatment of outliers'  , 'Winsorize' , 'Winsorize' , 'Winsorize' , 'Drop'   , 'Keep'   , 'Winsorize' , 'Winsorize' , 'Winsorize' ,
+  'Shorten long rotations' , 'False'     , 'False'     , 'False'     , 'False'  , 'False'  , 'True'      , 'False'     , 'False'     ,
+  'Treatment of fires'     , 'Impute'    , 'Impute'    , 'Impute'    , 'Impute' , 'Impute' , 'Impute'    , 'Keep'      , 'Drop'      ,
+  'Controls'               , 'X'         , ''          , 'X'         , 'X'      , 'X'      , 'X'         , 'X'         , 'X'
+)
+
+# Concessions is listed first so the add_rows positions below run in ascending
+# order. Out-of-order positions make modelsummary pad the table with blank "NA"
+# rows, which then have to be deleted by hand from the .docx.
+rows <- bind_rows(
+  tibble(
+    term = "Concessions",
+    !!!setNames(as.list(n_conc), names(rows)[-1])
+  ),
+  rows
+)
+# Final layout: 1=Year, 2=(SE), 3=Num.Obs., 4=Concessions, 5-8=descriptors,
+# 9=FE: Supplier (the last row comes from gof_map).
+attr(rows, 'position') <- c(4, 5, 6, 7, 8)
 
 
-modelsummary(models,
-             fmt = 3,
-             coef_map = c("harvest_year" = "Year"),
-             stars = c('*' = .1, '**' = .05, '***' = 0.01),
-             gof_map = gof_map_custom,
-             add_rows = rows)
+modelsummary(
+  models,
+  fmt = 3,
+  coef_map = c("harvest_year" = "Year"),
+  stars = c('*' = .1, '**' = .05, '***' = 0.01),
+  gof_map = gof_map_custom,
+  add_rows = rows
+)
 
-modelsummary(models,
-             fmt = 3,
-             coef_map = c("harvest_year" = "Year"),
-             stars = c('*' = .1, '**' = .05, '***' = 0.01),
-             gof_map = gof_map_custom,
-             stars_note = FALSE,
-             add_rows = rows,
-             notes = "Standard errors clustered by concession. * p < 0.1, ** p < 0.05, *** p < 0.01",
-             output =  paste0(wdir, "/01_data/04_results/tables/yield_growth_table.docx"))
+# Writing .docx requires pandoc. Guard the call so a missing pandoc cannot halt
+# the script before key_parameters.csv is written below -- that file is a
+# required input for the downstream paper-statistics and scenario scripts.
+yield_growth_docx <- paste0(
+  wdir,
+  data_dir,
+  "/04_results/tables/yield_growth_table.docx"
+)
+tryCatch(
+  modelsummary(
+    models,
+    fmt = 3,
+    coef_map = c("harvest_year" = "Year"),
+    stars = c('*' = .1, '**' = .05, '***' = 0.01),
+    gof_map = gof_map_custom,
+    stars_note = FALSE,
+    add_rows = rows,
+    notes = "Standard errors clustered by concession. * p < 0.1, ** p < 0.05, *** p < 0.01",
+    output = yield_growth_docx
+  ),
+  error = function(e) {
+    warning(
+      "Could not write ",
+      yield_growth_docx,
+      ": ",
+      conditionMessage(e),
+      "\n  .docx output needs pandoc on the PATH; other outputs are unaffected.",
+      call. = FALSE
+    )
+  }
+)
 
 
 yield_growth <- base_mod$coefficients['harvest_year']
-yield_growth_confint <- yield_growth - confint(base_mod, "harvest_year", level = 0.95)[1]
+yield_growth_confint <- yield_growth -
+  confint(base_mod, "harvest_year", level = 0.95)[1]
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ## Contrast against prior estimates -------------------------------------
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Comparing against Section 7 of hardiyanto et al., 2024. 
-# Productivity increased 15% between R-4 (2013) and R-5 (2017). 
+# Comparing against Section 7 of hardiyanto et al., 2024.
+# Productivity increased 15% between R-4 (2013) and R-5 (2017).
 # Under compound growth, this implies ~3.6% growth per year
-hardiyanto_cagr <- (1.15)^(1/(2017-2013))-1
+hardiyanto_cagr <- (1.15)^(1 / (2017 - 2013)) - 1
 hardiyanto_cagr
-
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -369,17 +477,18 @@ median_obs <- nona_mai_df %>%
   pull(n) %>%
   median()
 
-output <- list("dmai" = sector_mai,
-               "dmai_2021" = mai_2021,
-               "yield_growth" = yield_growth[1],
-               "yield_growth_ci" = yield_growth_confint[1,1],
-               "production_coverage" = prod_coverage,
-               "median_obs" = median_obs,
-               "hardiyanto_cagr" = hardiyanto_cagr) %>%
+output <- list(
+  "dmai" = sector_mai,
+  "dmai_2021" = mai_2021,
+  "yield_growth" = yield_growth[1],
+  "yield_growth_ci" = yield_growth_confint[1, 1],
+  "production_coverage" = prod_coverage,
+  "median_obs" = median_obs,
+  "hardiyanto_cagr" = hardiyanto_cagr
+) %>%
   as_tibble()
 
-write_csv(output, paste0(wdir,data_dir,"/04_results/key_parameters.csv"))
-
+write_csv(output, paste0(wdir, data_dir, "/04_results/key_parameters.csv"))
 
 
 ##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -388,10 +497,11 @@ write_csv(output, paste0(wdir,data_dir,"/04_results/key_parameters.csv"))
 ## Round 2, Reviewer 2 asked for a series of diagnostic plots to illustrate DMAI trends
 
 # --- Step i: Raw annual DMAI across the sector
-p1 = year_mai %>% 
+p1 <- year_mai %>%
   ggplot(aes(x = harvest_year, y = year_mai)) +
-  geom_line() + geom_point() +
-  theme_bw() + 
+  geom_line() +
+  geom_point() +
+  theme_bw() +
   xlab("Harvest year") +
   ylab("DMAI (m3/ha/y)") +
   # ylim(c(0, 32)) +
@@ -399,130 +509,182 @@ p1 = year_mai %>%
   ggtitle("(i): Sector-wide DMAI trend")
 
 # --- Step ii: Raw yearly averages of DMAI ---
-p2 = nona_mai_df %>%
+p2 <- nona_mai_df %>%
   group_by(harvest_year) %>%
-  summarise(mean_dmai = mean(mai_winsorized),
-            se_ln   = sd(mai_winsorized) / sqrt(n()),
-            ci_lo   = mean_dmai - 1.96 * se_ln,
-            ci_hi   = mean_dmai + 1.96 * se_ln) %>%
+  summarise(
+    mean_dmai = mean(mai_winsorized),
+    se_ln = sd(mai_winsorized) / sqrt(n()),
+    ci_lo = mean_dmai - 1.96 * se_ln,
+    ci_hi = mean_dmai + 1.96 * se_ln
+  ) %>%
   ggplot(aes(x = harvest_year, y = mean_dmai)) +
   # geom_ribbon(aes(ymin = ci_lo, ymax = ci_hi), alpha = 0.2) +
-  geom_line() + geom_point() +
+  geom_line() +
+  geom_point() +
   theme_bw() +
-  labs(x = "Harvest year", y = "Mean DMAI (m3/ha/y)",
-       title = "(ii): Average DMAI trend") +
+  labs(
+    x = "Harvest year",
+    y = "Mean DMAI (m3/ha/y)",
+    title = "(ii): Average DMAI trend"
+  ) +
   geom_smooth(method = "lm", se = FALSE)
 
 # --- Step iii: Supplier FE only; plot year-averaged residuals ---
-eq3_mod <- feols(mai_winsorized ~ 1 | Supplier, data = nona_mai_df, fixef.rm = "none")
+eq3_mod <- feols(
+  mai_winsorized ~ 1 | Supplier,
+  data = nona_mai_df,
+  fixef.rm = "none"
+)
 
 resid_df <- nona_mai_df %>%
   ungroup() %>%
   mutate(resid = residuals(eq3_mod)) %>%
   group_by(harvest_year) %>%
-  summarise(mean_r = mean(resid),
-            se_r   = sd(resid) / sqrt(n()),
-            ci_lo  = mean_r - 1.96 * se_r,
-            ci_hi  = mean_r + 1.96 * se_r)
+  summarise(
+    mean_r = mean(resid),
+    se_r = sd(resid) / sqrt(n()),
+    ci_lo = mean_r - 1.96 * se_r,
+    ci_hi = mean_r + 1.96 * se_r
+  )
 
-p3 = ggplot(resid_df, aes(x = harvest_year, y = mean_r)) +
+p3 <- ggplot(resid_df, aes(x = harvest_year, y = mean_r)) +
   # geom_ribbon(aes(ymin = ci_lo, ymax = ci_hi), alpha = 0.2) +
-  geom_line() + geom_point() +
+  geom_line() +
+  geom_point() +
   geom_hline(yintercept = 0, linetype = "dashed") +
   theme_bw() +
-  labs(x = "Harvest year", y = "Year-avg residual",
-       title = "(iii): Year-averaged residuals\nafter supplier FE") + 
+  labs(
+    x = "Harvest year",
+    y = "Year-avg residual",
+    title = "(iii): Year-averaged residuals\nafter supplier FE"
+  ) +
   geom_smooth(method = "lm", se = FALSE)
 
 # --- Step iv: year FEs + supplier FE; plot year FEs with CIs ---
-ref_year <- 2018  # midpoint of the sample period; chosen to show trend clearly in both directions
-eq4_mod <- feols(mai_winsorized ~ i(harvest_year, ref = ref_year) | Supplier,
-                 data = nona_mai_df)
+ref_year <- 2018 # midpoint of the sample period; chosen to show trend clearly in both directions
+eq4_mod <- feols(
+  mai_winsorized ~ i(harvest_year, ref = ref_year) | Supplier,
+  data = nona_mai_df
+)
 summary(eq4_mod)
 
 eq4_fe_df <- tibble(
   harvest_year = as.numeric(gsub("harvest_year::", "", names(coef(eq4_mod)))),
-  estimate     = coef(eq4_mod),
-  conf.low     = confint(eq4_mod)[, 1],
-  conf.high    = confint(eq4_mod)[, 2]
+  estimate = coef(eq4_mod),
+  conf.low = confint(eq4_mod)[, 1],
+  conf.high = confint(eq4_mod)[, 2]
 ) %>%
   add_row(harvest_year = ref_year, estimate = 0, conf.low = NA, conf.high = NA)
 
-p4 = ggplot(eq4_fe_df, aes(x = harvest_year, y = estimate)) +
+p4 <- ggplot(eq4_fe_df, aes(x = harvest_year, y = estimate)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2) +
-  geom_line() + geom_point() +
+  geom_line() +
+  geom_point() +
   geom_hline(yintercept = 0, linetype = "dashed") +
   theme_bw() +
-  labs(x = "Harvest year", y = "Year FE",
-       title = "(iv): Year FEs (controlling for\nsupplier FE)") +
+  labs(
+    x = "Harvest year",
+    y = "Year FE",
+    title = "(iv): Year FEs (controlling for\nsupplier FE)"
+  ) +
   geom_smooth(method = "lm", se = FALSE)
 
 # --- Step v: year FEs + supplier FE + weather controls ---
-eq5_mod <- feols(mai_winsorized ~ pr_harvest + pet_harvest + i(harvest_year, ref = ref_year) | Supplier,
-                       data = nona_mai_df)
+eq5_mod <- feols(
+  mai_winsorized ~ pr_harvest +
+    pet_harvest +
+    i(harvest_year, ref = ref_year) |
+    Supplier,
+  data = nona_mai_df
+)
 
 eq5_fe_df <- tibble(
   harvest_year = as.numeric(gsub("harvest_year::", "", names(coef(eq5_mod)))),
-  estimate     = coef(eq5_mod),
-  conf.low     = confint(eq5_mod)[, 1],
-  conf.high    = confint(eq5_mod)[, 2]
+  estimate = coef(eq5_mod),
+  conf.low = confint(eq5_mod)[, 1],
+  conf.high = confint(eq5_mod)[, 2]
 ) %>%
   filter(grepl("harvest_year::", names(coef(eq5_mod)))) %>%
   add_row(harvest_year = ref_year, estimate = 0, conf.low = NA, conf.high = NA)
 
 p5 <- ggplot(eq5_fe_df, aes(x = harvest_year, y = estimate)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2) +
-  geom_line() + geom_point() +
+  geom_line() +
+  geom_point() +
   geom_hline(yintercept = 0, linetype = "dashed") +
   theme_bw() +
-  labs(x = "Harvest year", y = "Year FE",
-       title = "(v): Year FEs (controlling for supplier\nFE, harvest-year weather)") +
+  labs(
+    x = "Harvest year",
+    y = "Year FE",
+    title = "(v): Year FEs (controlling for supplier\nFE, harvest-year weather)"
+  ) +
   geom_smooth(method = "lm", se = FALSE)
 
 
 # --- Step vi: year FEs + supplier FE + weather controls + additional controls ---
-eq6_mod <- feols(mai_winsorized ~ rotation_length + peat_pct + pr_harvest + pet_harvest + 
-  i(harvest_year, ref = ref_year) | Supplier,
-                       data = nona_mai_df)
+eq6_mod <- feols(
+  mai_winsorized ~ rotation_length +
+    peat_pct +
+    pr_harvest +
+    pet_harvest +
+    i(harvest_year, ref = ref_year) |
+    Supplier,
+  data = nona_mai_df
+)
 
 eq6_fe_df <- tibble(
   harvest_year = as.numeric(gsub("harvest_year::", "", names(coef(eq6_mod)))),
-  estimate     = coef(eq6_mod),
-  conf.low     = confint(eq6_mod)[, 1],
-  conf.high    = confint(eq6_mod)[, 2]
+  estimate = coef(eq6_mod),
+  conf.low = confint(eq6_mod)[, 1],
+  conf.high = confint(eq6_mod)[, 2]
 ) %>%
   filter(grepl("harvest_year::", names(coef(eq6_mod)))) %>%
   add_row(harvest_year = ref_year, estimate = 0, conf.low = NA, conf.high = NA)
 
 p6 <- ggplot(eq6_fe_df, aes(x = harvest_year, y = estimate)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2) +
-  geom_line() + geom_point() +
+  geom_line() +
+  geom_point() +
   geom_hline(yintercept = 0, linetype = "dashed") +
   theme_bw() +
-  labs(x = "Harvest year", y = "Year FE",
-       title = "(vi): Year FEs (controlling for supplier\nFE and all controls)") +
+  labs(
+    x = "Harvest year",
+    y = "Year FE",
+    title = "(vi): Year FEs (controlling for supplier\nFE and all controls)"
+  ) +
   geom_smooth(method = "lm", se = FALSE)
 
 # Create combined diagnostic plot
 library(patchwork)
 combined_plot <- (p1 + p2) / (p3 + p4) / (p5 + p6)
 # combined_plot & theme(plot.margin = margin(4, 4, 4, 4))
-ggsave(paste0(wdir, "/01_data/04_results/figures/mai_diagnostic_plots.png"),
-       plot = combined_plot, height = 10, width = 7, units = "in")
+ggsave(
+  paste0(wdir, "/01_data/04_results/figures/mai_diagnostic_plots.png"),
+  plot = combined_plot,
+  height = 10,
+  width = 7,
+  units = "in"
+)
 
 combined_plot
 
 
 # For response to reviewer, compare our final model against their proposed model
-eq6ln_mod <- feols(ln_mai_w ~ rotation_length + peat_pct + pr_harvest + pet_harvest + 
-  i(harvest_year, ref = ref_year) | Supplier,
-                       data = nona_mai_df)
+eq6ln_mod <- feols(
+  ln_mai_w ~ rotation_length +
+    peat_pct +
+    pr_harvest +
+    pet_harvest +
+    i(harvest_year, ref = ref_year) |
+    Supplier,
+  data = nona_mai_df
+)
 
 eq6ln_fe_df <- tibble(
   harvest_year = as.numeric(gsub("harvest_year::", "", names(coef(eq6ln_mod)))),
-  estimate     = coef(eq6ln_mod),
-  conf.low     = confint(eq6ln_mod)[, 1],
-  conf.high    = confint(eq6ln_mod)[, 2]
+  estimate = coef(eq6ln_mod),
+  conf.low = confint(eq6ln_mod)[, 1],
+  conf.high = confint(eq6ln_mod)[, 2]
 ) %>%
   filter(grepl("harvest_year::", names(coef(eq6_mod)))) %>%
   add_row(harvest_year = ref_year, estimate = 0, conf.low = NA, conf.high = NA)
@@ -530,3 +692,99 @@ eq6ln_fe_df <- tibble(
 rev_mod <- feols(estimate ~ harvest_year, data = eq6ln_fe_df)
 rev_mod %>% summary()
 base_mod %>% summary()
+
+
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Reproduce the numeric claims made in SI Section 3 -------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Prints each statement from SI Section 3 that depends on this script, with
+## its numbers interpolated live from the objects above, and writes the same
+## text to 04_results.
+
+n_concessions <- n_distinct(nona_mai_df$supplier_id)
+n_concessions_panel <- nona_mai_df %>%
+  ungroup() %>%
+  count(supplier_id) %>%
+  filter(n >= 2) %>%
+  nrow()
+outlier_volume_shr <- nona_mai_df %>%
+  ungroup() %>%
+  group_by(outlier) %>%
+  summarise(volume_m3 = sum(volume_m3), .groups = "drop") %>%
+  mutate(shr = prop.table(volume_m3)) %>%
+  filter(outlier) %>%
+  pull(shr)
+
+# Wrap a sprintf-formatted paragraph to a fixed width for legible output
+si_para <- function(...) c(strwrap(sprintf(...), width = 78), "")
+
+si_text <- c(
+  "SI SECTION 3: ESTIMATING PRODUCTIVITY TRENDS IN PULPWOOD PLANTATIONS",
+  strrep("=", 78),
+  paste(
+    "Generated by scripts/03_analysis_modelling/02_calc_mai.R on",
+    Sys.Date()
+  ),
+  "",
+  "3.2 Estimating delivered mean annual increment",
+  strrep("-", 78),
+  si_para(
+    paste(
+      "Based on these calculations, we estimate that, for timber blocks",
+      "harvested between 2015 and 2021, each hectare of plantation in Indonesia",
+      "yielded approximately %.1f m3 of delivered pulpwood per year, reaching",
+      "%.1f m3 in blocks harvested in 2021. Our estimate of sectoral DMAI is",
+      "derived from %d concessions that collectively delivered %.0f%% of all",
+      "domestically produced pulpwood supplies detailed in RPBBI sourcing",
+      "reports."
+    ),
+    sector_mai,
+    mai_2021,
+    n_concessions,
+    100 * prod_coverage
+  ),
+  "3.3 Trends in DMAI",
+  strrep("-", 78),
+  si_para(
+    paste(
+      "Of the %d plantation concessions observed in our data, %d have at least",
+      "two observations during our study period, and the median concession has",
+      "%d distinct years of data."
+    ),
+    n_concessions,
+    n_concessions_panel,
+    median_obs
+  ),
+  si_para(
+    paste(
+      "We find that concessions experienced a %.1f%% (+/- %.1f) increase in",
+      "productivity per year between 2015 and 2021. Reassuringly, this aligns",
+      "with prior estimates that productivity increased ~%.1f%% per year between",
+      "two successive eucalyptus rotations harvested in 2013 and 2017",
+      "(Hardiyanto et al. 2024)."
+    ),
+    100 * yield_growth,
+    100 * yield_growth_confint,
+    100 * hardiyanto_cagr
+  ),
+  si_para(
+    paste(
+      "Treatment of outliers: We found that a relatively small proportion of",
+      "production (%.1f%% of delivered volume) came from concessions with",
+      "unreasonably large DMAI estimates, which we define as exceeding %.1f",
+      "m3/ha/y, the highest MAI observed within experimental plantations in",
+      "Indonesia (Hardiyanto et al. 2024)."
+    ),
+    100 * outlier_volume_shr,
+    mai_limit
+  ),
+  "Table 6 (regression results) is written separately to",
+  paste0("  ", yield_growth_docx),
+  ""
+)
+
+cat(si_text, sep = "\n")
+
+si_text_path <- paste0(wdir, data_dir, "/04_results/si_section3_statements.txt")
+writeLines(si_text, si_text_path)
+cat("\nSI Section 3 statements written to", si_text_path, "\n")
