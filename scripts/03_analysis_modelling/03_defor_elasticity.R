@@ -16,27 +16,21 @@
 #               used for clustering. Note the grid spans Sumatra and
 #               Kalimantan only, not all of Indonesia.
 #               Produced by scripts/02_data_preparation/16_create_long_data_10km_gc.R
-#        3) 01_in/wwi/Fastmarkets_2025_01_14-103617.xlsx: RISI/Fastmarkets
-#               monthly bleached hardwood kraft pulp prices (nominal USD per
-#               tonne) for Indonesia and South America. The Indonesian series
-#               has no observations before May 2001.
-#        4) 01_in/wwi/WRQ_pulpwood_prices.xlsx: WRQ pulpwood prices (USD/m3),
-#               used only to rescale the pulp price series into pulpwood-
-#               equivalent units for interpretability.
-#        5) 01_in/tables/idr_usd_annual_worldbank.csv: IDR per USD, annual
-#               period average (World Bank PA.NUS.FCRF), 2000-2024. Replaces
-#               the OECD series FRED CCUSSP02IDM650N, which ends in 2023.
-#        6) 01_in/tables/FRED_IDNCPIALLAINMEI.csv: Indonesian consumer price
-#               index, 2015 = 100, used to deflate prices.
-#        7) 02_out/tables/gaez_hti_areas.csv and 02_out/tables/gaez_grid_share.csv:
+#        3) 02_out/tables/pulp_prices_annual_2001_2024.csv: Annual pulp and
+#               pulpwood prices, expressed in constant 2015 IDR and rescaled
+#               into pulpwood-equivalent units. Derived from commercially
+#               licensed Fastmarkets and WRQ price data, which are not
+#               redistributable and so are read only by the prep script.
+#               Produced by scripts/02_data_preparation/19_prep_pulp_prices.R
+#        4) 02_out/tables/gaez_hti_areas.csv and 02_out/tables/gaez_grid_share.csv:
 #               Agro-ecological zone composition of concessions (areas, ha) and
 #               of grid cells (percentages).
 #               Produced by scripts/02_data_preparation/18_gaez_classes_hti_centroids.R
-#        8) 02_out/tables/hti_mai.csv: Concession-level delivered mean annual
+#        5) 02_out/tables/hti_mai.csv: Concession-level delivered mean annual
 #               increment, used with the AEZ shares to predict potential
 #               productivity per grid cell.
 #               Produced by scripts/03_analysis_modelling/02_calc_mai.R
-#        9) 01_in/wwi/MILLS_EXPORTERS_20200405.xlsx and
+#        6) 01_in/wwi/MILLS_EXPORTERS_20200405.xlsx and
 #               01_in/wwi/MILL_PRODUCTION_2015_2024.xlsx: Mill pulp capacity
 #               and annual production, used for the capacity-utilisation
 #               statistics reported in SI Section 4.2.
@@ -67,7 +61,6 @@
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 library(tidyverse)
 library(fixest)
-library(janitor)
 library(modelsummary)
 
 
@@ -84,59 +77,14 @@ defor_df <- read_csv(paste0(
   "/02_out/tables/tbl_long_pulp_clearing_gfc_forest.csv"
 ))
 
-# Bleached Hardwood Kraft, Acacia, from Indonesia (net price) and South America from RISI
-# Measured in nominal USD / tonnes of BHKP
-risi_prices <- readxl::read_excel(
-  paste0(wdir, data_dir, "/01_in/wwi/Fastmarkets_2025_01_14-103617.xlsx"),
-  skip = 4
-) %>%
-  clean_names() %>%
-  select(
-    date,
-    indo_net_price = fp_plp_0045,
-    sa_net_price = fp_plp_0056
-  )
-
-# WRQ data on pulpwood prices (USD/m3).
-# Used to convert global interannual variation in pulp prices (RISI data) into
-# local pulpwood prices to improve interpretation
-wrq_prices <- readxl::read_excel(paste0(
+# Annual pulp and pulpwood prices, in constant 2015 IDR.
+# Derived from licensed Fastmarkets and WRQ price data, which cannot be
+# redistributed; the conversions live in the prep script instead.
+pulp_prices_annual <- read_csv(paste0(
   wdir,
   data_dir,
-  "/01_in/wwi/WRQ_pulpwood_prices.xlsx"
-)) %>%
-  clean_names() %>%
-  drop_na() %>%
-  group_by(year)
-keep_years <- wrq_prices %>%
-  tally() %>%
-  filter(n == 4) %>%
-  pull(year)
-wrq_prices <- wrq_prices %>%
-  filter(year %in% keep_years) %>%
-  summarize(wrq_indo_prices = mean(indonesia, na.rm = TRUE))
-
-# IDR to USD exchange rate, used to convert global prices to local currency.
-# World Bank official rate (PA.NUS.FCRF, LCU per US$, period average), covering
-# 2000-2024.
-idr_usd_annual <- read_csv(paste0(
-  wdir,
-  data_dir,
-  "/01_in/tables/idr_usd_annual_worldbank.csv"
-)) %>%
-  filter(year > 1999)
-
-# FRED data on Indonesian CPI (to adjust for inflation, reference year = 2015)
-fred_idn_cpi <- read_csv(paste0(
-  wdir,
-  data_dir,
-  "/01_in/tables/FRED_IDNCPIALLAINMEI.csv"
-)) %>%
-  mutate(
-    date = as.Date(observation_date, format = "%d/%m/%Y"),
-    year = year(date)
-  ) %>%
-  select(year, idn_cpi = IDNCPIALLAINMEI)
+  "/02_out/tables/pulp_prices_annual_2001_2024.csv"
+))
 
 # Data about grid cell composition along GAEZ classes
 grid_gaez <- read_csv(paste0(
@@ -178,96 +126,6 @@ mill_prod <- readxl::read_excel(paste0(
 ))
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# clean price data --------------
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Clean RISI annual pulp prices
-risi_prices_annual <- risi_prices %>%
-  mutate(
-    date = as.Date(date, format = "%m/%d/%Y"),
-    year = year(date),
-    month = month(date)
-  ) %>%
-  group_by(year, month) %>%
-  summarize(
-    indo_net_price = mean(indo_net_price),
-    sa_net_price = mean(sa_net_price)
-  ) %>%
-  # filter(year <= 2023 & !is.na(risi_monthly_net_price)) %>%
-  group_by(year) %>%
-  summarize(
-    indo_prices = mean(indo_net_price),
-    sa_prices = mean(sa_net_price)
-  ) %>%
-  # No na.rm here: a year missing any month yields NA and drops out. This is
-  # what removes 2001 from the Indonesian series, which has no 2001 data at all.
-  select(year, sa_prices, indo_prices) %>%
-  filter(!is.na(year)) # drop the empty row produced by undated source rows
-
-# Convert global (or indonesian) pulp prices (RISI) into
-# local pulpwood-equivalent prices (WRQ).
-# Just a constant multiplicative conversion - designed to improve interpretability
-wrq_prices <- wrq_prices %>%
-  left_join(risi_prices_annual, by = "year")
-
-sa_price_conversion_mod <- lm(
-  wrq_indo_prices ~ sa_prices + 0,
-  data = wrq_prices
-)
-summary(sa_price_conversion_mod)
-
-indo_price_conversion_mod <- lm(
-  wrq_indo_prices ~ indo_prices + 0,
-  data = wrq_prices
-)
-summary(indo_price_conversion_mod)
-
-risi_prices_annual <- risi_prices_annual %>%
-  mutate(
-    sa_prices_remap = predict(
-      sa_price_conversion_mod,
-      newdata = risi_prices_annual
-    ),
-    indo_prices_remap = predict(
-      indo_price_conversion_mod,
-      newdata = risi_prices_annual
-    )
-  )
-
-# Add Ind RISI prices to price series
-risi_prices_annual <- risi_prices_annual %>%
-  left_join(
-    wrq_prices %>% select(year, wrq_prices = wrq_indo_prices),
-    by = "year"
-  )
-
-# Convert currency
-risi_prices_annual <- risi_prices_annual %>%
-  left_join(idr_usd_annual, by = "year") %>%
-  mutate(
-    sa_prices_idr = sa_prices_remap * idr_usd / 1000000, # Convert from USD to million IDR
-    indo_prices_idr = indo_prices_remap * idr_usd / 1000000,
-    wrq_prices_idr = wrq_prices * idr_usd / 1000000
-  )
-
-# Adjust for inflation
-risi_prices_annual <- risi_prices_annual %>%
-  left_join(fred_idn_cpi, by = "year") %>%
-  mutate(
-    sa_prices_real = sa_prices_idr / idn_cpi * 100, # Adjust for inflation - reference year is 2015
-    indo_prices_real = indo_prices_idr / idn_cpi * 100,
-    # Real Indonesian pulp price: convert the USD/tonne price to IDR at the
-    # market rate, then deflate by Indonesian CPI (2015 = 100). This measures
-    # the domestic purchasing power of mill revenue, which is the price a
-    # producer's capacity decision responds to.
-    indo_prices_real_idr = indo_prices * idr_usd / 1e6 / idn_cpi * 100,
-    wrq_prices_real = wrq_prices_idr / idn_cpi * 100,
-    sa_prices_dev = (sa_prices_remap -
-      zoo::rollmean(sa_prices_remap, k = 5, fill = NA, align = "right")) /
-      1000
-  ) # Deviation in 1000 USD
-
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # merge datasets --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Add administrative unit labels
@@ -280,7 +138,7 @@ defor_df <- defor_df %>%
 
 # Add prices to defor_df
 defor_df <- defor_df %>%
-  left_join(risi_prices_annual, by = "year")
+  left_join(pulp_prices_annual, by = "year")
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -417,7 +275,6 @@ defor_df <- defor_df %>%
   mutate(
     pot_revenues = (sa_prices_real * pot_mai),
     pot_revenues_indo = (indo_prices_real * pot_mai),
-    pot_revenues_wrq = (wrq_prices_real * pot_mai), # computed for reference; not used in any reported model
     pot_revenues_dev = (sa_prices_dev * pot_mai),
     post_2015 = year > 2015
   )
@@ -743,7 +600,7 @@ cap_usage_trend <- mill_prod %>%
 
 cap_usage_trend <- cap_usage_trend %>%
   left_join(
-    risi_prices_annual %>% select(year, indo_prices_real_idr),
+    pulp_prices_annual %>% select(year, indo_prices_real_idr),
     by = 'year'
   )
 
