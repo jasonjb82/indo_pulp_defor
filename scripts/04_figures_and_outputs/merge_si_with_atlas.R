@@ -29,7 +29,7 @@ out_pdf <- if (length(args) >= 2) {
   args[[2]]
 } else {
   file.path(
-    "data/01_data_replication/04_results/atlas",
+    "outputs/atlas",
     paste0(tools::file_path_sans_ext(basename(si_pdf)), "_with_atlas.pdf")
   )
 }
