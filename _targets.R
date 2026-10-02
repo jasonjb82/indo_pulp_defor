@@ -169,11 +169,6 @@ list(
     format = "file"
   ),
   tar_target(
-    pw_annual_area_file,
-    file.path(zenodo_data_check, "02_out/gee/pulp_annual_area_id.csv"),
-    format = "file"
-  ),
-  tar_target(
     pulp_soil_file,
     file.path(
       zenodo_data_check,
@@ -261,10 +256,6 @@ list(
   tar_target(
     id_annual_exp_stats,
     read_csv(id_annual_exp_file, show_col_types = FALSE)
-  ),
-  tar_target(
-    pw_annual_area_id,
-    read_csv(pw_annual_area_file, show_col_types = FALSE)
   ),
   tar_target(
     pulp_ttm_soil_type,
@@ -459,7 +450,6 @@ list(
     calc_paper_stats(
       rs_acc_df = rs_acc_df,
       id_annual_exp_stats = id_annual_exp_stats,
-      pw_annual_area_id = pw_annual_area_id,
       pulp_ttm_soil_type = pulp_ttm_soil_type,
       ws_2015_2022 = ws_2015_2022,
       kali_annual_pulp_exp_stats = kali_annual_pulp_exp_stats,
