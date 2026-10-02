@@ -119,11 +119,34 @@ calc_paper_stats <- function(
   conv_2017 <- annual_conv %>% filter(year == 2017) %>% pull(area_ha)
   early_change <- (conv_2017 - conv_2011) / conv_2011
 
-  text_intro_decline_2011_2017 <- sprintf(
+  # The 2011-2017 decline is reported in four places in the main text
+  text_abstract_decline_2011_2017 <- sprintf(
     paste0(
-      "\n[Introduction]\n",
-      "we describe how these four elements interacted over a period of time (2011-2017)\n",
-      "when pulp-driven deforestation fell by \033[1m%.0f\033[0m%%\n\n"
+      "\n[Abstract]\n",
+      "...we detail how four interconnected elements — international incentives, domestic\n",
+      "policies, productivity improvements, and private zero-deforestation commitments —\n",
+      "interacted over 2011–2017, when pulp-driven deforestation declined \033[1m%.0f\033[0m%%.\n\n"
+    ),
+    abs(early_change) * 100
+  )
+
+  text_progress_decline_2011_2017 <- sprintf(
+    paste0(
+      "\n[Progress toward zero deforestation]\n",
+      "In the ensuing years (2011–2017), pulp-driven deforestation declined by \033[1m%.0f\033[0m%%\n",
+      "(Figure 1A), even when high pulp prices might have been expected to encourage\n",
+      "accelerated expansion of pulpwood plantations and associated deforestation\n",
+      "(SM Section 5).\n\n"
+    ),
+    abs(early_change) * 100
+  )
+
+  text_global_decline_2011_2017 <- sprintf(
+    paste0(
+      "\n[Global implications]\n",
+      "A combination of international financial incentives, domestic policy action, and\n",
+      "private sector commitments were accompanied by a \033[1m%.0f\033[0m%% decline in pulp-driven\n",
+      "deforestation between 2011 and 2017.\n\n"
     ),
     abs(early_change) * 100
   )
@@ -200,7 +223,8 @@ calc_paper_stats <- function(
     paste0(
       "\n[Improved productivity]\n",
       "Many of these forests were cleared to make room for industrial acacia and eucalyptus\n",
-      "plantations, which expanded by \033[1m%.2f\033[0m (\033[1m%.2f\033[0m–\033[1m%.2f\033[0m) million hectares between 2001 and 2011.\n\n"
+      "plantations, which expanded by \033[1m%.2f\033[0m (\033[1m%.2f\033[0m–\033[1m%.2f\033[0m) million hectares between 2001 and 2011\n",
+      "(SM Section 1).\n\n"
     ),
     pulp_exp_row$estimated_area_kha / 1e3,
     pulp_exp_row$ci95_lower_kha / 1e3,
@@ -212,7 +236,10 @@ calc_paper_stats <- function(
   text_boom_vs_2011_peak <- sprintf(
     paste0(
       "\n[An emerging boom in deforestation?]\n",
-      "While pulp-driven deforestation rates in 2022 were still \033[1m%.0f\033[0m%% lower than the 2011 peak.\n\n"
+      "While pulp-driven deforestation rates in 2022 were still \033[1m%.0f\033[0m%% lower than the 2011 peak,\n",
+      "major economic, ecological, and policy changes highlight that the sector is moving in\n",
+      "the wrong direction if Indonesian producers intend to meet their goal of ending\n",
+      "deforestation and peat conversion.\n\n"
     ),
     abs(overall_change) * 100
   )
@@ -227,10 +254,11 @@ calc_paper_stats <- function(
 
   text_boom_pulp_vs_palm_2022 <- sprintf(
     paste0(
-      "\n[An emerging boom in deforestation? - validation]\n",
-      "more of Indonesia’s forests were converted to new\n",
-      "pulpwood plantations than to industrial oil palm plantations in 2022:\n",
-      "\033[1m%s\033[0m\n\n"
+      "\n[An emerging boom in deforestation?]\n",
+      "As a result of the surge in pulp-driven deforestation, more of Indonesia’s forests\n",
+      "were converted to new pulpwood plantations than to industrial oil palm plantations\n",
+      "in 2022.\n",
+      "Check - more forest converted to pulp than to oil palm in 2022: \033[1m%s\033[0m\n\n"
     ),
     ifelse(defor_2022$pulp_ha > defor_2022$palm_ha, "TRUE", "FALSE")
   )
@@ -244,7 +272,8 @@ calc_paper_stats <- function(
     paste0(
       "\n[Improved productivity]\n",
       "As a result of this combination of pulpwood plantation expansion and intensification,\n",
-      "plantations now supply nearly all of Indonesia's \033[1m%.0f\033[0m million m3 of annual pulpwood demand.\n\n"
+      "plantations now supply nearly all of the \033[1m%.0f\033[0m million m3 of annual pulpwood used for\n",
+      "pulp production in Indonesia (Figure 1B).\n\n"
     ),
     current_wood_demand / 1e6
   )
@@ -294,8 +323,9 @@ calc_paper_stats <- function(
   text_commitments_ownership <- sprintf(
     paste0(
       "\n[Private commitments to end deforestation]\n",
-      "Despite the sector's ambitious goals, we find that \033[1m%s\033[0m hectares of forests were\n",
-      "directly converted to pulpwood plantations between 2015 and 2022. Concessions\n",
+      "Despite the sector's ambitious goals, we find that \033[1m%s\033[0m hectares of primary forests\n",
+      "were directly converted to pulpwood plantations between 2015 and 2022 (Figure 2, SM\n",
+      "Section 8). Concessions\n",
       "officially claimed by APP and APRIL had little pulp-driven deforestation after 2015\n",
       "(\033[1m%s\033[0m ha), providing evidence of progress towards their environmental commitments.\n",
       "However, APP and APRIL's parent conglomerates, the Sinar Mas Group and\n",
@@ -529,9 +559,10 @@ calc_paper_stats <- function(
 
     # Formatted text blocks, in manuscript order (sections of the main text,
     # then the SM)
+    text_abstract_decline_2011_2017 = text_abstract_decline_2011_2017,
     text_abstract_scenarios = text_abstract_scenarios,
     text_intro_pulp_defor_2001_2011 = text_intro_pulp_defor_2001_2011,
-    text_intro_decline_2011_2017 = text_intro_decline_2011_2017,
+    text_progress_decline_2011_2017 = text_progress_decline_2011_2017,
     text_productivity_expansion_2001_2011 = text_productivity_expansion_2001_2011,
     text_productivity_supply_2022 = text_productivity_supply_2022,
     text_commitments_ownership = text_commitments_ownership,
@@ -544,6 +575,7 @@ calc_paper_stats <- function(
     text_mills_capacity_demand = text_mills_capacity_demand,
     text_barriers_productivity_growth = text_barriers_productivity_growth,
     text_barriers_scenarios = text_barriers_scenarios,
+    text_global_decline_2011_2017 = text_global_decline_2011_2017,
     text_sm4_new_demand = text_sm4_new_demand,
     text_sm4_area_needed = text_sm4_area_needed
   )
