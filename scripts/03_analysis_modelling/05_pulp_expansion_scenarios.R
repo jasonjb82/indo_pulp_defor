@@ -124,9 +124,22 @@ add_area_ci <- additional_area['central'] - additional_area['lb']
 # pulp expansion scenarios --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Predicted area of pulp expansion in hectares
+# Scenario numbering runs from the most to the least optimistic productivity
+# assumption, so it is inverted relative to area demanded: the UPPER bound on MAI
+# growth implies the LEAST new planting, and the lower bound the most. Any label
+# attached to a scenario must therefore use the growth rate named below.
+#   scenario 1 <- mai_rate["ub"]      (highest growth, smallest area)
+#   scenario 2 <- mai_rate["central"]
+#   scenario 3 <- mai_rate["lb"]      (lowest growth, largest area)
 exp_area_1 <- additional_area['ub'] * 1000000
 exp_area_2 <- additional_area['central'] * 1000000
 exp_area_3 <- additional_area['lb'] * 1000000
+
+scenario_growth <- c(
+  s1 = mai_rate[["ub"]],
+  s2 = mai_rate[["central"]],
+  s3 = mai_rate[["lb"]]
+)
 
 
 # All pixels in pred_df have pulp_start == 0 (enforced by filter in
@@ -198,12 +211,18 @@ expansion_table <- summarise_scenario(scenario1_df) %>%
 expansion_table %>%
   gt(groupname_col = "island", rowname_col = "land_type") %>%
   cols_label(
-    scenario_1_ha = sprintf("S1: %.1f%% annual growth", mai_rate["lb"] * 100),
+    scenario_1_ha = sprintf(
+      "S1: %.1f%% annual growth",
+      scenario_growth[["s1"]] * 100
+    ),
     scenario_2_ha = sprintf(
       "S2: %.1f%% annual growth",
-      mai_rate["central"] * 100
+      scenario_growth[["s2"]] * 100
     ),
-    scenario_3_ha = sprintf("S3: %.1f%% annual growth", mai_rate["ub"] * 100)
+    scenario_3_ha = sprintf(
+      "S3: %.1f%% annual growth",
+      scenario_growth[["s3"]] * 100
+    )
   ) %>%
   fmt_number(
     columns = c(scenario_1_ha, scenario_2_ha, scenario_3_ha),
@@ -350,26 +369,44 @@ scenario_map <- tm_shape(pred2027_rast) +
     col_alpha = 0.8,
     title = "Predicted P(pulp expansion, 2022-2027)"
   ) +
-  tm_shape(scenario1_rast, group = "Scenario 1: No productivity growth") +
+  tm_shape(
+    scenario1_rast,
+    group = sprintf(
+      "Scenario 1: %.1f%% annual growth",
+      scenario_growth[["s1"]] * 100
+    )
+  ) +
   tm_raster(
     col = "scenario1_expansion",
     palette = "brewer.greens",
     col_alpha = 0.8,
-    title = "Low productivity-growth expansion (ha)"
+    title = "High productivity-growth expansion (ha)"
   ) +
-  tm_shape(scenario2_rast, group = "Scenario 2: 3.0% annual growth") +
+  tm_shape(
+    scenario2_rast,
+    group = sprintf(
+      "Scenario 2: %.1f%% annual growth",
+      scenario_growth[["s2"]] * 100
+    )
+  ) +
   tm_raster(
     col = "scenario2_expansion",
     palette = "brewer.greens",
     col_alpha = 0.8,
     title = "Moderate productivity-growth expansion (ha)"
   ) +
-  tm_shape(scenario3_rast, group = "Scenario 3: 5.9% annual growth") +
+  tm_shape(
+    scenario3_rast,
+    group = sprintf(
+      "Scenario 3: %.1f%% annual growth",
+      scenario_growth[["s3"]] * 100
+    )
+  ) +
   tm_raster(
     col = "scenario3_expansion",
     palette = "brewer.greens",
     col_alpha = 0.8,
-    title = "High productivity-growth expansion (ha)"
+    title = "Low productivity-growth expansion (ha)"
   ) +
   tm_shape(prov_sf) +
   tm_borders(col = "grey40", lwd = 1) +
