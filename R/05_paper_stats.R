@@ -36,7 +36,7 @@ calc_paper_stats <- function(
 
   # Inputs read with $ or filtered to specific rows drop a sentence silently
   # when a column or row is missing, so report anything absent up front.
-  check_paper_inputs(rs_acc_df, scenario_stats, mai_df)
+  inputs_complete <- check_paper_inputs(rs_acc_df, scenario_stats, mai_df)
 
   # =========================================================================
   # Overarching trends in pulp expansion, deforestation, peat conversion
@@ -61,8 +61,8 @@ calc_paper_stats <- function(
   text_intro_pulp_defor_2001_2011 <- sprintf(
     paste0(
       "\n[Introduction]\n",
-      "Between 2001 and 2011, \033[1m%s\033[0m (95%% CI: \033[1m%s\033[0m–\033[1m%s\033[0m) hectares of rainforest were directly\n",
-      "converted to pulpwood plantations (SI Section 1), representing \033[1m%.0f\033[0m%% of\n",
+      "Between 2001 and 2011, \033[1m%s\033[0m (95%% CI: \033[1m%s\033[0m–\033[1m%s\033[0m) hectares of primary rainforest were directly\n",
+      "converted to pulpwood plantations (see supplementary materials (SM) Section 1), representing \033[1m%.0f\033[0m%% of\n",
       "Indonesian primary forest loss.\n\n"
     ),
     formatC(
@@ -121,9 +121,18 @@ calc_paper_stats <- function(
 
   text_intro_decline_2011_2017 <- sprintf(
     paste0(
-      "\n[Introduction; also An emerging boom in deforestation?]\n",
+      "\n[Introduction]\n",
       "we describe how these four elements interacted over a period of time (2011-2017)\n",
       "when pulp-driven deforestation fell by \033[1m%.0f\033[0m%%\n\n"
+    ),
+    abs(early_change) * 100
+  )
+
+  text_boom_decline_2011_2017 <- sprintf(
+    paste0(
+      "\n[An emerging boom in deforestation?]\n",
+      "Although pulp-driven deforestation declined by \033[1m%.0f\033[0m%% between 2011 and 2017,\n",
+      "recent trends and policy debates highlight the fragility of this progress.\n\n"
     ),
     abs(early_change) * 100
   )
@@ -288,11 +297,14 @@ calc_paper_stats <- function(
       "Despite the sector's ambitious goals, we find that \033[1m%s\033[0m hectares of forests were\n",
       "directly converted to pulpwood plantations between 2015 and 2022. Concessions\n",
       "officially claimed by APP and APRIL had little pulp-driven deforestation after 2015\n",
-      "(\033[1m%s\033[0m ha). However, APP and APRIL's parent conglomerates, the Sinar Mas Group and\n",
-      "the Royal Golden Eagle Group (RGE), have suspected indirect ownership links to\n",
+      "(\033[1m%s\033[0m ha), providing evidence of progress towards their environmental commitments.\n",
+      "However, APP and APRIL's parent conglomerates, the Sinar Mas Group and\n",
+      "the Royal Golden Eagle Group (RGE), have suspected corporate control over\n",
       "concessions that were responsible for \033[1m%s\033[0m ha (\033[1m%.0f\033[0m%%) of pulp-driven deforestation\n",
       "during this period. The remaining \033[1m%.0f\033[0m%% of pulp-driven deforestation occurred in\n",
-      "concessions controlled by external suppliers or outside of concessions.\n\n"
+      "concessions controlled by external suppliers or outside of concessions, underscoring\n",
+      "the important role that external suppliers play in the implementation of\n",
+      "zero-deforestation commitments.\n\n"
     ),
     formatC(
       round(total_defor_2015_2022, -2),
@@ -320,8 +332,10 @@ calc_paper_stats <- function(
   text_mills_capacity_share <- sprintf(
     paste0(
       "\n[New pulp mills and capacity expansion]\n",
-      "As of 2025, Sinar Mas and RGE – which together control over \033[1m%.0f\033[0m%% of the\n",
-      "industry’s production capacity.\n\n"
+      "As of 2026, Sinar Mas and RGE – which together control over \033[1m%.0f\033[0m%% of the\n",
+      "industry’s production capacity – are both working towards major expansions of\n",
+      "existing pulp mills in Sumatra, while a company linked to RGE has begun operating\n",
+      "a new semi-chemical pulp mill in Kalimantan.\n\n"
     ),
     sinar_rge_cap_share
   )
@@ -332,7 +346,7 @@ calc_paper_stats <- function(
       "\n[New pulp mills and capacity expansion]\n",
       "Together, these three projects will increase the country's pulp capacity by \033[1m%.0f\033[0m%%\n",
       "(\033[1m%.2f\033[0m million tonnes of pulp per year) and, once fully operational, will increase\n",
-      "the country's annual demand for pulpwood by \033[1m%.0f\033[0m million m3 (SI Section 4).\n",
+      "the pulp sector's annual demand for pulpwood inputs by \033[1m%.0f\033[0m million m3 (SM Section 4).\n",
       "At historical levels of plantation productivity, an additional \033[1m%.2f\033[0m million\n",
       "hectares of plantations will be needed to meet this anticipated boom in pulpwood demand.\n\n"
     ),
@@ -354,7 +368,7 @@ calc_paper_stats <- function(
     paste0(
       "\n[Barriers facing productivity improvements]\n",
       "We find that, between 2015 and 2021, pulpwood plantations achieved increases in\n",
-      "productivity of approximately \033[1m%.1f\033[0m (± \033[1m%.1f\033[0m) percent per year (SI Section 3),\n",
+      "productivity of approximately \033[1m%.1f\033[0m (± \033[1m%.1f\033[0m) percent per year (SM Section 3),\n",
       "which is consistent with estimates based on pre-harvest inventory data from\n",
       "operational plantations.\n\n",
       "Validation - Hardiyanto CAGR (%.1f%%) falls within our CI [%.1f%%–%.1f%%]: \033[1m%s\033[0m\n\n"
@@ -369,15 +383,16 @@ calc_paper_stats <- function(
 
   text_barriers_scenarios <- sprintf(
     paste0(
-      "\n[Barriers facing productivity improvements; also Abstract]\n",
+      "\n[Barriers facing productivity improvements]\n",
       "If companies are able to sustain these recent rates of productivity improvement, we\n",
       "estimate that the increased production on existing plantations would meet only\n",
-      "\033[1m%.0f\033[0m (95%% confidence interval: \033[1m%.0f\033[0m–\033[1m%.0f\033[0m) percent of the anticipated growth in pulpwood\n",
-      "demand (SI Section 4). Even under these optimistic assumptions, a further\n",
+      "\033[1m%.0f\033[0m (\033[1m%.0f\033[0m–\033[1m%.0f\033[0m) percent of the anticipated growth in pulpwood\n",
+      "demand (SM Section 4). Even under these optimistic assumptions, a further\n",
       "\033[1m%s\033[0m (\033[1m%s\033[0m–\033[1m%s\033[0m) hectares of pulpwood plantations would be needed. Assuming\n",
       "that this pulp expansion follows similar patterns to the recent past (2017–2022),\n",
       "we estimate that it will drive \033[1m%s\033[0m (\033[1m%s\033[0m–\033[1m%s\033[0m) hectares of additional\n",
-      "deforestation and \033[1m%s\033[0m (\033[1m%s\033[0m–\033[1m%s\033[0m) hectares of additional peatland conversion.\n\n"
+      "deforestation and \033[1m%s\033[0m (\033[1m%s\033[0m–\033[1m%s\033[0m) hectares of additional peatland conversion\n",
+      "(Figure 3).\n\n"
     ),
     scenario_stats$pct_demand_met_central,
     scenario_stats$pct_demand_met_low,
@@ -385,6 +400,25 @@ calc_paper_stats <- function(
     fmt_ha(scenario_stats$area_demand_central_mha * 1e6),
     fmt_ha(scenario_stats$area_demand_low_mha * 1e6),
     fmt_ha(scenario_stats$area_demand_high_mha * 1e6),
+    fmt_ha(scenario_stats$defor_central_ha),
+    fmt_ha(scenario_stats$defor_low_ha),
+    fmt_ha(scenario_stats$defor_high_ha),
+    fmt_ha(scenario_stats$peat_central_ha),
+    fmt_ha(scenario_stats$peat_low_ha),
+    fmt_ha(scenario_stats$peat_high_ha)
+  )
+
+  # The abstract repeats the headline scenario estimates. An incomplete
+  # scenario_stats (such as an outdated copy) can still carry these columns but
+  # from a different model run, so leave the sentence out rather than print it.
+  text_abstract_scenarios <- if (!inputs_complete) character(0) else sprintf(
+    paste0(
+      "\n[Abstract]\n",
+      "Given barriers to further productivity gains and wavering domestic policy support for\n",
+      "conservation, we estimate ongoing pulp mill capacity expansion could drive another\n",
+      "\033[1m%s\033[0m (\033[1m%s\033[0m–\033[1m%s\033[0m) hectares of deforestation and \033[1m%s\033[0m (\033[1m%s\033[0m–\033[1m%s\033[0m) hectares\n",
+      "of peatland conversion.\n\n"
+    ),
     fmt_ha(scenario_stats$defor_central_ha),
     fmt_ha(scenario_stats$defor_low_ha),
     fmt_ha(scenario_stats$defor_high_ha),
@@ -495,11 +529,13 @@ calc_paper_stats <- function(
 
     # Formatted text blocks, in manuscript order (sections of the main text,
     # then the SM)
+    text_abstract_scenarios = text_abstract_scenarios,
     text_intro_pulp_defor_2001_2011 = text_intro_pulp_defor_2001_2011,
     text_intro_decline_2011_2017 = text_intro_decline_2011_2017,
     text_productivity_expansion_2001_2011 = text_productivity_expansion_2001_2011,
     text_productivity_supply_2022 = text_productivity_supply_2022,
     text_commitments_ownership = text_commitments_ownership,
+    text_boom_decline_2011_2017 = text_boom_decline_2011_2017,
     text_boom_rates_2017_2022 = text_boom_rates_2017_2022,
     text_boom_pulp_vs_palm_2022 = text_boom_pulp_vs_palm_2022,
     text_boom_vs_2011_peak = text_boom_vs_2011_peak,
