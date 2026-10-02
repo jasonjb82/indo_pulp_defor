@@ -10,10 +10,38 @@
 ## scripts/04_figures_and_outputs/merge_si_with_atlas.R).
 ##
 ## Tiles are re-rendered rather than reusing the full-size figures in
-## 04_results/figures/concessions: those are 10 in wide, so tiling them 6-up
+## outputs/figures/concessions: those are 10 in wide, so tiling them 6-up
 ## scales them to 0.31 and renders their 9 pt axis labels at ~3 pt. Rendering
 ## natively at final size keeps type at its stated size. Both renderings descend
 ## from the same `hti_annual_lc` target, so they cannot diverge in data.
+##
+## Pipeline inputs (targets in _targets.R; paths relative to
+##   data/01_data_replication/ unless noted)
+##        1) hti_annual_lc -> 02_out/tables/hti_land_use_change_areas.csv:
+##               Annual land cover areas within each concession.
+##               Produced by scripts/02_data_preparation/01_data_prep.R
+##        2) hti_conv_timing -> 02_out/tables/hti_grps_deforestation_timing.csv:
+##               Supplier group and ownership class per concession.
+##               Produced by scripts/02_data_preparation/01_data_prep.R
+##        3) groups_reclass_hti -> 01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv:
+##               Concession ownership groups, reclassified by hand.
+##        4) hti -> 01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp: Concession
+##               boundaries and names (project input).
+##        5) atlas_template_file -> typst/concession_atlas.typ (in the repo):
+##               Page layout of the atlas.
+##        Requires the typst binary (see find_typst()).
+##
+## Pipeline outputs
+##        1) atlas_meta: Per-concession metadata (display name, island,
+##               ownership group) for tile labels and the atlas indices.
+##        2) concession_tile_pngs -> outputs/figures/concession_tiles/: One
+##               small tile per concession.
+##        3) atlas_data_typ -> outputs/atlas/atlas_data.typ: Tile list read by
+##               the typst template.
+##        4) concession_atlas_pdf -> outputs/atlas/concession_atlas.pdf: The
+##               standalone atlas (SI section 9).
+##        merge_si_pdf() is not a target: it is run at submission time by
+##               scripts/04_figures_and_outputs/merge_si_with_atlas.R.
 
 library(tidyverse)
 library(stringr)
