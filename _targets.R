@@ -492,5 +492,42 @@ list(
     format = "file"
   ),
   tar_target(rs_acc_results, run_rs_accuracy(validation_xlsx_file)),
-  tar_target(rs_acc_df, rs_acc_results$paper_stats)
+  tar_target(rs_acc_df, rs_acc_results$paper_stats),
+
+  # -----------------------------------------------------------------------
+  # I. ANALYSIS 02: DMAI AND PRODUCTIVITY TRENDS (MIGRATION IN PROGRESS)
+  # -----------------------------------------------------------------------
+  # Computes key parameters and concession DMAI from the harvest record.
+  # mai_check confirms the columns shared with the Zenodo key_parameters.csv
+  # match before mai_file is retired and mai_df is switched over. (The Zenodo
+  # copy predates the hardiyanto_cagr column, so only six columns compare.)
+  tar_target(
+    harvest_file,
+    file.path(zenodo_data_check, "02_out/tables/hti_harvest_yr.csv"),
+    format = "file"
+  ),
+  tar_target(mai_results, run_calc_mai(harvest_file, ws_2015_2022)),
+  tar_target(
+    mai_check,
+    {
+      cols <- intersect(names(mai_df), names(mai_results$key_parameters))
+      ok <- all.equal(
+        as.data.frame(mai_df[, cols]),
+        as.data.frame(mai_results$key_parameters[, cols]),
+        check.attributes = FALSE
+      )
+      if (!isTRUE(ok)) {
+        stop(paste(ok, collapse = "\n"))
+      }
+      cols
+    }
+  ),
+  tar_target(
+    si_section3_txt,
+    save_text_lines(
+      mai_results$si_text,
+      "outputs/text/si_section3_statements.txt"
+    ),
+    format = "file"
+  )
 )
