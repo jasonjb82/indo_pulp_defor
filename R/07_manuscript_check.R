@@ -6,6 +6,18 @@
 ##   row per number, written exactly as the manuscript prints it. Numbers are
 ##   compared as printed (after rounding), since that is where a mismatch with
 ##   the manuscript shows up.
+##
+## Pipeline inputs (targets in _targets.R)
+##        1) paper_stats: Output of calc_paper_stats() (R/05_paper_stats.R).
+##        2) manuscript_values_file -> manuscript/manuscript_values.csv: Each
+##               number as printed in the manuscript, with its section. Kept
+##               by hand; update it whenever the manuscript text changes.
+##
+## Pipeline outputs
+##        1) manuscript_check: One row per manuscript value with its status
+##               (match, mismatch or pending). Mismatches also raise a warning
+##               during tar_make().
+##        2) manuscript_check_csv -> outputs/text/manuscript_check.csv
 ## ---------------------------------------------------------
 
 #' Compare paper stats sentences with the manuscript's numbers
