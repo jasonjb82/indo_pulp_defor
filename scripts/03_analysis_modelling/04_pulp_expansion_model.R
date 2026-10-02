@@ -492,45 +492,81 @@ si_text <- c(
   strrep("-", 78),
   si_para(
     paste(
-      "Dropping points already converted to pulpwood plantations by 2017, and",
-      "points with missing covariates (%.1f%% of the sample), leaves %s 1 km",
-      "points. Of these, %s (%.3f%% of the sample) were converted to pulpwood",
-      "plantations between 2017 and 2022."
+      "To address this, we randomly downsampled the number of observations from",
+      "the majority class (non-converting points) to be equal to %d times the",
+      "number of observations in the minority class (pulpwood plantation",
+      "expansion points)."
     ),
-    100 * pct_dropped,
-    format(nrow(model_pop_df), big.mark = ","),
-    format(n_pulp, big.mark = ","),
-    100 * prevalence
+    round(sum(model_df$pulp_end == "no_pulp") / sum(model_df$pulp_end == "pulp"))
   ),
   si_para(
     paste(
-      "Downsampling the majority class to 10 times the number of minority-class",
-      "observations yields an estimation sample of %s points. This was",
-      "partitioned into a training set of %s points (%.0f%%) across %d",
-      "regencies and a held-out test set of %s points (%.0f%%) across %d",
-      "regencies, blocking at the regency (kabupaten) level so that all points",
-      "in a regency fall in the same set. Hyperparameters were tuned using",
-      "%d-fold spatial cross-validation within the training set."
+      "We then partitioned the downsampled dataset into a training set (%.0f%%)",
+      "and a held-out test set (%.0f%%) using spatial blocking at the regency",
+      "(kabupaten) level, such that all grid cells within a given regency were",
+      "assigned entirely to one set. We used %d-fold spatial cross-validation on",
+      "the training set for hyperparameter tuning and model selection."
     ),
-    format(nrow(model_df), big.mark = ","),
-    format(nrow(train_df), big.mark = ","),
     100 * nrow(train_df) / nrow(model_df),
-    n_distinct(train_df$kab_code),
-    format(nrow(test_df), big.mark = ","),
     100 * nrow(test_df) / nrow(model_df),
-    n_distinct(test_df$kab_code),
     nrow(cv_folds)
   ),
   "8.3 Model estimation and validation",
   strrep("-", 78),
   si_para(
     paste(
-      "Inverse-prevalence class weights were derived from the prevalence of",
-      "expansion in the full population prior to downsampling (%.5f), giving",
-      "weights of %.4f for the expansion class and %.5f for the non-expansion",
-      "class, a ratio of %.0f to 1. ranger applies these in the splitting rule",
-      "only, so predicted probabilities are not calibrated to the landscape",
-      "base rate and are used solely to rank locations."
+      "When defining our model structure, we fixed the number of trees at %d and",
+      "the minimum number of observations required to split a terminal node at",
+      "%d, and tuned the number of candidate features considered at each split."
+    ),
+    extract_fit_parsnip(final_fit)$fit$num.trees,
+    extract_fit_parsnip(final_fit)$fit$min.node.size
+  ),
+  si_para(
+    paste(
+      "The final model achieved a ROC-AUC of %.3f and a PR-AUC of %.3f on the",
+      "held-out spatial test set, indicating a strong ability to discriminate",
+      "pixels that underwent pulpwood plantation expansion from those that did",
+      "not (Figure 4)."
+    ),
+    metric_val("roc_auc"),
+    metric_val("pr_auc")
+  ),
+  si_para(
+    paste(
+      "Figure 4 caption: Both curves are computed on the held-out spatial test",
+      "set, which retains the %d:1 majority-to-minority class ratio of the",
+      "downsampled estimation sample."
+    ),
+    round(sum(model_df$pulp_end == "no_pulp") / sum(model_df$pulp_end == "pulp"))
+  ),
+  "SUPPORTING VALUES (not reported in the manuscript)",
+  strrep("-", 78),
+  si_para(
+    paste(
+      "Sample: %s eligible 1 km points after dropping those already converted by",
+      "2017 and those with missing covariates (%.1f%% of the sample), of which",
+      "%s (%.3f%%) converted between 2017 and 2022. Downsampling leaves an",
+      "estimation sample of %s points: %s training points across %d regencies",
+      "and %s test points across %d regencies."
+    ),
+    format(nrow(model_pop_df), big.mark = ","),
+    100 * pct_dropped,
+    format(n_pulp, big.mark = ","),
+    100 * prevalence,
+    format(nrow(model_df), big.mark = ","),
+    format(nrow(train_df), big.mark = ","),
+    n_distinct(train_df$kab_code),
+    format(nrow(test_df), big.mark = ","),
+    n_distinct(test_df$kab_code)
+  ),
+  si_para(
+    paste(
+      "Class weights derived from the pre-downsampling prevalence (%.5f):",
+      "%.4f for the expansion class and %.5f for the non-expansion class, a",
+      "ratio of %.0f to 1. ranger applies these in the splitting rule only, so",
+      "predicted probabilities are not calibrated to the landscape base rate and",
+      "are used solely to rank locations."
     ),
     prevalence,
     class_wts[["pulp"]],
@@ -539,14 +575,10 @@ si_text <- c(
   ),
   si_para(
     paste(
-      "The number of trees was fixed at 500 and the minimum number of",
-      "observations required to split a terminal node at %d. The number of",
-      "candidate features considered at each split was tuned over %d values",
-      "spanning %d to %d; the value maximising mean cross-validated ROC-AUC",
-      "was %d (cross-validated ROC-AUC %.3f, standard error %.3f). The model",
-      "uses %d predictors in total."
+      "Tuning: %d candidate values of mtry spanning %d to %d; the value",
+      "maximising mean cross-validated ROC-AUC was %d (cross-validated ROC-AUC",
+      "%.3f, standard error %.3f). The model uses %d predictors in total."
     ),
-    extract_fit_parsnip(final_fit)$fit$min.node.size,
     nrow(rf_grid),
     min(rf_grid$mtry),
     max(rf_grid$mtry),
@@ -557,32 +589,21 @@ si_text <- c(
   ),
   si_para(
     paste(
-      "The final model achieved a ROC-AUC of %.3f and a PR-AUC of %.3f on the",
-      "held-out spatial test set. Both are computed on the downsampled test",
-      "set, which retains the 10:1 class ratio of the estimation sample",
-      "(prevalence %.1f%%, against %.3f%% across the full landscape). ROC-AUC",
-      "is invariant to class prevalence; precision is not, and is",
-      "correspondingly lower at the landscape base rate. SI Figure 4 is",
-      "written to 04_results/figures/SI_f4_auc.png."
+      "Test-set prevalence is %.1f%%, against %.3f%% across the full landscape.",
+      "ROC-AUC is invariant to class prevalence; precision is not, and is",
+      "correspondingly lower at the landscape base rate."
     ),
-    metric_val("roc_auc"),
-    metric_val("pr_auc"),
     100 * mean(test_df$pulp_end == "pulp"),
     100 * prevalence
   ),
-  "8.4 Predicted pulpwood plantation expansion",
-  strrep("-", 78),
   si_para(
     paste(
-      "The final model was refit on the complete downsampled dataset (%s",
-      "points, training and test partitions combined) and used to predict",
-      "expansion probabilities for all %s points not yet converted to",
-      "pulpwood plantations as of 2022 (%.1f%% of candidate points dropped for",
-      "missing covariates). Predictions are written to",
-      "02_out/tables/pulp_predictions.csv and allocated across space by",
-      "scripts/03_analysis_modelling/05_pulp_expansion_scenarios.R."
+      "Prediction: the final model was refit on the complete downsampled dataset",
+      "and scored all %s points not yet converted as of 2022 (%.1f%% of",
+      "candidate points dropped for missing covariates). SI Figure 4 is written",
+      "to 04_results/figures/SI_f4_auc.png and the predictions to",
+      "02_out/tables/pulp_predictions.csv."
     ),
-    format(nrow(model_df), big.mark = ","),
     format(nrow(predictions2027_df), big.mark = ","),
     100 * pct_dropped2027
   )

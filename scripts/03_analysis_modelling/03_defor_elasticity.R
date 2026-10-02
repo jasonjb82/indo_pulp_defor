@@ -651,7 +651,8 @@ si_text <- c(
       "standard deviation = %.2f million IDR/tonne). Prices are expressed in",
       "constant 2015 Indonesian rupiah, converting the reported USD price",
       "series at the annual average market exchange rate and deflating by the",
-      "Indonesian consumer price index. Relative to their means, prices varied",
+      "Indonesian consumer price index, so that they reflect the domestic",
+      "purchasing power of mill revenue. Relative to their means, prices varied",
       "more than three times as much as capacity utilization (coefficients of",
       "variation of %.2f and %.2f, respectively)."
     ),
@@ -673,15 +674,36 @@ si_text <- c(
   strrep("-", 78),
   si_para(
     paste(
-      "Areas with few limitations for agricultural production represent %.1f%%",
-      "of concession area; areas with hydromorphic soils %.1f%%; areas with",
-      "topographic limitations %.1f%%; and areas that cannot be used for",
-      "pulpwood production due to other land cover %.2f%%. The final class is",
-      "removed from all analyses."
+      "Areas with few limitations for agricultural production (AFL). This class",
+      "combines areas categorized as \"humid tropic lowlands\", \"humid tropic",
+      "highlands\" and \"sub-humid tropic lowlands,\" and represents %.1f%% of",
+      "concession area."
     ),
-    aez_pct("noLimitations"),
-    aez_pct("hydromorphic"),
-    aez_pct("terrain"),
+    aez_pct("noLimitations")
+  ),
+  si_para(
+    paste(
+      "Areas with hydromorphic soils (AH). This class combines areas",
+      "categorized as \"land with ample irrigated soils\" and \"dominantly",
+      "hydromorphic soils\" and represents %.1f%% of concession area."
+    ),
+    aez_pct("hydromorphic")
+  ),
+  si_para(
+    paste(
+      "Areas with topographic limitations (AT). This class combines areas",
+      "categorized as \"very steep terrain\" and \"land with severe soil or",
+      "terrain limitations\" and represents %.1f%% of concession area."
+    ),
+    aez_pct("terrain")
+  ),
+  si_para(
+    paste(
+      "Areas that can't be used for pulpwood production due to other land cover",
+      "(AO). This class combines areas categorized as \"water\" and \"developed\"",
+      "classes, and represents %.2f%% of concession area. We remove this final",
+      "class from all analyses."
+    ),
     aez_pct("other")
   ),
   si_para(
@@ -694,31 +716,26 @@ si_text <- c(
   strrep("-", 78),
   si_para(
     paste(
-      "Every 1,000,000 IDR increase in potential returns (%.0f%% increase",
-      "relative to mean) leads to an %.2f hectare increase in pulp-driven",
-      "deforestation in a grid cell."
+      "We find that increases in potential returns to pulpwood production do",
+      "lead to a statistically significant increase in pulp-driven deforestation",
+      "(Table 9, Column 1). However, this effect is small - every 1,000,000 IDR",
+      "increase in potential returns (%.0f%% increase relative to mean) leads to",
+      "a %.2f hectare increase in pulp-driven deforestation in a grid cell."
     ),
     100 / mean(defor_df$pot_revenues, na.rm = TRUE),
     mod_1$coefficients[["pot_revenues"]]
   ),
   si_para(
     paste(
-      "Over the past 15 years (%d-%d) the highest level of pulp-driven",
-      "deforestation occurred in %d (%.1f thousand ha) and the lowest in %d",
-      "(%.1f thousand ha). However, producers faced slightly higher real",
-      "potential returns in %d (%.2f million IDR) than in %d (%.2f million",
-      "IDR)."
+      "For example, over the past 15 years the highest level of pulp-driven",
+      "deforestation occurred in %d, and the lowest level occurred in %d.",
+      "However, producers faced slightly higher real potential returns in %d",
+      "than in %d."
     ),
-    recent_window_start,
-    max(total_pulp_defor$year),
     peak_year,
-    max(defor_by_year$pulp_forest_ha_true),
     trough_year,
-    min(defor_by_year$pulp_forest_ha_true),
     trough_year,
-    returns_in(trough_year),
-    peak_year,
-    returns_in(peak_year)
+    peak_year
   ),
   si_para(
     paste(

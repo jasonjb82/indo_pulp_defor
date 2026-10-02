@@ -771,7 +771,7 @@ si_text <- c(
       "Together, these three projects will increase the country's pulp capacity",
       "by %.0f%% (%.2f million tonnes of pulp per year) and, once fully",
       "operational, will increase the country's pulp sector's annual demand for",
-      "pulpwood inputs by %.0f million m3 per year."
+      "pulpwood inputs by %.0f million m3."
     ),
     100 * cap_pct_increase,
     cap_increase,
@@ -782,13 +782,11 @@ si_text <- c(
       "Entering these data into Equation 4, we estimate that, once fully",
       "operational, the new production lines detailed in Table 7 will demand",
       "%.1f million m3 of delivered pulpwood per year. This represents an",
-      "increase of %.0f%% over total Indonesian pulpwood consumption in %d",
-      "(%.1f million m3 delivered to the mills, per RPBBI reporting)."
+      "increase of %.0f%% over total Indonesian pulpwood consumption in %d."
     ),
     new_wood_demand,
     100 * demand_pct_increase,
-    2022,
-    ws_2022_delivered
+    2022
   ),
   "SI 4.3 Required supply base",
   strrep("-", 78),
@@ -859,16 +857,29 @@ si_text <- c(
     formatC(peat_stats$scenario_1_ha, format = "d", big.mark = ","),
     formatC(peat_stats$scenario_3_ha, format = "d", big.mark = ",")
   ),
+  "SUPPORTING VALUES (not reported in the manuscript)",
+  strrep("-", 78),
+  si_para(
+    paste(
+      "Denominator for the consumption comparison above: %.1f million m3 of",
+      "pulpwood delivered to the mills in 2022, per RPBBI sourcing reports."
+    ),
+    ws_2022_delivered
+  ),
   si_para(
     paste(
       "Scenario bounds follow the productivity assumption, not the area: S1",
       "assumes %.1f%% annual growth and so demands the least new planting, S3",
-      "assumes %.1f%% and demands the most. Figure 3 is written to",
-      "04_results/figures/f3_expansion_combined.png and the underlying",
-      "statistics to 04_results/scenario_stats.csv."
+      "assumes %.1f%% and demands the most."
     ),
     100 * scenario_growth[["s1"]],
     100 * scenario_growth[["s3"]]
+  ),
+  si_para(
+    paste(
+      "Figure 3 is written to 04_results/figures/f3_expansion_combined.png and",
+      "the underlying statistics to 04_results/scenario_stats.csv."
+    )
   )
 )
 
