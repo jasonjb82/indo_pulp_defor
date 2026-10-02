@@ -52,13 +52,13 @@ for (var yr= 2001; yr <= 2022; yr = yr + 1) {
 // export the results as a CSV file
 functions.export_table(
      functions.region_reducer(annual_def_f.reproject({crs: proj,scale: 30}), idn_adm),
-               'pulp_annual_defor_forest_indonesia',
+               'pulp_annual_defor_forest_id',
                'GEE_outputs');
 
 
 // export the results as a CSV file
 functions.export_table(
      functions.region_reducer(annual_def_nf.reproject({crs: proj,scale: 30}), idn_adm),
-               'pulp_annual_defor_non-forest_indonesia',
+               'pulp_annual_defor_non-forest_id',
                'GEE_outputs');
 
