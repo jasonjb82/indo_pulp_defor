@@ -633,8 +633,8 @@ pdf_link_count <- function(pdf_path) {
 merge_si_pdf <- function(si_pdf,
                          out_pdf,
                          template_file = "typst/concession_atlas.typ",
-                         data_typ = "data/01_data_replication/04_results/atlas/atlas_data.typ",
-                         atlas_pdf = "data/01_data_replication/04_results/atlas/concession_atlas.pdf") {
+                         data_typ = "outputs/atlas/atlas_data.typ",
+                         atlas_pdf = "outputs/atlas/concession_atlas.pdf") {
   pdfunite <- Sys.which("pdfunite")
   if (!nzchar(pdfunite)) {
     stop(
