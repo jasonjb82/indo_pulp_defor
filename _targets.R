@@ -473,5 +473,44 @@ list(
       "data/01_data_replication/02_out/tables/paper_text_snippets.txt"
     ),
     format = "file"
+  ),
+
+  # -----------------------------------------------------------------------
+  # H. ANALYSIS 01: RS ACCURACY ASSESSMENT (MIGRATION IN PROGRESS)
+  # -----------------------------------------------------------------------
+  # Computes rs_acc_df from the validation sample rather than reading it from
+  # Zenodo. rs_acc_check confirms the computed table matches the Zenodo copy
+  # before rs_acc_file is retired and rs_acc_df is switched over.
+  tar_target(
+    validation_xlsx_file,
+    file.path(
+      zenodo_data_check,
+      "01_in/gaveau/Validation_11classes_land-cover-change-map_v2.xlsx"
+    ),
+    format = "file"
+  ),
+  tar_target(rs_acc_results, run_rs_accuracy(validation_xlsx_file)),
+  tar_target(
+    rs_acc_check,
+    {
+      # paper_location is excluded: read_csv() reads its empty cell as NA
+      cols <- c(
+        "stat_name",
+        "estimated_area_kha",
+        "se_kha",
+        "ci95_halfwidth_kha",
+        "ci95_lower_kha",
+        "ci95_upper_kha"
+      )
+      ok <- all.equal(
+        as.data.frame(rs_acc_df[, cols]),
+        rs_acc_results$paper_stats[, cols],
+        check.attributes = FALSE
+      )
+      if (!isTRUE(ok)) {
+        stop(paste(ok, collapse = "\n"))
+      }
+      TRUE
+    }
   )
 )
