@@ -12,7 +12,6 @@ library(tidyverse)
 library(tidylog)
 library(tidymodels)
 library(ranger)
-library(themis) # step_downsample
 library(vip) # variable importance plots
 library(probably) # calibration plots
 library(future) # parallel backend for tune_grid
@@ -21,6 +20,19 @@ library(terra)
 library(tmap)
 library(cols4all)
 library(pdp)
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# set random seed --------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# One seed for the whole script. Every stochastic step below draws from this
+# stream in sequence: the majority-class downsample, the kabupaten train/test
+# split, the CV folds, hyperparameter tuning, the final fit, and the PDP
+# subsample. Because they share one stream, the script must be run top to bottom
+# for results to reproduce, and editing an earlier step shifts every later draw.
+# L'Ecuyer-CMRG is required so that tune_grid's parallel workers receive
+# reproducible, non-overlapping RNG streams.
+set.seed(42, kind = "L'Ecuyer-CMRG")
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -194,7 +206,6 @@ model_df <- bind_rows(
 )
 
 # --- 2. Spatial train/test split + CV on training data only ---
-set.seed(42)
 data_split <- group_initial_split(model_df, group = kab_code, prop = 0.8)
 train_df <- training(data_split)
 test_df <- testing(data_split)
@@ -208,10 +219,15 @@ rf_recipe <- recipe(pulp_end ~ ., data = model_df) %>%
   update_role(pixel_id, new_role = "ID") # carry through for evaluation joins
 
 # --- 4. Model specification ---
+# min_n is fixed, not tuned: cross-validated ROC-AUC varies by less than 0.004
+# across min_n from 5 to 400 (0.9499-0.9536 at mtry = 13), well inside one CV
+# standard error (~0.008) and far below the fold-to-fold spread (0.924-0.974).
+# Tuning it only let select_best() chase whichever grid edge was offered. 100 sits
+# mid-plateau. mtry, by contrast, is genuinely identified and is still tuned.
 rf_spec <- rand_forest(
   trees = 500,
   mtry = tune(),
-  min_n = tune()
+  min_n = 100
 ) %>%
   set_engine(
     "ranger",
@@ -226,16 +242,16 @@ rf_workflow <- workflow() %>%
   add_model(rf_spec)
 
 # --- 6. Hyperparameter tuning over spatial CV folds ---
-# Grid: mtry up to 30 (feature set has ~75 predictors; sqrt(75) ≈ 9 but a
-# wider range captures potential benefit of larger subsets for spatial data).
-# 4 levels = 16 combinations; computationally feasible with spatial CV.
+# Grid: mtry {5, 13, 22, 31, 40}. The feature set has 83 predictors, so sqrt(83)
+# ~ 9 is the usual default, but the wider range captures the potential benefit of
+# larger subsets for spatial data. The range brackets the optimum on both sides:
+# ROC-AUC peaks at mtry = 13 and falls away consistently toward 40, so the
+# selection below should be interior to the grid -- widen the range if it is not.
 rf_grid <- grid_regular(
-  mtry(range = c(5, 30)),
-  min_n(range = c(5, 30)),
-  levels = 4
+  mtry(range = c(5, 40)),
+  levels = 5
 )
 
-set.seed(5597, kind = "L'Ecuyer-CMRG") # parallel-safe RNG: streams to each worker reproducibly
 plan(multisession, workers = parallel::detectCores() - 1)
 rf_tune <- tune_grid(
   rf_workflow,
@@ -249,7 +265,7 @@ rf_tune <- tune_grid(
 collect_metrics(rf_tune) %>%
   filter(.metric == "roc_auc") %>%
   arrange(desc(mean)) %>%
-  print(n = 16)
+  print(n = nrow(rf_grid))
 
 autoplot(rf_tune)
 
@@ -265,7 +281,6 @@ last_fit_result <- last_fit(
 )
 
 # Fit on all data for spatial prediction maps
-set.seed(42)
 final_fit <- fit(final_workflow, data = model_df)
 
 # Save / reload final model (skip re-tuning in future runs)
@@ -285,8 +300,11 @@ predictions_df %>%
 # evaluate model performance --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+# collect_predictions() returns .row as the row index in the full data frame given
+# to group_initial_split(), not a position within the test set, so pixel_id must be
+# recovered from model_df.
 test_preds <- collect_predictions(last_fit_result) %>%
-  mutate(pixel_id = test_df$pixel_id[.row])
+  mutate(pixel_id = model_df$pixel_id[.row])
 
 # --- 1. Discrimination metrics ---
 collect_metrics(last_fit_result) # roc_auc, pr_auc summary
@@ -633,6 +651,6 @@ write_csv(
 
 # CV performance of the best hyperparameter combination
 collect_metrics(rf_tune) %>%
-  inner_join(best_params %>% select(mtry, min_n), by = c("mtry", "min_n")) %>%
+  inner_join(best_params %>% select(mtry), by = "mtry") %>%
   filter(.metric %in% c("roc_auc", "pr_auc")) %>%
   select(.metric, mean, std_err)
