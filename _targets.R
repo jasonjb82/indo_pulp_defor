@@ -135,14 +135,6 @@ list(
     format = "file"
   ),
   tar_target(
-    ann_pulp_tbl_file,
-    file.path(
-      zenodo_data_check,
-      "02_out/tables/pulp_expansion_areas_2001_2022.csv"
-    ),
-    format = "file"
-  ),
-  tar_target(
     hti_nonhti_conv_file,
     file.path(
       zenodo_data_check,
@@ -243,7 +235,7 @@ list(
     )
   ),
   tar_target(samples_hti, read_csv(samples_hti_file, show_col_types = FALSE)),
-  tar_target(ann_pulp_tbl, read_csv(ann_pulp_tbl_file, show_col_types = FALSE)),
+  tar_target(ann_pulp_tbl, calc_annual_pulp_expansion(id_annual_exp_stats)),
   tar_target(hti_nonhti_conv, read_hti_nonhti_conv(hti_nonhti_conv_file)),
   tar_target(
     samples_landuse_ttm,
