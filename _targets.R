@@ -323,8 +323,8 @@ list(
     fig1_files,
     save_fig1(
       fig1_summary,
-      "data/01_data_replication/04_results/figures/f1_summary_figure.png",
-      "data/01_data_replication/04_results/figures/f1_summary_figure.svg"
+      "outputs/figures/f1_summary_figure.png",
+      "outputs/figures/f1_summary_figure.svg"
     ),
     format = "file"
   ),
@@ -340,7 +340,7 @@ list(
     fig2_png,
     save_fig2(
       freq_tab_fig2,
-      "data/01_data_replication/04_results/figures/f2_supplier_groups_defor_class_plot.png"
+      "outputs/figures/f2_supplier_groups_defor_class_plot.png"
     ),
     format = "file"
   ),
@@ -352,7 +352,7 @@ list(
     concession_plots_saved,
     render_and_save_all_concessions(
       hti_annual_lc,
-      "data/01_data_replication/04_results/figures/concessions/"
+      "outputs/figures/concessions/"
     ),
     format = "file"
   ),
@@ -381,7 +381,7 @@ list(
     render_and_save_concession_tiles(
       hti_annual_lc,
       atlas_meta,
-      "data/01_data_replication/04_results/figures/concession_tiles"
+      "outputs/figures/concession_tiles"
     ),
     format = "file"
   ),
@@ -390,7 +390,7 @@ list(
     write_atlas_data_typ(
       concession_tile_pngs,
       atlas_meta,
-      "data/01_data_replication/04_results/atlas/atlas_data.typ"
+      "outputs/atlas/atlas_data.typ"
     ),
     format = "file"
   ),
@@ -401,7 +401,7 @@ list(
     compile_concession_atlas(
       atlas_template_file,
       atlas_data_typ,
-      "data/01_data_replication/04_results/atlas/concession_atlas.pdf",
+      "outputs/atlas/concession_atlas.pdf",
       sm_pages = 0L
     ),
     format = "file"
@@ -445,7 +445,7 @@ list(
     si_table_2_csv,
     save_si_table_2(
       si_table_2_df,
-      "data/01_data_replication/02_out/tables/pulp_expansion_areas_all_2001_2022.csv"
+      "outputs/tables/pulp_expansion_areas_all_2001_2022.csv"
     ),
     format = "file"
   ),
@@ -473,7 +473,7 @@ list(
     paper_stats_txt,
     save_paper_stats(
       paper_stats,
-      "data/01_data_replication/02_out/tables/paper_text_snippets.txt"
+      "outputs/text/paper_text_snippets.txt"
     ),
     format = "file"
   ),
