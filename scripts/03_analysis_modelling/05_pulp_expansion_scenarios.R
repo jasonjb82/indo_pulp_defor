@@ -2,8 +2,49 @@
 # Author: Robert Heilmayr
 # Project: Indonesia pulp deforestation
 # Date: 2-25-26
-# Purpose: Pulp expansion scenarios and figures
-# Inputs: pulp_predictions.csv produced by 21_pulp_expansion_model.R
+# Purpose: Allocate the projected area of new pulpwood plantation across space,
+#   and tabulate the resulting expansion by island, starting forest cover and
+#   soil type. Produces main text Figure 3 and the headline deforestation and
+#   peatland conversion estimates. Supports SI Sections 4.3 and 8.4.
+#
+# Input datasets (paths relative to remote/01_data/)
+#        1) 02_out/tables/pulp_predictions.csv: Predicted probability of
+#               pulpwood plantation expansion for every 1 km point not yet
+#               converted as of 2022, with starting forest cover, peat status
+#               and coordinates. Supplies the spatial ranking.
+#               Produced by scripts/03_analysis_modelling/04_pulp_expansion_model.R
+#        2) 04_results/key_parameters.csv: Delivered mean annual increment in
+#               2021 and its annual growth rate with confidence interval. Sets
+#               how much additional wood existing plantations can supply, and so
+#               how much new area is needed.
+#               Produced by scripts/03_analysis_modelling/02_calc_mai.R
+#        3) 04_results/rs_accuracy_paper_stats.csv: Area-corrected pulpwood
+#               plantation extent in 2022, the base to which productivity growth
+#               is applied.
+#               Produced by scripts/03_analysis_modelling/01_rs_accuracy_assessment.R
+#        4) 01_in/wwi/MILLS_EXPORTERS_20200405.xlsx: Existing mill pulp capacity,
+#               the baseline against which planned expansions are expressed as a
+#               percentage increase.
+#        5) 01_in/big/idn_kabupaten_big.shp: Kabupaten boundaries, dissolved to
+#               provinces for the maps.
+#
+#        Planned capacity expansions are hard coded below to match SI Table 7.
+#        Neighbouring-country outlines come from the rnaturalearth package.
+#
+# Outputs:
+#        1) Figure 3: Projected pulpwood plantation expansion under the central
+#               scenario, map plus table. Written to
+#               04_results/figures/f3_expansion_combined.png
+#        2) The map panel of Figure 3 on its own. Written to
+#               04_results/figures/fig_expansion_map.png
+#        3) Interactive diagnostic map of all three scenarios. Written to
+#               04_results/figures/pulp_expansion_scenarios.html
+#               Not reported in the manuscript; for visual inspection only.
+#        4) Scenario statistics: new wood demand, capacity increase, share of
+#               demand met by productivity growth, area demanded, and the
+#               deforestation and peatland conversion totals with bounds.
+#               Written to 04_results/scenario_stats.csv
+#               Read by scripts/04_figures_and_outputs/05_paper_stats.R
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -26,7 +67,7 @@ library(patchwork)
 wdir <- "remote"
 data_dir <- "/01_data/"
 
-# Predicted expansion probabilities from 21_pulp_expansion_model.R
+# Predicted expansion probabilities from 04_pulp_expansion_model.R
 # (lat/lon pre-joined; no need to reload p2_df)
 pred_df <- read_csv(
   paste0(wdir, data_dir, "/02_out/tables/pulp_predictions.csv")
@@ -169,7 +210,14 @@ scenario_df <- pred_df %>%
       TRUE ~ "Other"
     )
   ) %>%
-  filter(!is.na(island)) # keep Sumatra + Kalimantan only
+  # Keep Sumatra and Kalimantan only. kab_code begins with 1 for Sumatran
+  # provinces and 6 for Kalimantan; the case_when has no fallback, so anything
+  # else becomes NA and is dropped here. In practice that is the 6,885 points
+  # (0.7%) in Kepulauan Riau, an island province outside the two study islands.
+  # None of them approach the selection threshold -- their highest predicted
+  # probability is 0.11, far below any scenario's cutoff -- so excluding them
+  # does not affect the scenarios.
+  filter(!is.na(island))
 
 # --- 2. Helper functions ---
 # Select top-probability pixels up to the target expansion area
@@ -576,7 +624,7 @@ combined_fig <- (pub_map + theme(plot.margin = margin(4, 4, 2, 4, "pt"))) /
 
 combined_fig
 ggsave(
-  paste0(wdir, data_dir, "/04_results/figures/fig_expansion_combined.png"),
+  paste0(wdir, data_dir, "/04_results/figures/f3_expansion_combined.png"),
   combined_fig,
   width = 7.5,
   height = 8,
@@ -659,7 +707,7 @@ cat(sprintf(
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# save scenario stats for reporting in 12_paper_stats.R ----------------
+# save scenario stats for reporting in 05_paper_stats.R ----------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Note on area_demand lb/ub: additional_area["ub"] corresponds to high MAI growth
 # (= low area demand); additional_area["lb"] corresponds to low MAI growth (= high area demand).
