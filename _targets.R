@@ -494,6 +494,38 @@ list(
   ),
   tar_target(rs_acc_results, run_rs_accuracy(validation_xlsx_file)),
   tar_target(rs_acc_df, rs_acc_results$paper_stats),
+  tar_target(
+    si_table3_csv,
+    save_csv_table(
+      rs_acc_results$si_table3,
+      "outputs/tables/si_table3_class_descriptions.csv"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    si_table4_csv,
+    save_csv_table(
+      rs_acc_results$si_table4,
+      "outputs/tables/si_table4_change_map_accuracy.csv"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    si_table5_csv,
+    save_csv_table(
+      rs_acc_results$si_table5,
+      "outputs/tables/si_table5_static_map_accuracy.csv"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    rs_acc_diagnostics_txt,
+    save_text_lines(
+      rs_acc_results$diagnostics,
+      "outputs/text/rs_accuracy_diagnostics.txt"
+    ),
+    format = "file"
+  ),
 
   # -----------------------------------------------------------------------
   # I. ANALYSIS 02: DMAI AND PRODUCTIVITY TRENDS
