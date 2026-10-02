@@ -154,11 +154,6 @@ list(
     format = "file"
   ),
   tar_target(
-    rs_acc_file,
-    file.path(zenodo_data_check, "04_results/rs_accuracy_paper_stats.csv"),
-    format = "file"
-  ),
-  tar_target(
     id_annual_exp_file,
     file.path(
       zenodo_data_check,
@@ -261,7 +256,6 @@ list(
     samples_gfc_ttm,
     read_csv(samples_gfc_ttm_file, show_col_types = FALSE)
   ),
-  tar_target(rs_acc_df, read_csv(rs_acc_file, show_col_types = FALSE)),
   tar_target(
     id_annual_exp_stats,
     read_csv(id_annual_exp_file, show_col_types = FALSE)
@@ -368,10 +362,19 @@ list(
   # -----------------------------------------------------------------------
   # Tracking the template as a file target means editing the layout rebuilds
   # only the PDF (about two seconds), not the 305 tiles.
-  tar_target(atlas_template_file, "typst/concession_atlas.typ", format = "file"),
+  tar_target(
+    atlas_template_file,
+    "typst/concession_atlas.typ",
+    format = "file"
+  ),
   tar_target(
     atlas_meta,
-    build_atlas_metadata(hti_annual_lc, hti_conv_timing, groups_reclass_hti, hti)
+    build_atlas_metadata(
+      hti_annual_lc,
+      hti_conv_timing,
+      groups_reclass_hti,
+      hti
+    )
   ),
   tar_target(
     concession_tile_pngs,
@@ -476,11 +479,10 @@ list(
   ),
 
   # -----------------------------------------------------------------------
-  # H. ANALYSIS 01: RS ACCURACY ASSESSMENT (MIGRATION IN PROGRESS)
+  # H. ANALYSIS 01: RS ACCURACY ASSESSMENT
   # -----------------------------------------------------------------------
-  # Computes rs_acc_df from the validation sample rather than reading it from
-  # Zenodo. rs_acc_check confirms the computed table matches the Zenodo copy
-  # before rs_acc_file is retired and rs_acc_df is switched over.
+  # Computes rs_acc_df from the validation sample
+
   tar_target(
     validation_xlsx_file,
     file.path(
@@ -490,27 +492,5 @@ list(
     format = "file"
   ),
   tar_target(rs_acc_results, run_rs_accuracy(validation_xlsx_file)),
-  tar_target(
-    rs_acc_check,
-    {
-      # paper_location is excluded: read_csv() reads its empty cell as NA
-      cols <- c(
-        "stat_name",
-        "estimated_area_kha",
-        "se_kha",
-        "ci95_halfwidth_kha",
-        "ci95_lower_kha",
-        "ci95_upper_kha"
-      )
-      ok <- all.equal(
-        as.data.frame(rs_acc_df[, cols]),
-        rs_acc_results$paper_stats[, cols],
-        check.attributes = FALSE
-      )
-      if (!isTRUE(ok)) {
-        stop(paste(ok, collapse = "\n"))
-      }
-      TRUE
-    }
-  )
+  tar_target(rs_acc_df, rs_acc_results$paper_stats)
 )
