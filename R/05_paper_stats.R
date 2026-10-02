@@ -40,13 +40,18 @@ calc_paper_stats <- function(
 
   ## Line 24: Estimated area of pulp expansion 2001-2011
   pulp_defor_row <- rs_acc_df %>% filter(stat_name == "defor_2001_2011")
-  forest_loss_pulp_ha <- pulp_defor_row %>% pull(estimated_area_kha) * 1000
+  # Named so it cannot be masked by the forest_loss_pulp_ha column of
+  # id_annual_exp_stats inside summarize()
+  pulp_defor_2001_2011_ha <- pulp_defor_row %>%
+    pull(estimated_area_kha) *
+    1000
 
   pulp_def_share_2001_2011 <- id_annual_exp_stats %>%
     filter(year < 2012) %>%
     summarize(
       total_forest_loss_ha = sum(forest_loss_ha),
-      shr_pulp_forest_loss = (forest_loss_pulp_ha / total_forest_loss_ha) * 100
+      shr_pulp_forest_loss = (pulp_defor_2001_2011_ha / total_forest_loss_ha) *
+        100
     )
 
   text_line_24 <- sprintf(
