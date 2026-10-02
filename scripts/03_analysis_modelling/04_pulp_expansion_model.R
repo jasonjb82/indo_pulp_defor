@@ -16,8 +16,6 @@
 #               measured in 2022. Supplies the 2022 outcome used for estimation
 #               and the baseline from which future expansion is predicted.
 #               Produced by scripts/02_data_preparation/11_pulp_expansion_model_variables_1km.R
-#        3) 01_in/big/idn_kabupaten_big.shp: Kabupaten boundaries, dissolved to
-#               provinces for the diagnostic map only.
 #
 # Outputs:
 #        1) SI Figure 4: Receiver operating characteristic and precision-recall
@@ -30,10 +28,7 @@
 #               scenarios tabulate by (starting forest cover, peat, coordinates).
 #               Written to 02_out/tables/pulp_predictions.csv
 #               Read by scripts/03_analysis_modelling/05_pulp_expansion_scenarios.R
-#        4) Interactive diagnostic map of predicted and observed expansion.
-#               Written to 04_results/figures/pulp_expansion_map.html
-#               Not reported in the manuscript; for visual inspection only.
-#        5) SI Section 8 text statements: The numeric claims made in that
+#        4) SI Section 8 text statements: The numeric claims made in that
 #               section, reproduced in their sentence context with values
 #               interpolated from this run. Printed to the console and written
 #               to 04_results/si_section8_statements.txt
@@ -50,13 +45,7 @@ library(tidylog)
 library(tidymodels)
 library(ranger)
 library(vip) # variable importance plots
-library(probably) # calibration plots
 library(future) # parallel backend for tune_grid
-library(sf)
-library(terra)
-library(tmap)
-library(cols4all)
-library(pdp)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -244,7 +233,7 @@ class_wts <- c(pulp = 1 - prevalence, no_pulp = prevalence)
 n_pulp <- sum(model_df$pulp_end == "pulp")
 # Keep the full eligible population before downsampling. Reassigning model_df below
 # leaves this binding pointing at the original frame, so this costs no extra memory.
-# Used for the diagnostic maps, which must not be built from the downsampled sample.
+# Used by the SI statements block to report the size of the eligible population.
 model_pop_df <- model_df
 model_df <- bind_rows(
   model_df %>% filter(pulp_end == "pulp"),
@@ -348,23 +337,6 @@ final_fit <- final_workflow %>%
 saveRDS(final_fit, paste0(wdir, data_dir, "/02_out/models/rf_final_fit.rds"))
 # final_fit <- readRDS(paste0(wdir, "01_data/02_out/models/rf_final_fit.rds"))
 
-# --- 9. Predicted probabilities for all eligible pixels ---
-# Scored over the full eligible population rather than the downsampled estimation
-# sample: downsampling keeps every converting pixel but only ~3.5% of non-converting
-# ones, which would inflate the mapped conversion rate roughly tenfold and bias the
-# cell-mean predicted probabilities toward converting areas.
-# These are fitted values -- the model saw the downsampled subset of these pixels
-# during training -- so the 2017-2022 layers below are a visual consistency check,
-# not an out-of-sample validation. Out-of-sample performance is assessed above on
-# the held-out kabupaten.
-predictions_df <- augment(final_fit, new_data = model_pop_df)
-
-
-predictions_df %>%
-  select(.pred_pulp) %>%
-  summary()
-
-
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # evaluate model performance --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -398,129 +370,10 @@ ggsave(
   height = 4
 )
 
-# --- 2. Brier score (combines discrimination + calibration) ---
-brier_class(test_preds, truth = pulp_end, .pred_pulp)
-
-# --- 3. Calibration plot (predicted probability vs. observed conversion rate) ---
-cal_plot_breaks(
-  test_preds,
-  truth = pulp_end,
-  estimate = .pred_pulp,
-  num_breaks = 10
-)
-
-# --- 4. Confusion matrix at 0.5 threshold ---
-test_preds %>%
-  mutate(
-    .pred_class = if_else(.pred_pulp >= 0.5, "pulp", "no_pulp"),
-    .pred_class = factor(.pred_class, levels = c("pulp", "no_pulp"))
-  ) %>%
-  conf_mat(truth = pulp_end, estimate = .pred_class) %>%
-  tidy() %>%
-  # tidy() names cells cell_<row>_<col>, and conf_mat puts Prediction on the rows
-  # and Truth on the columns. The first index is therefore the prediction and the
-  # second the actual class; reading them the other way round swaps the two
-  # off-diagonal cells (false positives and false negatives).
-  mutate(
-    predicted = if_else(
-      str_detect(name, "^cell_1_"),
-      "Predicted: pulp",
-      "Predicted: no_pulp"
-    ),
-    actual = if_else(
-      str_detect(name, "_1$"),
-      "Actual: pulp",
-      "Actual: no_pulp"
-    )
-  ) %>%
-  select(actual, predicted, value) %>%
-  pivot_wider(names_from = predicted, values_from = value)
-
-# --- 5. Variable importance (top 20 features) ---
+# --- 2. Variable importance (top 20 features) ---
 final_fit %>%
   extract_fit_parsnip() %>%
   vip(num_features = 20)
-
-# --- 6. Partial dependence plots for top 10 variables ---
-priority_vars <- c(
-  "hti_start",
-  "dist_mill",
-  "forest_start",
-  "dist_water_m",
-  "palm_start"
-)
-
-top10_vars <- final_fit %>%
-  extract_fit_parsnip() %>%
-  vi() %>%
-  slice_max(Importance, n = 10) %>%
-  pull(Variable)
-
-pdp_vars <- union(priority_vars, top10_vars)
-
-# Bake recipe to get predictor matrix in the form ranger expects
-train_baked <- prep(rf_recipe) %>%
-  bake(new_data = model_df) %>%
-  select(-pulp_end, -pixel_id, -kab_code) %>%
-  slice_sample(n = 2000) # subsample for speed; PDPs are averaged anyway
-
-rf_engine <- extract_fit_parsnip(final_fit)$fit # underlying ranger object
-
-# Split vars: kh is categorical; all others are continuous
-numeric_pdp_vars <- pdp_vars[pdp_vars != "kh"]
-has_kh <- "kh" %in% pdp_vars
-
-# Continuous PDPs: line plots
-pdp_df <- map_dfr(numeric_pdp_vars, \(var) {
-  pdp::partial(
-    rf_engine,
-    pred.var = var,
-    train = train_baked,
-    which.class = 1,
-    prob = TRUE
-  ) %>%
-    as_tibble() %>%
-    rename(x_val = 1) %>%
-    mutate(variable = var)
-})
-
-ggplot(pdp_df, aes(x = x_val, y = yhat)) +
-  geom_line() +
-  geom_rug(
-    data = map_dfr(numeric_pdp_vars, \(var) {
-      tibble(x_val = train_baked[[var]], variable = var)
-    }),
-    aes(x = x_val, y = NULL),
-    sides = "b",
-    alpha = 0.1,
-    length = unit(0.03, "npc")
-  ) +
-  facet_wrap(~variable, scales = "free_x", ncol = 5) +
-  labs(
-    x = NULL,
-    y = "P(pulp expansion)",
-    title = "Partial dependence: continuous predictors"
-  )
-
-# kh PDP: bar chart (only rendered if kh is among the plotted variables)
-if (has_kh) {
-  pdp::partial(
-    rf_engine,
-    pred.var = "kh",
-    train = train_baked,
-    which.class = 1,
-    prob = TRUE
-  ) %>%
-    as_tibble() %>%
-    ggplot(aes(x = yhat, y = reorder(kh, yhat))) +
-    geom_col() +
-    labs(
-      x = "P(pulp expansion)",
-      y = "Forest estate class (kh)",
-      title = "Partial dependence: forest estate class"
-    )
-}
-
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # apply model to 2022 baseline for 2022-2027 predictions --------------
@@ -582,153 +435,26 @@ predictions2027_df %>%
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# map predicted pulp expansion probabilities --------------
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-# --- 1. Load pixel coordinates (one row per pixel) ---
-coords_df <- p1_df %>%
-  select(pixel_id, lat, lon)
-
-# --- 2. Build sf points layer ---
-pred_sf <- predictions_df %>%
-  left_join(coords_df, by = "pixel_id") %>%
-  drop_na(lon, lat) %>%
-  st_as_sf(coords = c("lon", "lat"), crs = 4326)
-
-stopifnot(
-  "Pixels lost in left_join — check for duplicate pixel_ids" = nrow(pred_sf) ==
-    nrow(predictions_df)
-)
-
-# --- 3. Aggregate 1km predictions to 10km raster (~0.1 degree resolution) ---
-pred_vect <- pred_sf %>%
-  mutate(converted = as.integer(pulp_end == "pulp")) %>%
-  vect()
-# Template extent is taken from the full 1 km grid, not from whichever subset is
-# being rasterized. Deriving it from a subset leaves points outside the extent, and
-# terra drops them silently.
-rast_template <- rast(
-  vect(coords_df, geom = c("lon", "lat"), crs = "EPSG:4326"),
-  resolution = 0.1
-)
-pred_rast <- rasterize(
-  pred_vect,
-  rast_template,
-  field = ".pred_pulp",
-  fun = mean
-)
-names(pred_rast) <- "pred_pulp"
-obs_rast <- rasterize(pred_vect, rast_template, field = "converted", fun = mean)
-names(obs_rast) <- "obs_conversion"
-
-# --- 4. Spatial calibration: predicted vs. observed at 10km grid (held-out test set) ---
-test_spatial_sf <- test_preds %>%
-  mutate(converted = as.integer(pulp_end == "pulp")) %>%
-  left_join(coords_df, by = "pixel_id") %>%
-  drop_na(lon, lat) %>%
-  st_as_sf(coords = c("lon", "lat"), crs = 4326)
-test_vect <- vect(test_spatial_sf)
-test_pred_rast <- rasterize(
-  test_vect,
-  rast_template,
-  field = ".pred_pulp",
-  fun = mean
-)
-test_obs_rast <- rasterize(
-  test_vect,
-  rast_template,
-  field = "converted",
-  fun = mean
-)
-
-spatial_cal_df <- tibble(
-  pred = values(test_pred_rast)[, 1],
-  obs = values(test_obs_rast)[, 1]
-) %>%
-  drop_na()
-
-cor(spatial_cal_df$pred, spatial_cal_df$obs, method = "spearman")
-
-ggplot(spatial_cal_df, aes(x = obs, y = pred)) +
-  geom_point(alpha = 0.3, size = 0.8) +
-  geom_smooth(method = "lm", se = FALSE, colour = "steelblue") +
-  geom_abline(linetype = "dashed", colour = "grey50") +
-  labs(
-    x = "Observed conversion rate (10km grid, test set)",
-    y = "Mean predicted P(conversion) (10km grid, test set)",
-    title = "Spatial calibration: held-out test set, 10km grid cells"
-  )
-
-# --- 5. Aggregate 2022-2027 predictions to 10km raster ---
-coords2027_df <- p2_df %>% select(pixel_id, lat, lon)
-pred2027_sf <- predictions2027_df %>%
-  left_join(coords2027_df, by = "pixel_id") %>%
-  drop_na(lon, lat) %>%
-  st_as_sf(coords = c("lon", "lat"), crs = 4326)
-stopifnot(
-  "Pixels lost in left_join — check for duplicate pixel_ids" = nrow(pred2027_sf) ==
-    nrow(predictions2027_df)
-)
-
-pred2027_vect <- vect(pred2027_sf)
-pred2027_rast <- rasterize(
-  pred2027_vect,
-  rast_template,
-  field = ".pred_pulp",
-  fun = mean
-)
-names(pred2027_rast) <- "pred_pulp_2027"
-
-# --- 6. Build province boundary layer (dissolve kabupaten shapefile) ---
-kab_sf <- read_sf(paste0(wdir, data_dir, "/01_in/big/idn_kabupaten_big.shp"))
-prov_sf <- kab_sf %>%
-  group_by(prov, prov_code) %>%
-  summarise(.groups = "drop")
-
-# --- 7. Interactive tmap ---
-tmap_mode("view")
-
-pulp_map <- tm_shape(pred_rast) +
-  tm_raster(
-    col = "pred_pulp",
-    palette = "brewer.yl_or_rd",
-    col_alpha = 0.8,
-    title = "Predicted pulp expansion (2017-2022)"
-  ) +
-  tm_shape(obs_rast, group = "Observed conversion rate (2017-2022)") +
-  tm_raster(
-    col = "obs_conversion",
-    palette = "brewer.blues",
-    col_alpha = 0.8,
-    title = "Observed pulp expansion (2017-2022)"
-  ) +
-  tm_shape(pred2027_rast, group = "Predicted P(pulp expansion, 2022-2027)") +
-  tm_raster(
-    col = "pred_pulp_2027",
-    palette = "brewer.yl_or_rd",
-    col_alpha = 0.8,
-    title = "Predicted pulp expansion (2022-2027)"
-  ) +
-  tm_shape(prov_sf) +
-  tm_borders(col = "grey40", lwd = 1) +
-  tm_title("Predicted probability of pulp expansion")
-
-pulp_map
-htmlwidgets::saveWidget(
-  tmap_leaflet(pulp_map),
-  file = paste0(wdir, data_dir, "/04_results/figures/pulp_expansion_map.html"),
-  selfcontained = TRUE
-)
-
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # save predictions for downstream scenario analysis --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# lat/lon pre-joined so 22_pulp_expansion_scenarios.R doesn't need to re-read p2_df
+# lat/lon pre-joined so 05_pulp_expansion_scenarios.R doesn't need to re-read p2_df
+pulp_predictions <- predictions2027_df %>%
+  left_join(p2_df %>% select(pixel_id, lat, lon), by = "pixel_id") %>%
+  select(pixel_id, kab_code, forest_start, peat, lat, lon, .pred_pulp)
+
+stopifnot(
+  "Rows gained in left_join — check for duplicate pixel_ids" = nrow(
+    pulp_predictions
+  ) ==
+    nrow(predictions2027_df),
+  "Missing coordinates in prediction output" = !anyNA(
+    pulp_predictions$lat
+  ) &&
+    !anyNA(pulp_predictions$lon)
+)
+
 write_csv(
-  predictions2027_df %>%
-    left_join(p2_df %>% select(pixel_id, lat, lon), by = "pixel_id") %>%
-    select(pixel_id, kab_code, forest_start, peat, lat, lon, .pred_pulp),
+  pulp_predictions,
   paste0(wdir, data_dir, "/02_out/tables/pulp_predictions.csv")
 )
 
