@@ -45,15 +45,22 @@ list(
   # -----------------------------------------------------------------------
   # A. FILE TRACKING (ZENODO DOWNLOAD LOCATION)
   # -----------------------------------------------------------------------
-
+  # Tracks the small .zenodo_record marker rather than the whole data folder,
+  # so editing one input file only invalidates the targets that use it. The
+  # download runs when the marker is missing (data deleted) or the record ID
+  # below changes. To move to a new Zenodo version, change zenodo_record_id.
   tar_target(
-    zenodo_data_check,
-    download_zenodo_data(
-      zenodo_record_id = "21542417",
-      output_dir = "data/01_data_replication"
+    zenodo_marker,
+    file.path(
+      download_zenodo_data(
+        zenodo_record_id = "21542417",
+        output_dir = "data/01_data_replication"
+      ),
+      ".zenodo_record"
     ),
     format = "file"
   ),
+  tar_target(zenodo_data_check, dirname(zenodo_marker)),
 
   tar_target(
     kab_file,
