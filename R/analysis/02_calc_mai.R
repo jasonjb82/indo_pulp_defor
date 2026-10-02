@@ -9,6 +9,33 @@
 ##   from and written to hard-coded paths. Two leftovers from the standalone
 ##   script are not carried over: library(marginaleffects), which is unused,
 ##   and a call to grow_yield(), which was deleted in an earlier commit.
+##
+## Pipeline inputs (targets in _targets.R; paths relative to
+##   data/01_data_replication/)
+##        1) harvest_file -> 02_out/tables/hti_harvest_yr.csv: Concession-year
+##               harvest record (hectare-years harvested, rotation length,
+##               harvest-year precipitation and PET, hectare-years on peat, and
+##               the alternate hectare-year columns used by the robustness
+##               specifications).
+##               Produced by scripts/02_data_preparation/06_gaveau_harvests.R
+##        2) ws_2015_2022 -> 02_out/tables/ws_merge_clean_2015_2022.csv:
+##               Pulpwood volumes delivered to mills by concession and year,
+##               from the RPBBI sourcing reports. Subset here to 2015-2021.
+##               Produced by scripts/02_data_preparation/04_merge_ws_data.R
+##
+## Pipeline outputs
+##        1) mai_df (from run_calc_mai()$key_parameters): Sectoral DMAI, 2021
+##               DMAI, yield growth and CI half-width, production coverage,
+##               median observations per concession, Hardiyanto et al. CAGR.
+##               Read by paper_stats (calc_paper_stats() in R/05_paper_stats.R)
+##        2) mai_results$hti_mai: Concession-level DMAI, raw and Winsorized.
+##               Kept in the mai_results target for the deforestation
+##               elasticity analysis (script 03), which is not yet migrated.
+##        3) si_section3_txt -> outputs/text/si_section3_statements.txt:
+##               SI Section 3 statements with values from this run.
+##        4) SI Table 6 (DMAI trend regressions): save_mai_table() writes it to
+##               .docx, but no target calls it yet because pandoc is not
+##               installed on the current machine.
 ## ---------------------------------------------------------
 
 #' Calculate DMAI and productivity trends
