@@ -25,7 +25,12 @@
 #        4) 01_in/wwi/MILLS_EXPORTERS_20200405.xlsx: Existing mill pulp capacity,
 #               the baseline against which planned expansions are expressed as a
 #               percentage increase.
-#        5) 01_in/big/idn_kabupaten_big.shp: Kabupaten boundaries, dissolved to
+#        5) 02_out/tables/ws_merge_clean_2015_2022.csv: Pulpwood volumes
+#               delivered to each mill by year, from the RPBBI sourcing reports.
+#               The 2022 total is current consumption, the denominator against
+#               which new demand is expressed as a percentage increase.
+#               Produced by scripts/02_data_preparation/04_merge_ws_data.R
+#        6) 01_in/big/idn_kabupaten_big.shp: Kabupaten boundaries, dissolved to
 #               provinces for the maps.
 #
 #        Planned capacity expansions are hard coded below to match SI Table 7.
@@ -92,6 +97,15 @@ cap_df <- readxl::read_excel(paste0(
   "/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"
 ))
 
+# Pulpwood volumes delivered to each mill, from the RPBBI sourcing reports.
+# Supplies observed current consumption, against which the new demand is
+# expressed as a percentage increase.
+ws_df <- read_csv(paste0(
+  wdir,
+  data_dir,
+  "/02_out/tables/ws_merge_clean_2015_2022.csv"
+))
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # build raster template and 2022-2027 probability raster --------------
@@ -134,6 +148,19 @@ baseline_cap_mt <- cap_df %>%
 
 cap_increase <- (cap_expansions %>% pull(cap) %>% sum() / 1000000)
 cap_pct_increase <- cap_increase / baseline_cap_mt
+
+# Pulpwood actually delivered to the mills in 2022 (million m3). This is observed
+# volume reported to RPBBI, so expressing new demand against it needs no
+# assumption about the wood-to-pulp conversion ratio. The alternative route -
+# 2022 pulp production times a 4.7 m3/tonne factor - gives 46.50 million m3, so
+# the two agree to within 0.1%.
+ws_2022_delivered <- ws_df %>%
+  filter(YEAR == 2022) %>%
+  pull(VOLUME_M3) %>%
+  sum(na.rm = TRUE) /
+  1e6
+
+demand_pct_increase <- new_wood_demand / ws_2022_delivered
 
 # starting pulpwood area
 pp_areas <- read_csv(paste0(
@@ -687,6 +714,8 @@ scenario_stats <- tibble(
   new_wood_demand_mm3 = new_wood_demand,
   cap_increase = cap_increase,
   cap_pct_increase = cap_pct_increase,
+  ws_2022_delivered_mm3 = ws_2022_delivered,
+  demand_pct_increase = demand_pct_increase,
   pct_demand_met_central = extra_production["central"] / new_wood_demand * 100,
   pct_demand_met_low = extra_production["lb"] / new_wood_demand * 100,
   pct_demand_met_high = extra_production["ub"] / new_wood_demand * 100,
@@ -747,6 +776,19 @@ si_text <- c(
     100 * cap_pct_increase,
     cap_increase,
     new_wood_demand
+  ),
+  si_para(
+    paste(
+      "Entering these data into Equation 4, we estimate that, once fully",
+      "operational, the new production lines detailed in Table 7 will demand",
+      "%.1f million m3 of delivered pulpwood per year. This represents an",
+      "increase of %.0f%% over total Indonesian pulpwood consumption in %d",
+      "(%.1f million m3 delivered to the mills, per RPBBI reporting)."
+    ),
+    new_wood_demand,
+    100 * demand_pct_increase,
+    2022,
+    ws_2022_delivered
   ),
   "SI 4.3 Required supply base",
   strrep("-", 78),
