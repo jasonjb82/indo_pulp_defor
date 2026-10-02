@@ -2,7 +2,44 @@
 # Author: Robert Heilmayr
 # Project: Indonesia pulp deforestation
 # Date: 2-25-26
-# Purpose: Build spatial model of pulp expansion locations
+# Purpose: Build spatial model of pulp expansion locations. The foundation for
+#   SI Section 8, and produces the pixel-level expansion probabilities that the
+#   scenario analysis in script 05 allocates.
+#
+# Input datasets (paths relative to remote/01_data/)
+#        1) 02_out/tables/pulp_exp_model_var_1km_2017.csv: Predictors and
+#               pulpwood plantation extent for each 1 km grid point, measured at
+#               the start of the estimation period (2017). Supplies the
+#               estimation sample.
+#               Produced by scripts/02_data_preparation/11_pulp_expansion_model_variables_1km.R
+#        2) 02_out/tables/pulp_exp_model_var_1km_2022.csv: The same predictors
+#               measured in 2022. Supplies the 2022 outcome used for estimation
+#               and the baseline from which future expansion is predicted.
+#               Produced by scripts/02_data_preparation/11_pulp_expansion_model_variables_1km.R
+#        3) 01_in/big/idn_kabupaten_big.shp: Kabupaten boundaries, dissolved to
+#               provinces for the diagnostic map only.
+#
+# Outputs:
+#        1) SI Figure 4: Receiver operating characteristic and precision-recall
+#               curves for the final model, computed on the held-out spatial
+#               test set. Written to 04_results/figures/SI_f4_auc.png
+#        2) Fitted random forest workflow, retained so the model can be reloaded
+#               without re-tuning. Written to 02_out/models/rf_final_fit.rds
+#        3) Predicted probability of pulpwood plantation expansion for every
+#               1 km point not yet converted as of 2022, with the covariates the
+#               scenarios tabulate by (starting forest cover, peat, coordinates).
+#               Written to 02_out/tables/pulp_predictions.csv
+#               Read by scripts/03_analysis_modelling/05_pulp_expansion_scenarios.R
+#        4) Interactive diagnostic map of predicted and observed expansion.
+#               Written to 04_results/figures/pulp_expansion_map.html
+#               Not reported in the manuscript; for visual inspection only.
+#        5) SI Section 8 text statements: The numeric claims made in that
+#               section, reproduced in their sentence context with values
+#               interpolated from this run. Printed to the console and written
+#               to 04_results/si_section8_statements.txt
+#
+# Note: hyperparameter tuning runs in parallel and takes several minutes. Run the
+#   script top to bottom; a single seed at the head governs every stochastic step.
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -190,16 +227,25 @@ stopifnot(
 )
 
 # Two-pronged class-imbalance strategy:
-#   1. Downsample majority class to 10:1 for memory and compute efficiency
-#      (heuristic: retains enough no_pulp variation while keeping training set
-#      to ~200k rows for feasible compute).
-#   2. Apply class weights derived from the *original* prevalence (~1% pulp)
-#      so ranger corrects predicted probabilities toward the true base rate,
-#      counteracting the artificially inflated minority-class share after downsampling.
+#   1. Downsample the majority class to 10:1 for memory and compute efficiency.
+#      This retains enough no_pulp variation to characterise the decision boundary
+#      while keeping the estimation sample to roughly 37,000 rows.
+#   2. Apply class weights derived from the *original* prevalence (~0.35% pulp),
+#      which makes tree construction cost-sensitive: the splitting rule favours
+#      splits that separate the rare class.
+#      Note that ranger applies class.weights in the splitting rule only. Leaf
+#      probabilities remain in-bag class fractions, so predicted probabilities are
+#      NOT calibrated to the landscape base rate and should not be read as absolute
+#      risks. This is immaterial downstream because the scenarios use the
+#      predictions solely to rank locations.
 prevalence <- mean(model_df$pulp_end == "pulp")
 class_wts <- c(pulp = 1 - prevalence, no_pulp = prevalence)
 
 n_pulp <- sum(model_df$pulp_end == "pulp")
+# Keep the full eligible population before downsampling. Reassigning model_df below
+# leaves this binding pointing at the original frame, so this costs no extra memory.
+# Used for the diagnostic maps, which must not be built from the downsampled sample.
+model_pop_df <- model_df
 model_df <- bind_rows(
   model_df %>% filter(pulp_end == "pulp"),
   model_df %>% filter(pulp_end == "no_pulp") %>% sample_n(min(n_pulp * 10, n()))
@@ -219,6 +265,10 @@ rf_recipe <- recipe(pulp_end ~ ., data = model_df) %>%
   update_role(pixel_id, new_role = "ID") # carry through for evaluation joins
 
 # --- 4. Model specification ---
+# Permutation importance is deliberately not requested here. It is computed from the
+# fitted forest and affects neither splits nor predictions, so asking for it during
+# tuning would repeat the calculation across every resample fit for no gain. It is
+# switched on for the final fit only (step 8), which is the model vip() interrogates.
 # min_n is fixed, not tuned: cross-validated ROC-AUC varies by less than 0.004
 # across min_n from 5 to 400 (0.9499-0.9536 at mtry = 13), well inside one CV
 # standard error (~0.008) and far below the fold-to-fold spread (0.924-0.974).
@@ -231,7 +281,6 @@ rf_spec <- rand_forest(
 ) %>%
   set_engine(
     "ranger",
-    importance = "permutation",
     class.weights = !!class_wts
   ) %>%
   set_mode("classification")
@@ -252,7 +301,8 @@ rf_grid <- grid_regular(
   levels = 5
 )
 
-plan(multisession, workers = parallel::detectCores() - 1)
+n_workers <- max(1, parallel::detectCores() - 1)
+plan(multisession, workers = n_workers)
 rf_tune <- tune_grid(
   rf_workflow,
   resamples = cv_folds,
@@ -260,6 +310,7 @@ rf_tune <- tune_grid(
   metrics = metric_set(roc_auc, pr_auc, sensitivity, specificity),
   control = control_grid(save_pred = TRUE, verbose = TRUE)
 )
+plan(sequential) # shut the workers down; they otherwise persist for the session
 
 # --- 7. Review CV results ---
 collect_metrics(rf_tune) %>%
@@ -280,15 +331,33 @@ last_fit_result <- last_fit(
   metrics = metric_set(roc_auc, pr_auc)
 )
 
-# Fit on all data for spatial prediction maps
-final_fit <- fit(final_workflow, data = model_df)
+# Fit on all data for spatial prediction maps, now with permutation importance
+# enabled for the variable-importance plots below.
+final_fit <- final_workflow %>%
+  update_model(
+    extract_spec_parsnip(final_workflow) %>%
+      set_engine(
+        "ranger",
+        class.weights = !!class_wts,
+        importance = "permutation"
+      )
+  ) %>%
+  fit(data = model_df)
 
 # Save / reload final model (skip re-tuning in future runs)
 saveRDS(final_fit, paste0(wdir, data_dir, "/02_out/models/rf_final_fit.rds"))
 # final_fit <- readRDS(paste0(wdir, "01_data/02_out/models/rf_final_fit.rds"))
 
-# --- 9. Predicted probabilities for all pixels ---
-predictions_df <- augment(final_fit, new_data = model_df)
+# --- 9. Predicted probabilities for all eligible pixels ---
+# Scored over the full eligible population rather than the downsampled estimation
+# sample: downsampling keeps every converting pixel but only ~3.5% of non-converting
+# ones, which would inflate the mapped conversion rate roughly tenfold and bias the
+# cell-mean predicted probabilities toward converting areas.
+# These are fitted values -- the model saw the downsampled subset of these pixels
+# during training -- so the 2017-2022 layers below are a visual consistency check,
+# not an out-of-sample validation. Out-of-sample performance is assessed above on
+# the held-out kabupaten.
+predictions_df <- augment(final_fit, new_data = model_pop_df)
 
 
 predictions_df %>%
@@ -348,16 +417,20 @@ test_preds %>%
   ) %>%
   conf_mat(truth = pulp_end, estimate = .pred_class) %>%
   tidy() %>%
+  # tidy() names cells cell_<row>_<col>, and conf_mat puts Prediction on the rows
+  # and Truth on the columns. The first index is therefore the prediction and the
+  # second the actual class; reading them the other way round swaps the two
+  # off-diagonal cells (false positives and false negatives).
   mutate(
-    actual = if_else(
-      str_detect(name, "^cell_1_"),
-      "Actual: pulp",
-      "Actual: no_pulp"
-    ),
     predicted = if_else(
-      str_detect(name, "_1$"),
+      str_detect(name, "^cell_1_"),
       "Predicted: pulp",
       "Predicted: no_pulp"
+    ),
+    actual = if_else(
+      str_detect(name, "_1$"),
+      "Actual: pulp",
+      "Actual: no_pulp"
     )
   ) %>%
   select(actual, predicted, value) %>%
@@ -512,7 +585,7 @@ predictions2027_df %>%
 # map predicted pulp expansion probabilities --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# --- 1. Load pixel coordinates (panel file; deduplicate to one row per pixel) ---
+# --- 1. Load pixel coordinates (one row per pixel) ---
 coords_df <- p1_df %>%
   select(pixel_id, lat, lon)
 
@@ -531,7 +604,13 @@ stopifnot(
 pred_vect <- pred_sf %>%
   mutate(converted = as.integer(pulp_end == "pulp")) %>%
   vect()
-rast_template <- rast(pred_vect, resolution = 0.1)
+# Template extent is taken from the full 1 km grid, not from whichever subset is
+# being rasterized. Deriving it from a subset leaves points outside the extent, and
+# terra drops them silently.
+rast_template <- rast(
+  vect(coords_df, geom = c("lon", "lat"), crs = "EPSG:4326"),
+  resolution = 0.1
+)
 pred_rast <- rasterize(
   pred_vect,
   rast_template,
@@ -586,6 +665,11 @@ pred2027_sf <- predictions2027_df %>%
   left_join(coords2027_df, by = "pixel_id") %>%
   drop_na(lon, lat) %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326)
+stopifnot(
+  "Pixels lost in left_join — check for duplicate pixel_ids" = nrow(pred2027_sf) ==
+    nrow(predictions2027_df)
+)
+
 pred2027_vect <- vect(pred2027_sf)
 pred2027_rast <- rasterize(
   pred2027_vect,
@@ -649,8 +733,141 @@ write_csv(
 )
 
 
-# CV performance of the best hyperparameter combination
-collect_metrics(rf_tune) %>%
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Reproduce the numeric claims made in the SI -----------------------------
+##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Prints each statement from SI Section 8 that depends on this script, with
+## its numbers interpolated live, and writes the same text to 04_results.
+## Reproducing the sentences in context makes it straightforward to check the
+## manuscript against the analysis, and any change in the underlying data
+## surfaces directly in the wording below.
+
+si_para <- function(...) c(strwrap(sprintf(...), width = 78), "")
+
+# Held-out test performance (SI Section 8.3)
+test_metrics <- collect_metrics(last_fit_result)
+metric_val <- function(m) test_metrics$.estimate[test_metrics$.metric == m]
+
+# Cross-validated performance at the selected hyperparameters
+cv_best <- collect_metrics(rf_tune) %>%
   inner_join(best_params %>% select(mtry), by = "mtry") %>%
-  filter(.metric %in% c("roc_auc", "pr_auc")) %>%
-  select(.metric, mean, std_err)
+  filter(.metric %in% c("roc_auc", "pr_auc"))
+cv_val <- function(m, col) cv_best[[col]][cv_best$.metric == m]
+
+si_text <- c(
+  "SI SECTION 8: SPATIAL MODEL OF PULP EXPANSION",
+  strrep("=", 78),
+  paste(
+    "Generated by scripts/03_analysis_modelling/04_pulp_expansion_model.R on",
+    Sys.Date()
+  ),
+  "",
+  "8.1 Sample construction and partitioning",
+  strrep("-", 78),
+  si_para(
+    paste(
+      "Dropping points already converted to pulpwood plantations by 2017, and",
+      "points with missing covariates (%.1f%% of the sample), leaves %s 1 km",
+      "points. Of these, %s (%.3f%% of the sample) were converted to pulpwood",
+      "plantations between 2017 and 2022."
+    ),
+    100 * pct_dropped,
+    format(nrow(model_pop_df), big.mark = ","),
+    format(n_pulp, big.mark = ","),
+    100 * prevalence
+  ),
+  si_para(
+    paste(
+      "Downsampling the majority class to 10 times the number of minority-class",
+      "observations yields an estimation sample of %s points. This was",
+      "partitioned into a training set of %s points (%.0f%%) across %d",
+      "regencies and a held-out test set of %s points (%.0f%%) across %d",
+      "regencies, blocking at the regency (kabupaten) level so that all points",
+      "in a regency fall in the same set. Hyperparameters were tuned using",
+      "%d-fold spatial cross-validation within the training set."
+    ),
+    format(nrow(model_df), big.mark = ","),
+    format(nrow(train_df), big.mark = ","),
+    100 * nrow(train_df) / nrow(model_df),
+    n_distinct(train_df$kab_code),
+    format(nrow(test_df), big.mark = ","),
+    100 * nrow(test_df) / nrow(model_df),
+    n_distinct(test_df$kab_code),
+    nrow(cv_folds)
+  ),
+  "8.3 Model estimation and validation",
+  strrep("-", 78),
+  si_para(
+    paste(
+      "Inverse-prevalence class weights were derived from the prevalence of",
+      "expansion in the full population prior to downsampling (%.5f), giving",
+      "weights of %.4f for the expansion class and %.5f for the non-expansion",
+      "class, a ratio of %.0f to 1. ranger applies these in the splitting rule",
+      "only, so predicted probabilities are not calibrated to the landscape",
+      "base rate and are used solely to rank locations."
+    ),
+    prevalence,
+    class_wts[["pulp"]],
+    class_wts[["no_pulp"]],
+    class_wts[["pulp"]] / class_wts[["no_pulp"]]
+  ),
+  si_para(
+    paste(
+      "The number of trees was fixed at 500 and the minimum number of",
+      "observations required to split a terminal node at %d. The number of",
+      "candidate features considered at each split was tuned over %d values",
+      "spanning %d to %d; the value maximising mean cross-validated ROC-AUC",
+      "was %d (cross-validated ROC-AUC %.3f, standard error %.3f). The model",
+      "uses %d predictors in total."
+    ),
+    extract_fit_parsnip(final_fit)$fit$min.node.size,
+    nrow(rf_grid),
+    min(rf_grid$mtry),
+    max(rf_grid$mtry),
+    best_params$mtry,
+    cv_val("roc_auc", "mean"),
+    cv_val("roc_auc", "std_err"),
+    extract_fit_parsnip(final_fit)$fit$num.independent.variables
+  ),
+  si_para(
+    paste(
+      "The final model achieved a ROC-AUC of %.3f and a PR-AUC of %.3f on the",
+      "held-out spatial test set. Both are computed on the downsampled test",
+      "set, which retains the 10:1 class ratio of the estimation sample",
+      "(prevalence %.1f%%, against %.3f%% across the full landscape). ROC-AUC",
+      "is invariant to class prevalence; precision is not, and is",
+      "correspondingly lower at the landscape base rate. SI Figure 4 is",
+      "written to 04_results/figures/SI_f4_auc.png."
+    ),
+    metric_val("roc_auc"),
+    metric_val("pr_auc"),
+    100 * mean(test_df$pulp_end == "pulp"),
+    100 * prevalence
+  ),
+  "8.4 Predicted pulpwood plantation expansion",
+  strrep("-", 78),
+  si_para(
+    paste(
+      "The final model was refit on the complete downsampled dataset (%s",
+      "points, training and test partitions combined) and used to predict",
+      "expansion probabilities for all %s points not yet converted to",
+      "pulpwood plantations as of 2022 (%.1f%% of candidate points dropped for",
+      "missing covariates). Predictions are written to",
+      "02_out/tables/pulp_predictions.csv and allocated across space by",
+      "scripts/03_analysis_modelling/05_pulp_expansion_scenarios.R."
+    ),
+    format(nrow(model_df), big.mark = ","),
+    format(nrow(predictions2027_df), big.mark = ","),
+    100 * pct_dropped2027
+  )
+)
+
+cat(si_text, sep = "\n")
+
+si_text_path <- paste0(
+  wdir,
+  data_dir,
+  "/04_results/si_section8_statements.txt"
+)
+writeLines(si_text, si_text_path)
+cat("\nSI statements written to", si_text_path, "\n")
