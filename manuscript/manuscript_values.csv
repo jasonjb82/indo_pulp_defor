@@ -53,3 +53,23 @@ text_wavering_remaining_forest,Wavering domestic policy support for conservation
 text_wavering_remaining_forest,Wavering domestic policy support for conservation,18,share of that forest on peat (%); no input data yet
 text_wavering_remaining_forest,Wavering domestic policy support for conservation,46,share of that forest in Kalimantan (%); no input data yet
 text_global_decline_2011_2017,Global implications,95,decline in pulp-driven deforestation 2011-2017
+text_sm4_new_demand,SM Section 4,34.2,new annual pulpwood demand from planned production lines (million m3)
+text_sm4_new_demand,SM Section 4,74,increase over 2022 pulpwood consumption (%)
+text_sm4_area_needed,SM Section 4,34.2,further pulpwood demand from capacity expansions (million m3)
+text_sm4_area_needed,SM Section 4,18.6,net deliverable pulpwood per hectare per year (DMAI)
+text_sm4_area_needed,SM Section 4,1.84,new plantations needed at current productivity (million ha)
+text_sm4_area_needed,SM Section 4,3.2,productivity growth (% per year)
+text_sm4_area_needed,SM Section 4,2.7,productivity growth CI half-width
+text_sm4_area_needed,SM Section 4,25.4,DMAI by 2028 (central)
+text_sm4_area_needed,SM Section 4,21.1,DMAI by 2028 (95% CI lower)
+text_sm4_area_needed,SM Section 4,30.4,DMAI by 2028 (95% CI upper)
+text_sm4_area_needed,SM Section 4,3.14,existing plantation area (million ha)
+text_sm4_area_needed,SM Section 4,15.6,extra pulpwood from yield improvements (million m3; central)
+text_sm4_area_needed,SM Section 4,2.2,extra pulpwood (low)
+text_sm4_area_needed,SM Section 4,31.2,extra pulpwood (high)
+text_sm4_area_needed,SM Section 4,46,demand growth met by productivity gains (%; central)
+text_sm4_area_needed,SM Section 4,6.6,demand growth met (low)
+text_sm4_area_needed,SM Section 4,91.1,demand growth met (high)
+text_sm4_area_needed,SM Section 4,"733,700",additional plantations needed (ha; central)
+text_sm4_area_needed,SM Section 4,"99,800",additional plantations needed (low)
+text_sm4_area_needed,SM Section 4,"1,513,500",additional plantations needed (high)
