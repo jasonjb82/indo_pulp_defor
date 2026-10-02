@@ -478,13 +478,16 @@ calc_paper_stats <- function(
   new_demand_pct_increase <- scenario_stats$new_wood_demand_mm3 /
     (current_wood_demand / 1e6) *
     100
-  text_sm4_new_demand <- sprintf(
+  # Like the abstract, an incomplete scenario_stats can still carry
+  # new_wood_demand_mm3 but from a different model run, so leave it out
+  text_sm4_new_demand <- if (!inputs_complete) character(0) else sprintf(
     paste0(
       "\n[SM Section 4]\n",
       "Entering these data into Equation 4, we estimate that, once fully operational, the new\n",
       "production lines detailed in Table 7 will demand \033[1m%.1f\033[0m million m3 of delivered\n",
       "pulpwood per year. This represents an increase of \033[1m%.0f\033[0m%% over total Indonesian\n",
-      "pulpwood consumption in 2022.\n\n"
+      "pulpwood consumption in 2022. It is important to note that these calculations\n",
+      "implicitly assume that pulp mills will consistently operate at their full capacity.\n\n"
     ),
     scenario_stats$new_wood_demand_mm3,
     new_demand_pct_increase
@@ -512,9 +515,9 @@ calc_paper_stats <- function(
       "will continue to generate approximately \033[1m%.1f\033[0m m3 of net deliverable pulpwood per year,\n",
       "we estimate that \033[1m%.2f\033[0m million hectares of new Indonesian pulpwood plantations (net\n",
       "planted area) would be needed. However, if productivity continued to increase by\n",
-      "\033[1m%.1f\033[0m (±\033[1m%.1f\033[0m) percent per year for a further five years, average delivered mean\n",
+      "\033[1m%.1f\033[0m (±\033[1m%.1f\033[0m) percent per year, average delivered mean\n",
       "annual increment would reach \033[1m%.1f\033[0m (95%% confidence interval: \033[1m%.1f\033[0m–\033[1m%.1f\033[0m) m3 of wood\n",
-      "per hectare per year by 2028. Given these yield improvements, Indonesia's existing\n",
+      "per hectare per year by 2028. Given these yield improvements, Indonesia’s existing\n",
       "\033[1m%.2f\033[0m million hectares of plantation forests could provide a further\n",
       "\033[1m%.1f\033[0m (\033[1m%.1f\033[0m–\033[1m%.1f\033[0m) million m3 of pulpwood per year, or\n",
       "\033[1m%.0f\033[0m (\033[1m%.1f\033[0m–\033[1m%.1f\033[0m) percent of anticipated demand growth. Even under\n",
