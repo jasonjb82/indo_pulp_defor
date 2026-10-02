@@ -2,6 +2,18 @@
 ## Project: Indonesia pulp deforestation
 ## Purpose: Generate plot of deforestation type, timing and remaining forest areas
 ## Author: Robert Heilmayr and Jason Jon Benedict
+##
+## Pipeline inputs (targets in _targets.R; paths relative to
+##   data/01_data_replication/)
+##        1) hti_conv_timing_file -> 02_out/tables/hti_grps_deforestation_timing.csv:
+##               Land cover change by concession, with supplier group,
+##               ownership class and timing of conversion.
+##               Produced by scripts/02_data_preparation/01_data_prep.R
+##
+## Pipeline outputs
+##        1) fig2_png -> outputs/figures/f2_supplier_groups_defor_class_plot.png:
+##               Figure 2.
+##        Intermediate target: freq_tab_fig2.
 ## ---------------------------------------------------------
 
 library(tidyverse)
