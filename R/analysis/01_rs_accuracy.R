@@ -8,6 +8,29 @@
 ##   calculations are unchanged; inputs are passed in and outputs are
 ##   returned rather than read from and written to hard-coded paths.
 ##
+## Pipeline inputs (targets in _targets.R; paths relative to
+##   data/01_data_replication/)
+##        1) validation_xlsx_file -> 01_in/gaveau/
+##               Validation_11classes_land-cover-change-map_v2.xlsx:
+##               Photointerpreted validation sample ("Points" sheet) and the
+##               mapped area of each of the 11 change classes ("Inputs" sheet,
+##               A6:C17). Collected by the co-author team; a project input, not
+##               the product of a script in this repo.
+##
+## Pipeline outputs
+##        1) rs_acc_df (from run_rs_accuracy()$paper_stats): Area estimates
+##               with 95% CIs for the deforestation and pulpwood expansion
+##               figures quoted in the paper.
+##               Read by paper_stats (calc_paper_stats() in R/05_paper_stats.R)
+##        2) si_table3_csv -> outputs/tables/si_table3_class_descriptions.csv:
+##               SI Table 3, class codes, names, mapped areas and sample sizes.
+##        3) si_table4_csv -> outputs/tables/si_table4_change_map_accuracy.csv:
+##               SI Table 4, accuracy and areas for the 11 change classes.
+##        4) si_table5_csv -> outputs/tables/si_table5_static_map_accuracy.csv:
+##               SI Table 5, binary pulpwood/other accuracy for the static maps.
+##        5) rs_acc_diagnostics_txt -> outputs/text/rs_accuracy_diagnostics.txt:
+##               Console diagnostics (Sections 1-10) from the standalone script.
+##
 ## References:
 ##   Olofsson P., Foody G.M., Stehman S.V., Woodcock C.E. (2013) Making better
 ##     use of accuracy data in land change studies. RSE 129:122-131.
