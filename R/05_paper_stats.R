@@ -1,13 +1,55 @@
 ## ---------------------------------------------------------
 ## Project: Indonesia pulp deforestation
 ## Purpose of script: Calculate statistics for paper
-## Notes: Refactored for the targets pipeline.
+## Notes: Refactored for the targets pipeline from
+##   scripts/04_figures_and_outputs/05_paper_stats.R. Each claim is printed in
+##   its manuscript wording under the section it appears in.
+##
+## Pipeline inputs (targets in _targets.R; file paths relative to
+##   data/01_data_replication/)
+##        1) rs_acc_df: Area estimates with 95% CIs.
+##               Produced by run_rs_accuracy() (R/analysis/01_rs_accuracy.R)
+##        2) mai_df: Key DMAI parameters.
+##               Produced by run_calc_mai() (R/analysis/02_calc_mai.R)
+##        3) scenario_stats -> 04_results/scenario_stats.csv: Wood demand,
+##               capacity increase and scenario estimates. The Zenodo copy is
+##               outdated and lacks several columns, so the capacity and
+##               scenario sentences are missing until script 05
+##               (05_pulp_expansion_scenarios.R) is migrated.
+##        4) id_annual_exp_stats -> 02_out/tables/id_annual_expansion_stats_ttm.csv:
+##               Annual forest loss and pulp/palm-driven forest loss.
+##               Produced by scripts/02_data_preparation/02_clean_ttm_areas.R
+##        5) kali_annual_pulp_exp_stats -> 02_out/tables/kali_annual_pulp_exp_stats_ttm.csv:
+##               Annual pulp-driven forest loss in Kalimantan.
+##               Produced by scripts/02_data_preparation/02_clean_ttm_areas.R
+##        6) pulp_ttm_soil_type -> 02_out/gee/gaveau/
+##               idn_pulp_annual_expansion_peat_mineral_soils.csv: Annual pulp
+##               expansion on peat and mineral soils. Produced by
+##               scripts/01_data_extraction/other_extraction/
+##               extract_pulp_expansion_peat_mineral_soils.js
+##        7) hti_nonhti_conv -> 02_out/tables/idn_pulp_conversion_hti_nonhti_treemap.csv:
+##               Pulpwood conversion inside and outside concessions.
+##               Produced by scripts/02_data_preparation/01_data_prep.R
+##        8) groups_reclass_hti -> 01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv:
+##               Concession ownership groups, reclassified by hand (project
+##               input). H-0372 reclassified to Indirect supplier, 2 Oct 2026.
+##        9) ws_2015_2022 -> 02_out/tables/ws_merge_clean_2015_2022.csv:
+##               Pulpwood deliveries by concession and year.
+##               Produced by scripts/02_data_preparation/04_merge_ws_data.R
+##       10) cap_df -> 01_in/wwi/MILLS_EXPORTERS_20200405.xlsx: Mill pulp
+##               capacity (project input).
+##
+## Pipeline outputs
+##        1) paper_stats: Named list of the computed values and formatted
+##               sentences (text_* elements).
+##               Read by paper_stats_txt and manuscript_check
+##        2) paper_stats_txt -> outputs/text/paper_text_snippets.txt: Every
+##               sentence, labelled by manuscript section.
 ## ---------------------------------------------------------
 
 #' Calculate all paper statistics and text snippets
 #' @param rs_acc_df RS accuracy assessment stats
 #' @param id_annual_exp_stats Treemap annual expansion stats
-#' @param pw_annual_area_id Pulpwood areas Indonesia
 #' @param pulp_ttm_soil_type Expansion on soil type
 #' @param ws_2015_2022 Wood supply
 #' @param kali_annual_pulp_exp_stats Kalimantan annual pulp expansion
@@ -19,7 +61,6 @@
 calc_paper_stats <- function(
   rs_acc_df,
   id_annual_exp_stats,
-  pw_annual_area_id,
   pulp_ttm_soil_type,
   ws_2015_2022,
   kali_annual_pulp_exp_stats,
@@ -86,31 +127,8 @@ calc_paper_stats <- function(
     pulp_def_share_2001_2011$shr_pulp_forest_loss
   )
 
-  # Table of total pulp areas each year
-  annual_pulp_areas <- pw_annual_area_id %>%
-    select(constant, starts_with("pulp_")) %>%
-    pivot_longer(
-      cols = -c(constant),
-      names_to = 'year',
-      values_to = 'area_ha'
-    ) %>%
-    mutate(year = as.double(str_replace(year, "pulp_", ""))) %>%
-    group_by(year) %>%
-    summarize(area_ha = sum(area_ha) - 5000) %>% # GEE calculations adjustment
-    mutate(
-      annual_pulp_area = area_ha - lag(area_ha, default = first(area_ha))
-    ) %>%
-    left_join(id_annual_exp_stats, by = "year") %>%
-    select(
-      year,
-      annual_pulp_expansion_area_ha = annual_pulp_area,
-      forest_loss_ha,
-      forest_loss_pulp_ha,
-      nonforest_loss_pulp_ha,
-      annual_pulp_area_ha = area_ha
-    )
-
-  annual_conv <- annual_pulp_areas %>%
+  # Annual pulp-driven deforestation (primary forest converted to pulpwood)
+  annual_conv <- id_annual_exp_stats %>%
     group_by(year) %>%
     summarize(area_ha = sum(forest_loss_pulp_ha))
 
