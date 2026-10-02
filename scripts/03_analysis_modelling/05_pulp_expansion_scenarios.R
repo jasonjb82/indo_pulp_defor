@@ -41,6 +41,14 @@ prov_sf <- kab_sf %>%
 # Parameters from MAI analysis
 mai_df <- read_csv(paste0(wdir, data_dir, "/04_results/key_parameters.csv"))
 
+# Mill capacities, used as the baseline against which planned capacity
+# expansions are expressed as a percentage increase.
+cap_df <- readxl::read_excel(paste0(
+  wdir,
+  data_dir,
+  "/01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"
+))
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # build raster template and 2022-2027 probability raster --------------
