@@ -158,6 +158,11 @@ prep_si_table_2 <- function(
 
 #' Save SI Table 2 to CSV file
 save_si_table_2 <- function(si_table_df, output_path) {
+  dir_path <- dirname(output_path)
+  if (!dir.exists(dir_path)) {
+    dir.create(dir_path, recursive = TRUE, showWarnings = FALSE)
+  }
+
   write_csv(si_table_df, output_path)
   return(output_path)
 }
