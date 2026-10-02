@@ -2,6 +2,32 @@
 ## Project: Indonesia pulp deforestation
 ## Purpose of script: Refactored functions to generate Figure 1 (Summary Figure)
 ## Author: Robert Heilmayr and Jason Jon Benedict
+##
+## Pipeline inputs (targets in _targets.R; paths relative to
+##   data/01_data_replication/)
+##        1) kab_file -> 01_in/big/idn_kabupaten_big.shp: District boundaries,
+##               used to assign provinces to islands (project input).
+##        2) pulp_for_id_file -> 02_out/gee/gaveau/pulp_annual_defor_forest_id.csv
+##           pulp_nonfor_id_file -> 02_out/gee/gaveau/pulp_annual_defor_non-forest_id.csv:
+##               Annual pulp expansion on forest and non-forest land by district
+##               (panel A). Google Earth Engine exports, produced by
+##               scripts/01_data_extraction/other_extraction/
+##               extract_fnf_pulp_expansion_ttm_kab.js
+##        3) pulp_prices_file -> 01_in/tables/WPU0911_FRED.csv: Pulp producer
+##               price index from FRED (panel A; external download).
+##        4) timber_for_pulp_file -> 01_in/obidzinski_dermawan/plot_data.csv
+##           pulp_production_file -> 01_in/tables/annual_pulp_shr_prod.xlsx:
+##               Wood supply by source and pulp production (panel B; project
+##               inputs).
+##        5) policy_tl_file -> 01_in/tables/policy_timeline_cats_rev1.csv:
+##               Policy timeline (panel C; compiled by hand).
+##
+## Pipeline outputs
+##        1) fig1_files -> outputs/figures/f1_summary_figure.png and .svg:
+##               Figure 1.
+##        Intermediate targets: islands_df, id_pulp_conv_for,
+##               id_pulp_conv_nonfor, pulp_prices_clean, defor_price_comb,
+##               pulp_prod_ratio_merged, tl_df, fig1_panel_a/b/c, fig1_summary.
 ## ---------------------------------------------------------
 
 # =========================================================================
