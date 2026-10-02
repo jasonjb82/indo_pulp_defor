@@ -487,6 +487,11 @@ create_fig1_summary <- function(panel_a, panel_b, panel_c) {
 
 #' Save composite plot to disk
 save_fig1 <- function(comb_plot, output_png, output_svg) {
+  dir_path <- dirname(output_png)
+  if (!dir.exists(dir_path)) {
+    dir.create(dir_path, recursive = TRUE, showWarnings = FALSE)
+  }
+
   ggsave(comb_plot, file = output_png, dpi = 400, width = 12, height = 15)
   ggsave(comb_plot, file = output_svg, dpi = 400, width = 12, height = 15)
   return(c(output_png, output_svg))
