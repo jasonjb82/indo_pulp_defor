@@ -514,5 +514,28 @@ list(
       "outputs/text/si_section3_statements.txt"
     ),
     format = "file"
+  ),
+
+  # -----------------------------------------------------------------------
+  # J. CHECK PAPER STATS AGAINST THE MANUSCRIPT
+  # -----------------------------------------------------------------------
+  # manuscript_values.csv holds each number as the manuscript prints it.
+  # Update it whenever the manuscript text changes.
+  tar_target(
+    manuscript_values_file,
+    "manuscript/manuscript_values.csv",
+    format = "file"
+  ),
+  tar_target(
+    manuscript_check,
+    check_manuscript_values(paper_stats, manuscript_values_file)
+  ),
+  tar_target(
+    manuscript_check_csv,
+    save_manuscript_check(
+      manuscript_check,
+      "outputs/text/manuscript_check.csv"
+    ),
+    format = "file"
   )
 )
