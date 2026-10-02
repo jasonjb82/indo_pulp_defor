@@ -120,6 +120,16 @@ extra_production <- prior_plantations * (mai_2028 - mai_2021) / 1000000
 additional_area <- (new_wood_demand - extra_production) / mai_2028
 add_area_ci <- additional_area['central'] - additional_area['lb']
 
+# Under the published parameters even the most optimistic case leaves ~9% of new
+# demand unmet, so every element is positive. If a future parameter revision made
+# productivity growth alone sufficient, additional_area would go negative and
+# select_scenario() would fail obscurely inside slice_max(); fail here instead.
+stopifnot(
+  "Productivity growth exceeds new demand - additional_area is negative" = all(
+    additional_area > 0
+  )
+)
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # pulp expansion scenarios --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -166,6 +176,12 @@ scenario_df <- pred_df %>%
 select_scenario <- function(df, exp_area_ha) {
   n_px <- exp_area_ha / 100 # 1 pixel = 1 km² = 100 ha
   n_px <- round(n_px)
+  # slice_max() silently returns every row when n exceeds nrow(), which would make
+  # a scenario quietly deliver less area than it asked for. Check explicitly.
+  stopifnot(
+    "Expansion area must be positive" = n_px > 0,
+    "Expansion area exceeds the available candidate land" = n_px <= nrow(df)
+  )
   df %>%
     slice_max(.pred_pulp, n = n_px, with_ties = FALSE) %>%
     mutate(area_ha = 100)
@@ -230,18 +246,25 @@ expansion_table %>%
   )
 
 # --- Reorganised table: land type as rows, islands as columns, S2 (S1–S3) cells ---
-fmt_cell <- function(s2, s3, s1) {
+# Renders one cell as "central (low-high)". The bounds come from scenarios 1 and 3
+# respectively: scenario 1 is the highest-growth case and so the SMALLEST area,
+# scenario 3 the lowest-growth case and so the largest. Call with named arguments
+# so that mapping stays visible at each call site.
+fmt_cell <- function(central, low, high) {
   fmt <- function(x) formatC(x, format = "d", big.mark = ",")
   pad <- function(x, w) strrep(" ", pmax(w - nchar(fmt(x)), 0L))
+  # Scenario 1's pixels are a strict subset of scenario 3's (same ranking, fewer
+  # taken), so the low bound can never exceed the high bound for any land type.
+  stopifnot("fmt_cell: low bound exceeds high bound" = all(low <= high))
   paste0(
-    pad(s2, 3L),
-    fmt(s2),
+    pad(central, 3L),
+    fmt(central),
     " (",
-    pad(s3, 3L),
-    fmt(s3),
+    pad(low, 3L),
+    fmt(low),
     "–",
-    pad(s1, 5L),
-    fmt(s1),
+    pad(high, 5L),
+    fmt(high),
     ")"
   )
 }
@@ -268,7 +291,11 @@ reorg_totals_col <- reorg_base %>%
     across(c(scenario_1_ha, scenario_2_ha, scenario_3_ha), sum),
     .groups = "drop"
   ) %>%
-  mutate(Total = fmt_cell(scenario_2_ha, scenario_1_ha, scenario_3_ha)) %>%
+  mutate(Total = fmt_cell(
+      central = scenario_2_ha,
+      low = scenario_1_ha,
+      high = scenario_3_ha
+    )) %>%
   select(land_type, Total)
 
 # Total row: sum across land types for each island + overall total
@@ -279,7 +306,11 @@ reorg_totals_row <- reorg_base %>%
     .groups = "drop"
   ) %>%
   mutate(
-    cell = fmt_cell(scenario_2_ha, scenario_1_ha, scenario_3_ha),
+    cell = fmt_cell(
+      central = scenario_2_ha,
+      low = scenario_1_ha,
+      high = scenario_3_ha
+    ),
     land_type = "Total"
   ) %>%
   select(land_type, island, cell) %>%
@@ -298,13 +329,21 @@ reorg_totals_row <- reorg_base %>%
   left_join(
     reorg_base %>%
       summarise(across(c(scenario_1_ha, scenario_2_ha, scenario_3_ha), sum)) %>%
-      mutate(Total = fmt_cell(scenario_2_ha, scenario_1_ha, scenario_3_ha)) %>%
+      mutate(Total = fmt_cell(
+      central = scenario_2_ha,
+      low = scenario_1_ha,
+      high = scenario_3_ha
+    )) %>%
       select(Total),
     by = character()
   )
 
 expansion_gt <- reorg_base %>%
-  mutate(cell = fmt_cell(scenario_2_ha, scenario_1_ha, scenario_3_ha)) %>%
+  mutate(cell = fmt_cell(
+      central = scenario_2_ha,
+      low = scenario_1_ha,
+      high = scenario_3_ha
+    )) %>%
   select(land_type, island, cell) %>%
   pivot_wider(
     names_from = island,
