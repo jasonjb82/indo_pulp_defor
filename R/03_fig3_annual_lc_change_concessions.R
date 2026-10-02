@@ -2,6 +2,18 @@
 ## Project: Indonesia pulp deforestation
 ## Purpose: Create plots of annual land cover change within HTI concessions
 ## Author: Robert Heilmayr and Jason Jon Benedict
+##
+## Pipeline inputs (targets in _targets.R; paths relative to
+##   data/01_data_replication/)
+##        1) hti_annual_lc_file -> 02_out/tables/hti_land_use_change_areas.csv:
+##               Annual land cover areas within each concession.
+##               Produced by scripts/02_data_preparation/01_data_prep.R
+##
+## Pipeline outputs
+##        1) concession_plots_saved -> outputs/figures/concessions/: One
+##               full-size land cover change figure per concession (305).
+##               The SI atlas (R/06_si_concession_atlas.R) renders its own
+##               smaller tiles from the same hti_annual_lc target.
 ## ---------------------------------------------------------
 
 library(tidyverse)
