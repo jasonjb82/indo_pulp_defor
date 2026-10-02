@@ -2,6 +2,34 @@
 ## Project: Indonesia pulp deforestation
 ## Purpose of script: Refactored functions to create SI Table 2 (Pulp Expansion Table)
 ## Author: Robert Heilmayr and Jason Jon Benedict
+##
+## Pipeline inputs (targets in _targets.R; paths relative to
+##   data/01_data_replication/)
+##        1) hti_file -> 01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp:
+##               Pulpwood (HTI) concession boundaries (project input).
+##        2) lic_dates_hti_file -> 01_in/wwi/HTI_LICENSE_DATES.csv: Concession
+##               license dates (project input).
+##        3) samples_gfc_ttm_file -> 02_out/tables/samples_gfc_ttm.csv
+##           samples_landuse_ttm_file -> 02_out/tables/samples_landuse_ttm.csv:
+##               Sample-point forest loss and land use.
+##               Produced by scripts/02_data_preparation/02_clean_ttm_areas.R
+##        4) samples_hti_file -> 02_out/samples/samples_hti_id.csv: Concession
+##               and island for each sample point.
+##               Produced by scripts/02_data_preparation/03_sample_cleanup.R
+##        5) hti_nonhti_conv_file -> 02_out/tables/idn_pulp_conversion_hti_nonhti_treemap.csv:
+##               Pulpwood conversion inside and outside concessions.
+##               Produced by scripts/02_data_preparation/01_data_prep.R
+##        6) id_annual_exp_stats -> 02_out/tables/id_annual_expansion_stats_ttm.csv:
+##               Annual pulp-driven forest loss, turned into the ann_pulp_tbl
+##               target by calc_annual_pulp_expansion().
+##               Produced by scripts/02_data_preparation/02_clean_ttm_areas.R
+##
+## Pipeline outputs
+##        1) si_table_2_csv -> outputs/tables/pulp_expansion_areas_all_2001_2022.csv:
+##               SI Table 2.
+##        Intermediate targets: ann_pulp_tbl, hti_concession_names, hti_dates_clean,
+##               samples_df, hti_pulp_conv, hti_pulp_conv_all,
+##               hti_pulp_conv_license, hti_pulp_driven_defor, si_table_2_df.
 ## ---------------------------------------------------------
 
 # =========================================================================
@@ -130,6 +158,27 @@ calc_hti_pulp_driven_defor <- function(hti_nonhti_conv) {
       Pulp_driven_deforestation_hti_kha = sum(area_ha / 1000),
       .groups = "drop"
     )
+}
+
+#' Annual pulp expansion in Indonesia, 2001-2022 (kha)
+#'
+#' Replaces the precomputed 02_out/tables/pulp_expansion_areas_2001_2022.csv,
+#' whose writer is commented out in the old
+#' scripts/04_figures_and_outputs/05_paper_stats.R. Same values, computed from
+#' the treemap annual expansion stats; the planted-area column of that file is
+#' not reproduced because nothing in the pipeline uses it.
+calc_annual_pulp_expansion <- function(id_annual_exp_stats) {
+  id_annual_exp_stats %>%
+    filter(year > 2000) %>%
+    transmute(
+      Year = year,
+      Pulp_driven_deforestation_kha = forest_loss_pulp_ha / 1000,
+      Other_pulp_expansion_kha = nonforest_loss_pulp_ha / 1000,
+      Aggregate_pulp_expansion_kha = (forest_loss_pulp_ha +
+        nonforest_loss_pulp_ha) /
+        1000
+    ) %>%
+    arrange(Year)
 }
 
 #' Assemble final SI Table 2 dataset
