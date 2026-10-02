@@ -34,6 +34,10 @@ calc_paper_stats <- function(
     formatC(round(x, -2), format = "f", digits = 0, big.mark = ",")
   }
 
+  # Inputs read with $ or filtered to specific rows drop a sentence silently
+  # when a column or row is missing, so report anything absent up front.
+  check_paper_inputs(rs_acc_df, scenario_stats, mai_df)
+
   # =========================================================================
   # Overarching trends in pulp expansion, deforestation, peat conversion
   # =========================================================================
@@ -507,7 +511,93 @@ calc_paper_stats <- function(
     text_si_591 = text_si_591
   )
 
+  check_paper_sentences(stats_list)
+
   return(stats_list)
+}
+
+#' Warn when inputs to calc_paper_stats() lack columns or rows it relies on
+#'
+#' Warns rather than stops while the Zenodo scenario_stats.csv predates the
+#' columns used below; switch to stop() once scenario_stats is computed in the
+#' pipeline.
+#' @param rs_acc_df,scenario_stats,mai_df Inputs to calc_paper_stats()
+#' @return TRUE if nothing is missing, invisibly
+check_paper_inputs <- function(rs_acc_df, scenario_stats, mai_df) {
+  required_cols <- list(
+    scenario_stats = c(
+      "new_wood_demand_mm3",
+      "cap_increase",
+      "cap_pct_increase",
+      paste0("pct_demand_met_", c("central", "low", "high")),
+      paste0("area_demand_", c("central", "low", "high"), "_mha"),
+      paste0("mai_growth_", c("central", "lb", "ub"), "_pct"),
+      paste0("mai_2028_", c("central", "lb", "ub")),
+      paste0("defor_", c("central", "low", "high"), "_ha"),
+      paste0("peat_", c("central", "low", "high"), "_ha")
+    ),
+    mai_df = c("dmai", "hardiyanto_cagr")
+  )
+  inputs <- list(scenario_stats = scenario_stats, mai_df = mai_df)
+
+  problems <- character(0)
+  for (nm in names(required_cols)) {
+    missing_cols <- setdiff(required_cols[[nm]], names(inputs[[nm]]))
+    if (length(missing_cols) > 0) {
+      problems <- c(
+        problems,
+        paste0(nm, " is missing columns: ", paste(missing_cols, collapse = ", "))
+      )
+    }
+  }
+
+  required_stats <- c(
+    "defor_2001_2011",
+    "pulp_expansion_2001_2011",
+    "total_pp_area_2022"
+  )
+  missing_stats <- setdiff(required_stats, rs_acc_df$stat_name)
+  if (length(missing_stats) > 0) {
+    problems <- c(
+      problems,
+      paste0(
+        "rs_acc_df is missing stat_name rows: ",
+        paste(missing_stats, collapse = ", ")
+      )
+    )
+  }
+
+  if (length(problems) > 0) {
+    warning(
+      "calc_paper_stats() inputs incomplete; affected sentences will be ",
+      "missing from the output:\n  ",
+      paste(problems, collapse = "\n  "),
+      call. = FALSE
+    )
+  }
+  invisible(length(problems) == 0)
+}
+
+#' Warn when any paper sentence was not produced as exactly one string
+#'
+#' Catches sentences dropped because an input value was empty, and sentences
+#' repeated because an input value had more than one element.
+#' @param stats_list The named list built in calc_paper_stats()
+#' @return TRUE if every sentence is a single string, invisibly
+check_paper_sentences <- function(stats_list) {
+  text_keys <- grep("^text_", names(stats_list), value = TRUE)
+  n_strings <- lengths(stats_list[text_keys])
+  bad <- n_strings != 1
+
+  if (any(bad)) {
+    warning(
+      "Paper sentences not produced as a single string ",
+      "(count in brackets): ",
+      paste0(text_keys[bad], " [", n_strings[bad], "]", collapse = ", "),
+      call. = FALSE
+    )
+  }
+  invisible(!any(bad))
 }
 
 #' Save calculated paper text snippets to a text document
