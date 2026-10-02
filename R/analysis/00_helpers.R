@@ -12,3 +12,16 @@ save_text_lines <- function(lines, file_path) {
   writeLines(lines, file_path)
   file_path
 }
+
+#' Write a table to CSV, creating the folder if needed
+#'
+#' Uses write.csv() without row names, as the standalone analysis scripts did,
+#' so SI tables keep the same layout (including line breaks inside quoted cells).
+#' @param df Data frame to write
+#' @param file_path Destination path
+#' @return file_path, as required by format = "file"
+save_csv_table <- function(df, file_path) {
+  dir.create(dirname(file_path), recursive = TRUE, showWarnings = FALSE)
+  utils::write.csv(df, file_path, row.names = FALSE)
+  file_path
+}
