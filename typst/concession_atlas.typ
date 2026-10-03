@@ -9,7 +9,7 @@
 // (Heading2), 11 pt body (Normal), 9 pt index (Caption size).
 // ---------------------------------------------------------------------------
 
-#import "/data/01_data_replication/04_results/atlas/atlas_data.typ": tiles, groups, ungrouped_count
+#import "/outputs/atlas/atlas_data.typ": tiles, groups, ungrouped_count
 
 // Page numbering continues the Word-exported SI rather than restarting at 1.
 // The merge script passes the SI's real page count; pipeline builds pass 0.
@@ -63,7 +63,7 @@
   #h(9pt)
   #swatch("#F0E442", "Non-forest")
   #h(9pt)
-  #swatch("#CC79A7", "Cleared for pulp")
+  #swatch("#CC79A7", "Pulpwood plantation")
   #h(9pt)
   #rule-key("solid", "Earliest ZDC year of downstream mill")
   #h(9pt)
