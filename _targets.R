@@ -380,14 +380,20 @@ list(
   ),
   # sm_pages = 0 numbers the atlas from 1. The merge script recompiles with the
   # exported SI's real page count so folios continue that document's numbering.
+  # The PDF embeds the tile images, but atlas_data_typ only lists their paths,
+  # so naming concession_tile_pngs here makes the PDF rebuild when a tile
+  # changes even if the paths do not.
   tar_target(
     concession_atlas_pdf,
-    compile_concession_atlas(
-      atlas_template_file,
-      atlas_data_typ,
-      "outputs/atlas/concession_atlas.pdf",
-      sm_pages = 0L
-    ),
+    {
+      concession_tile_pngs
+      compile_concession_atlas(
+        atlas_template_file,
+        atlas_data_typ,
+        "outputs/atlas/concession_atlas.pdf",
+        sm_pages = 0L
+      )
+    },
     format = "file"
   ),
 
