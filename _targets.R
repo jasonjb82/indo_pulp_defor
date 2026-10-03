@@ -531,7 +531,92 @@ list(
   ),
 
   # -----------------------------------------------------------------------
-  # J. CHECK PAPER STATS AGAINST THE MANUSCRIPT
+  # J. ANALYSIS 03: DEFORESTATION ELASTICITY (SI SECTIONS 4.2 AND 5)
+  # -----------------------------------------------------------------------
+  # pulp_prices_annual_2001_2024.csv is derived from licensed price data by
+  # scripts/02_data_preparation/19_prep_pulp_prices.R, outside the pipeline.
+  tar_target(
+    defor_long_file,
+    file.path(
+      zenodo_data_check,
+      "02_out/tables/tbl_long_pulp_clearing_gfc_forest.csv"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    grid_admin_file,
+    file.path(zenodo_data_check, "02_out/tables/grid_10km_adm_prov_kab_kec.csv"),
+    format = "file"
+  ),
+  tar_target(
+    pulp_prices_annual_file,
+    file.path(
+      zenodo_data_check,
+      "02_out/tables/pulp_prices_annual_2001_2024.csv"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    gaez_hti_file,
+    file.path(zenodo_data_check, "02_out/tables/gaez_hti_areas.csv"),
+    format = "file"
+  ),
+  tar_target(
+    gaez_grid_file,
+    file.path(zenodo_data_check, "02_out/tables/gaez_grid_share.csv"),
+    format = "file"
+  ),
+  tar_target(
+    mill_prod_file,
+    file.path(zenodo_data_check, "01_in/wwi/MILL_PRODUCTION_2015_2024.xlsx"),
+    format = "file"
+  ),
+  tar_target(
+    elast_results,
+    run_defor_elasticity(
+      defor_long_csv = defor_long_file,
+      grid_admin_csv = grid_admin_file,
+      pulp_prices_csv = pulp_prices_annual_file,
+      gaez_hti_csv = gaez_hti_file,
+      gaez_grid_csv = gaez_grid_file,
+      hti_mai = mai_results$hti_mai,
+      cap_df = cap_df,
+      mill_prod_xlsx = mill_prod_file
+    )
+  ),
+  tar_target(
+    si_table8_csv,
+    save_csv_table(
+      elast_results$si_table8,
+      "outputs/tables/si_table8_aez_productivity.csv",
+      writer = "readr"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    si_fig3_png,
+    save_si_fig3(elast_results, "outputs/figures/SI_f3_elasticity.png"),
+    format = "file"
+  ),
+  tar_target(
+    si_sections4_5_txt,
+    save_text_lines(
+      elast_results$si_text,
+      "outputs/text/si_sections4_5_statements.txt"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    elast_diagnostics_txt,
+    save_text_lines(
+      elast_results$diagnostics,
+      "outputs/text/defor_elasticity_diagnostics.txt"
+    ),
+    format = "file"
+  ),
+
+  # -----------------------------------------------------------------------
+  # K. CHECK PAPER STATS AGAINST THE MANUSCRIPT
   # -----------------------------------------------------------------------
   # manuscript_values.csv holds each number as the manuscript prints it.
   # Update it whenever the manuscript text changes.
