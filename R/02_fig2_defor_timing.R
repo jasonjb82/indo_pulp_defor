@@ -181,6 +181,13 @@ save_fig2 <- function(freq_tab_df, output_path) {
 
   p <- plot_fig2_defor_timing(freq_tab_df)
 
+  # Set showtext's resolution here rather than relying on the value set when
+  # this file is loaded: the concession figures and atlas tiles reset it to
+  # 96 after drawing, which would otherwise shrink the text if they ran first
+  showtext::showtext_auto()
+  showtext::showtext_opts(dpi = 400)
+  on.exit(showtext::showtext_opts(dpi = 96), add = TRUE)
+
   ggplot2::ggsave(
     filename = output_path,
     plot = p,
