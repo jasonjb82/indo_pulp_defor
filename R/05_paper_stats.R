@@ -11,11 +11,9 @@
 ##               Produced by run_rs_accuracy() (R/analysis/01_rs_accuracy.R)
 ##        2) mai_df: Key DMAI parameters.
 ##               Produced by run_calc_mai() (R/analysis/02_calc_mai.R)
-##        3) scenario_stats -> 04_results/scenario_stats.csv: Wood demand,
-##               capacity increase and scenario estimates. The Zenodo copy is
-##               outdated and lacks several columns, so the capacity and
-##               scenario sentences are missing until script 05
-##               (05_pulp_expansion_scenarios.R) is migrated.
+##        3) scenario_stats: Wood demand, capacity increase and scenario
+##               estimates.
+##               Produced by run_pulp_expansion_scenarios() (R/analysis/05_pulp_expansion_scenarios.R)
 ##        4) id_annual_exp_stats -> 02_out/tables/id_annual_expansion_stats_ttm.csv:
 ##               Annual forest loss and pulp/palm-driven forest loss.
 ##               Produced by scripts/02_data_preparation/02_clean_ttm_areas.R
@@ -606,11 +604,10 @@ calc_paper_stats <- function(
   return(stats_list)
 }
 
-#' Warn when inputs to calc_paper_stats() lack columns or rows it relies on
+#' Stop when inputs to calc_paper_stats() lack columns or rows it relies on
 #'
-#' Warns rather than stops while the Zenodo scenario_stats.csv predates the
-#' columns used below; switch to stop() once scenario_stats is computed in the
-#' pipeline.
+#' Inputs read with $ or filtered to specific rows would otherwise drop a
+#' sentence silently.
 #' @param rs_acc_df,scenario_stats,mai_df Inputs to calc_paper_stats()
 #' @return TRUE if nothing is missing, invisibly
 check_paper_inputs <- function(rs_acc_df, scenario_stats, mai_df) {
@@ -658,8 +655,8 @@ check_paper_inputs <- function(rs_acc_df, scenario_stats, mai_df) {
   }
 
   if (length(problems) > 0) {
-    warning(
-      "calc_paper_stats() inputs incomplete; affected sentences will be ",
+    stop(
+      "calc_paper_stats() inputs incomplete; affected sentences would be ",
       "missing from the output:\n  ",
       paste(problems, collapse = "\n  "),
       call. = FALSE
@@ -668,7 +665,7 @@ check_paper_inputs <- function(rs_acc_df, scenario_stats, mai_df) {
   invisible(length(problems) == 0)
 }
 
-#' Warn when any paper sentence was not produced as exactly one string
+#' Stop when any paper sentence was not produced as exactly one string
 #'
 #' Catches sentences dropped because an input value was empty, and sentences
 #' repeated because an input value had more than one element.
@@ -680,7 +677,7 @@ check_paper_sentences <- function(stats_list) {
   bad <- n_strings != 1
 
   if (any(bad)) {
-    warning(
+    stop(
       "Paper sentences not produced as a single string ",
       "(count in brackets): ",
       paste0(text_keys[bad], " [", n_strings[bad], "]", collapse = ", "),
