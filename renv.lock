@@ -101,6 +101,13 @@
       "RemoteSha.Version": "15.6.0-1",
       "Hash": "dd63a795624fedd24c723baaa57496b3"
     },
+    "RcppEigen": {
+      "Package": "RcppEigen",
+      "Version": "0.3.4.0.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "4ac8e423216b8b70cb9653d1b3f71eb9"
+    },
     "SQUAREM": {
       "Package": "SQUAREM",
       "Version": "2026.1",
@@ -904,6 +911,13 @@
       "Repository": "CRAN",
       "Hash": "05ce1ed077e8c97fbb3ec1cb078f1159"
     },
+    "pandoc": {
+      "Package": "pandoc",
+      "Version": "0.2.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "68f9a8e79f42f1b27258672f15acf632"
+    },
     "parallelly": {
       "Package": "parallelly",
       "Version": "1.48.0",
@@ -1038,6 +1052,18 @@
       "Repository": "CRAN",
       "Hash": "1591adde9ce8ff7de58072e4a32b66ce"
     },
+    "ranger": {
+      "Package": "ranger",
+      "Version": "0.18.0",
+      "Source": "CRAN",
+      "Repository": "CRAN",
+      "RemoteType": "standard",
+      "RemotePkgRef": "ranger",
+      "RemoteRef": "ranger",
+      "RemoteRepos": "https://cran.rstudio.com",
+      "RemoteSha": "0.18.0",
+      "Hash": "081a1ec5e0c9c5a767240baa9ca86450"
+    },
     "rappdirs": {
       "Package": "rappdirs",
       "Version": "0.3.3",
@@ -1133,6 +1159,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "6b84b1182110af1a2e2432f82f4eb41c"
+    },
+    "rnaturalearthdata": {
+      "Package": "rnaturalearthdata",
+      "Version": "1.0.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "650339de24d9574c0079a4a13baa623d"
     },
     "rpart": {
       "Package": "rpart",
