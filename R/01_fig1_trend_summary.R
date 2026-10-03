@@ -518,6 +518,13 @@ save_fig1 <- function(comb_plot, output_png, output_svg) {
     dir.create(dir_path, recursive = TRUE, showWarnings = FALSE)
   }
 
+  # Set showtext's resolution at save time: the concession figures and atlas
+  # tiles reset it to 96 after drawing, which would otherwise shrink the text
+  # if they ran first
+  showtext::showtext_auto()
+  showtext::showtext_opts(dpi = 400)
+  on.exit(showtext::showtext_opts(dpi = 96), add = TRUE)
+
   ggsave(comb_plot, file = output_png, dpi = 400, width = 12, height = 15)
   ggsave(comb_plot, file = output_svg, dpi = 400, width = 12, height = 15)
   return(c(output_png, output_svg))
