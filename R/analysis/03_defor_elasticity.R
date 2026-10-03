@@ -46,9 +46,9 @@
 ##        3) si_sections4_5_txt -> outputs/text/si_sections4_5_statements.txt:
 ##               SI Sections 4.2, 5.2 and 5.3 statements with values from this
 ##               run.
-##        4) SI Tables 9 and 10: save_defor_elast_tables() writes them, but no
-##               target calls it yet because pandoc is not installed on the
-##               current machine.
+##        4) si_tables9_10_docx -> outputs/tables/si_table9_defor_elasticity.docx
+##               and si_table10_defor_elasticity_robustness.docx: SI Tables 9
+##               and 10 (needs pandoc).
 ## ---------------------------------------------------------
 
 #' Estimate the deforestation elasticity
@@ -615,12 +615,12 @@ save_si_fig3 <- function(elast_results, output_path) {
 
 #' Write SI Tables 9 and 10 (deforestation elasticity regressions)
 #'
-#' Writing .docx requires pandoc. A missing pandoc only warns and writes
-#' nothing, so the rest of the pipeline is unaffected. Any other extension
-#' that modelsummary supports (e.g. .html) works too.
+#' Writing .docx requires the pandoc program and the R package of the same
+#' name; if either is missing this stops with a message saying so. Any other
+#' extension that modelsummary supports (e.g. .html) works too.
 #' @param elast_results Output of run_defor_elasticity()
 #' @param main_path,robust_path Destination paths for SI Tables 9 and 10
-#' @return The paths written, or character(0) for any that failed
+#' @return The paths written, as required by format = "file"
 save_defor_elast_tables <- function(elast_results, main_path, robust_path) {
   # modelsummary looks up glance_custom() methods to add GOF rows; register
   # one for this call that reports the precomputed cluster counts, then
@@ -700,15 +700,14 @@ save_defor_elast_tables <- function(elast_results, main_path, robust_path) {
         path
       },
       error = function(e) {
-        warning(
+        stop(
           "Could not write ",
           path,
           ": ",
           conditionMessage(e),
-          "\n  .docx output needs pandoc on the PATH; other outputs are unaffected.",
+          "\n  .docx output needs pandoc on the PATH and the R package 'pandoc'.",
           call. = FALSE
         )
-        character(0)
       }
     )
   }
