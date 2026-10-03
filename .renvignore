@@ -1,2 +1,8 @@
 # Ignore old test scripts and scratchwork
 scripts/
+# Data, outputs and the targets store hold no R code; skipping them speeds up
+# dependency discovery
+data/
+remote/
+outputs/
+_targets/
