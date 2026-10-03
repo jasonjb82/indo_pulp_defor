@@ -555,6 +555,25 @@ hti_for_areas <- samples_gfc_ttm %>%
   summarize(area_ha = n()) %>%
   as_tibble()
 
+# remaining primary forest in 2022 by forest class (main text "Wavering
+# domestic policy support for conservation"; SM Section 7). Codes 100, 400
+# and 600 are dryland, mangrove and peat swamp forest with no loss by 2022;
+# one sample point = 1 ha
+hti_remaining_forest <- samples_gfc_ttm %>%
+  filter(gfc_ttm %in% c(100, 400, 600)) %>%
+  lazy_dt() %>%
+  left_join(samples_df %>% select(sid, supplier_id, island), by = "sid") %>%
+  mutate(
+    forest_class = case_when(
+      gfc_ttm == 100 ~ "Dryland",
+      gfc_ttm == 400 ~ "Mangrove",
+      gfc_ttm == 600 ~ "Peat swamp"
+    )
+  ) %>%
+  group_by(supplier_id, island, forest_class) %>%
+  summarize(area_ha = n(), .groups = "drop") %>%
+  as_tibble()
+
 # other conversion
 hti_nonpulp_conv_areas <- hti_other_conv %>%
   group_by(supplier_id, supplier, supplier_label, license_year, island) %>%
@@ -630,4 +649,8 @@ write_csv(
     wdir,
     "\\01_data\\02_out\\tables\\idn_pulp_conversion_hti_nonhti_treemap.csv"
   )
+)
+write_csv(
+  hti_remaining_forest,
+  paste0(wdir, "\\01_data\\02_out\\tables\\hti_remaining_forest_2022.csv")
 )
