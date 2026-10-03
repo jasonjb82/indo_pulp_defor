@@ -194,6 +194,11 @@ pipeline <- list(
     file.path(zenodo_data_check, "01_in/wwi/MILLS_EXPORTERS_20200405.xlsx"),
     format = "file"
   ),
+  tar_target(
+    remaining_forest_file,
+    file.path(zenodo_data_check, "02_out/tables/hti_remaining_forest_2022.csv"),
+    format = "file"
+  ),
 
   # -----------------------------------------------------------------------
   # B. RAW DATA INGESTION & DATA CLEANING
@@ -258,6 +263,10 @@ pipeline <- list(
   ),
   tar_target(ws_2015_2022, read_csv(ws_2015_2022_file, show_col_types = FALSE)),
   tar_target(cap_df, read_cap_df(cap_df_file)),
+  tar_target(
+    remaining_forest,
+    read_csv(remaining_forest_file, show_col_types = FALSE)
+  ),
 
   # -----------------------------------------------------------------------
   # C. SCRIPT 1: FIGURE 1 (SUMMARY TRENDS)
@@ -446,7 +455,8 @@ pipeline <- list(
       groups_reclass_hti = groups_reclass_hti,
       cap_df = cap_df,
       scenario_stats = scenario_stats,
-      mai_df = mai_df
+      mai_df = mai_df,
+      remaining_forest = remaining_forest
     )
   ),
   tar_target(
