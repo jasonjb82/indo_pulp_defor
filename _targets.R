@@ -185,11 +185,6 @@ list(
     format = "file"
   ),
   tar_target(
-    scenario_stats_file,
-    file.path(zenodo_data_check, "04_results/scenario_stats.csv"),
-    format = "file"
-  ),
-  tar_target(
     ws_2015_2022_file,
     file.path(zenodo_data_check, "02_out/tables/ws_merge_clean_2015_2022.csv"),
     format = "file"
@@ -260,10 +255,6 @@ list(
   tar_target(
     groups_reclass_hti,
     read_csv(groups_reclass_file, show_col_types = FALSE)
-  ),
-  tar_target(
-    scenario_stats,
-    read_csv(scenario_stats_file, show_col_types = FALSE)
   ),
   tar_target(ws_2015_2022, read_csv(ws_2015_2022_file, show_col_types = FALSE)),
   tar_target(cap_df, read_cap_df(cap_df_file)),
@@ -622,7 +613,114 @@ list(
   ),
 
   # -----------------------------------------------------------------------
-  # K. CHECK PAPER STATS AGAINST THE MANUSCRIPT
+  # K. ANALYSIS 04: SPATIAL MODEL OF PULP EXPANSION (SI SECTION 8)
+  # -----------------------------------------------------------------------
+  # Predictions come from the authors' saved model (rf_final_fit.rds), which
+  # reproduces the published predictions exactly. Re-estimation (rf_results,
+  # ~15 min) is version-sensitive: tuning is a near-tie between mtry 13 and
+  # 22, so other package versions can select a different mtry. SI Figure 4
+  # and the SI Section 8 statements below come from the re-estimation.
+  tar_target(
+    rf_vars_2017_file,
+    file.path(zenodo_data_check, "02_out/tables/pulp_exp_model_var_1km_2017.csv"),
+    format = "file"
+  ),
+  tar_target(
+    rf_vars_2022_file,
+    file.path(zenodo_data_check, "02_out/tables/pulp_exp_model_var_1km_2022.csv"),
+    format = "file"
+  ),
+  tar_target(
+    rf_final_fit_file,
+    file.path(zenodo_data_check, "02_out/models/rf_final_fit.rds"),
+    format = "file"
+  ),
+  tar_target(
+    pulp_predictions,
+    predict_pulp_expansion(rf_final_fit_file, rf_vars_2022_file)
+  ),
+  tar_target(
+    pulp_predictions_csv,
+    save_csv_table(
+      pulp_predictions,
+      "outputs/tables/pulp_predictions.csv",
+      writer = "readr"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    rf_results,
+    run_pulp_expansion_model(rf_vars_2017_file, rf_vars_2022_file)
+  ),
+  tar_target(
+    si_fig4_png,
+    save_si_fig4(rf_results, "outputs/figures/SI_f4_auc.png"),
+    format = "file"
+  ),
+  tar_target(
+    si_section8_txt,
+    save_text_lines(rf_results$si_text, "outputs/text/si_section8_statements.txt"),
+    format = "file"
+  ),
+  tar_target(
+    rf_diagnostics_txt,
+    save_text_lines(
+      rf_results$diagnostics,
+      "outputs/text/rf_model_diagnostics.txt"
+    ),
+    format = "file"
+  ),
+
+  # -----------------------------------------------------------------------
+  # L. ANALYSIS 05: PULP EXPANSION SCENARIOS (FIGURE 3, SI 4.3 AND 8.4)
+  # -----------------------------------------------------------------------
+  # Computes scenario_stats from the predictions rather than reading
+  # 04_results/scenario_stats.csv from Zenodo.
+  tar_target(
+    scenario_results,
+    run_pulp_expansion_scenarios(
+      pulp_predictions = pulp_predictions,
+      mai_df = mai_df,
+      rs_acc_df = rs_acc_df,
+      cap_df = cap_df,
+      ws_2015_2022 = ws_2015_2022,
+      kab = kab
+    )
+  ),
+  tar_target(scenario_stats, scenario_results$scenario_stats),
+  tar_target(
+    scenario_stats_csv,
+    save_csv_table(
+      scenario_stats,
+      "outputs/tables/scenario_stats.csv",
+      writer = "readr"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    fig3_png,
+    save_fig3(scenario_results, "outputs/figures/f3_expansion_combined.png"),
+    format = "file"
+  ),
+  tar_target(
+    si_sections4_8_txt,
+    save_text_lines(
+      scenario_results$si_text,
+      "outputs/text/si_sections4_8_statements.txt"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    scenario_diagnostics_txt,
+    save_text_lines(
+      scenario_results$diagnostics,
+      "outputs/text/scenario_diagnostics.txt"
+    ),
+    format = "file"
+  ),
+
+  # -----------------------------------------------------------------------
+  # M. CHECK PAPER STATS AGAINST THE MANUSCRIPT
   # -----------------------------------------------------------------------
   # manuscript_values.csv holds each number as the manuscript prints it.
   # Update it whenever the manuscript text changes.
