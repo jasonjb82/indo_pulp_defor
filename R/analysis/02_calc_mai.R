@@ -355,11 +355,14 @@ run_calc_mai <- function(
     pull(n) %>%
     median()
 
+  # unname(): the regression coefficient carries the name "harvest_year",
+  # which would otherwise leak into names built from these values downstream
+  # (the standalone scripts read them back from a CSV, which drops it)
   key_parameters <- list(
     "dmai" = sector_mai,
     "dmai_2021" = mai_2021,
-    "yield_growth" = yield_growth[1],
-    "yield_growth_ci" = yield_growth_confint[1, 1],
+    "yield_growth" = unname(yield_growth[1]),
+    "yield_growth_ci" = unname(yield_growth_confint[1, 1]),
     "production_coverage" = prod_coverage,
     "median_obs" = median_obs,
     "hardiyanto_cagr" = hardiyanto_cagr
