@@ -366,28 +366,7 @@ run_defor_elasticity <- function(
       pulp_forest_ha_cf = sum(defor_price_partial, na.rm = TRUE) / 1000
     )
 
-  defor_plot <- ggplot(
-    total_pulp_defor %>% filter(year > 2000, year < 2023),
-    aes(x = year)
-  ) +
-    geom_line(aes(y = pulp_forest_ha_true)) +
-    geom_line(aes(y = pulp_forest_ha_cf), linetype = 2) +
-    labs(x = "Year", y = "Pulp-driven deforestation (thousand ha)") +
-    theme_minimal(base_size = 12) +
-    annotate(
-      "text",
-      x = 2020,
-      y = 107,
-      label = "Deforestation as predicted\nby price variation",
-      color = "black"
-    ) +
-    annotate(
-      "text",
-      x = 2018,
-      y = 20,
-      label = "Observed deforestation",
-      color = "black"
-    )
+  defor_plot <- plot_si_fig3(total_pulp_defor)
 
   # =========================================================================
   # Mill capacity utilisation is inelastic (SI Section 4.2)
@@ -588,13 +567,44 @@ run_defor_elasticity <- function(
   )
 }
 
+#' Build SI Figure 3 (observed vs price-predicted deforestation)
+#'
+#' Built in its own function because a ggplot keeps the environment it was
+#' created in; inside run_defor_elasticity() that would carry the full panel
+#' into the stored result.
+#' @param total_pulp_defor Annual observed and counterfactual totals (kha)
+plot_si_fig3 <- function(total_pulp_defor) {
+  ggplot(
+    total_pulp_defor %>% filter(year > 2000, year < 2023),
+    aes(x = year)
+  ) +
+    geom_line(aes(y = pulp_forest_ha_true)) +
+    geom_line(aes(y = pulp_forest_ha_cf), linetype = 2) +
+    labs(x = "Year", y = "Pulp-driven deforestation (thousand ha)") +
+    theme_minimal(base_size = 12) +
+    annotate(
+      "text",
+      x = 2020,
+      y = 107,
+      label = "Deforestation as predicted\nby price variation",
+      color = "black"
+    ) +
+    annotate(
+      "text",
+      x = 2018,
+      y = 20,
+      label = "Observed deforestation",
+      color = "black"
+    )
+}
+
 #' Save SI Figure 3
 #' @param elast_results Output of run_defor_elasticity()
 #' @param output_path Destination .png path
 #' @return output_path, as required by format = "file"
 save_si_fig3 <- function(elast_results, output_path) {
   dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
-  ggsave(
+  ggsave_without_showtext(
     output_path,
     plot = elast_results$defor_plot,
     width = 7,
