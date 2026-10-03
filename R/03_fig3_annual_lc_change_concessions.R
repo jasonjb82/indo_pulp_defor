@@ -88,9 +88,12 @@ render_and_save_all_concessions <- function(hti_gav_annual_lc_df, output_dir) {
     filtered_df <- hti_gav_annual_lc_df %>%
       filter(supplier_label == concession_) %>%
       mutate(
+        # The input labels pulpwood as "Cleared for pulp"; the figures use
+        # the manuscript's term
+        class_desc = recode(class_desc, "Cleared for pulp" = "Pulpwood plantation"),
         class_desc = ordered(
           class_desc,
-          levels = c("Forest", "Non-forest", "Cleared for pulp")
+          levels = c("Forest", "Non-forest", "Pulpwood plantation")
         )
       )
 
@@ -127,7 +130,7 @@ render_and_save_all_concessions <- function(hti_gav_annual_lc_df, output_dir) {
         values = c(
           "Forest" = "#009E73",
           "Non-forest" = "#F0E442",
-          "Cleared for pulp" = "#CC79A7"
+          "Pulpwood plantation" = "#CC79A7"
         ),
         breaks = non_zero
       ) +
