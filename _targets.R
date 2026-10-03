@@ -41,7 +41,7 @@ tar_source()
 # =========================================================================
 # 3. TARGET PIPELINE DEFINITION
 # =========================================================================
-list(
+pipeline <- list(
   # -----------------------------------------------------------------------
   # A. FILE TRACKING (ZENODO DOWNLOAD LOCATION)
   # -----------------------------------------------------------------------
@@ -756,5 +756,52 @@ list(
       "outputs/text/manuscript_check.csv"
     ),
     format = "file"
+  )
+)
+
+# =========================================================================
+# 4. CLAIMS REPORT
+# =========================================================================
+# targets does not let a running pipeline inspect its own graph, so the
+# dependency graph is recorded here, when the pipeline is defined, and
+# injected into the report's command with !!. Any change to a target's
+# command changes the graph and so rebuilds the report.
+pipeline_graph <- pipeline_dependency_graph(pipeline)
+
+c(
+  pipeline,
+  list(
+    tar_target(
+      claims_report_md,
+      build_claims_report(
+        paper_stats = paper_stats,
+        manuscript_check = manuscript_check,
+        si_sources = list(
+          list(
+            title = "SI Section 3: productivity trends",
+            target = "mai_results",
+            text = mai_results$si_text
+          ),
+          list(
+            title = "SI Sections 4.2 and 5: deforestation elasticity",
+            target = "elast_results",
+            text = elast_results$si_text
+          ),
+          list(
+            title = "SI Section 8: spatial model (re-estimation)",
+            target = "rf_results",
+            text = rf_results$si_text
+          ),
+          list(
+            title = "Main text and SI Sections 4.3 and 8.4: expansion scenarios",
+            target = "scenario_results",
+            text = scenario_results$si_text
+          )
+        ),
+        graph = !!pipeline_graph,
+        file_path = "outputs/text/claims_report.md"
+      ),
+      format = "file"
+    )
   )
 )
