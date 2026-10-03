@@ -49,9 +49,9 @@ text_barriers_scenarios,Barriers facing productivity improvements,"328,100",addi
 text_barriers_scenarios,Barriers facing productivity improvements,"190,600",additional peatland conversion (central)
 text_barriers_scenarios,Barriers facing productivity improvements,"40,800",additional peatland conversion (low)
 text_barriers_scenarios,Barriers facing productivity improvements,"322,200",additional peatland conversion (high)
-text_wavering_remaining_forest,Wavering domestic policy support for conservation,2.94,primary forest remaining in pulp concessions (million ha); no input data yet
-text_wavering_remaining_forest,Wavering domestic policy support for conservation,18,share of that forest on peat (%); no input data yet
-text_wavering_remaining_forest,Wavering domestic policy support for conservation,46,share of that forest in Kalimantan (%); no input data yet
+text_wavering_remaining_forest,Wavering domestic policy support for conservation,2.94,primary forest remaining in pulp concessions (million ha); method to confirm with Robert (samples_gfc_ttm)
+text_wavering_remaining_forest,Wavering domestic policy support for conservation,18,share of that forest on peat (%); method to confirm with Robert (samples_gfc_ttm)
+text_wavering_remaining_forest,Wavering domestic policy support for conservation,46,share of that forest in Kalimantan (%); method to confirm with Robert (samples_gfc_ttm)
 text_global_decline_2011_2017,Global implications,95,decline in pulp-driven deforestation 2011-2017
 text_sm4_new_demand,SM Section 4,34.2,new annual pulpwood demand from planned production lines (million m3)
 text_sm4_new_demand,SM Section 4,74,increase over 2022 pulpwood consumption (%)
