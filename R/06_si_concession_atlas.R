@@ -316,9 +316,12 @@ render_and_save_concession_tiles <- function(hti_gav_annual_lc_df,
     filtered_df <- hti_gav_annual_lc_df %>%
       filter(supplier_id == id_) %>%
       mutate(
+        # The input labels pulpwood as "Cleared for pulp"; the atlas uses the
+        # manuscript's term
+        class_desc = recode(class_desc, "Cleared for pulp" = "Pulpwood plantation"),
         class_desc = ordered(
           class_desc,
-          levels = c("Forest", "Non-forest", "Cleared for pulp")
+          levels = c("Forest", "Non-forest", "Pulpwood plantation")
         )
       )
 
@@ -348,7 +351,7 @@ render_and_save_concession_tiles <- function(hti_gav_annual_lc_df,
         values = c(
           "Forest" = "#009E73",
           "Non-forest" = "#F0E442",
-          "Cleared for pulp" = "#CC79A7"
+          "Pulpwood plantation" = "#CC79A7"
         ),
         breaks = non_zero
       ) +
