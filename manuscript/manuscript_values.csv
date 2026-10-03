@@ -41,7 +41,7 @@ text_barriers_scenarios,Barriers facing productivity improvements,46,demand grow
 text_barriers_scenarios,Barriers facing productivity improvements,7,lower bound (%)
 text_barriers_scenarios,Barriers facing productivity improvements,91,upper bound (%)
 text_barriers_scenarios,Barriers facing productivity improvements,"733,700",further plantations needed (ha)
-text_barriers_scenarios,Barriers facing productivity improvements,"99,800",lower bound; manuscript has a stray character (99,800¬–1,513,500)
+text_barriers_scenarios,Barriers facing productivity improvements,"99,800","lower bound; manuscript has a stray character (99,800¬–1,513,500)"
 text_barriers_scenarios,Barriers facing productivity improvements,"1,513,500",upper bound
 text_barriers_scenarios,Barriers facing productivity improvements,"123,000",additional deforestation (central)
 text_barriers_scenarios,Barriers facing productivity improvements,"1,000",additional deforestation (low)
@@ -49,9 +49,9 @@ text_barriers_scenarios,Barriers facing productivity improvements,"328,100",addi
 text_barriers_scenarios,Barriers facing productivity improvements,"190,600",additional peatland conversion (central)
 text_barriers_scenarios,Barriers facing productivity improvements,"40,800",additional peatland conversion (low)
 text_barriers_scenarios,Barriers facing productivity improvements,"322,200",additional peatland conversion (high)
-text_wavering_remaining_forest,Wavering domestic policy support for conservation,2.94,primary forest remaining in pulp concessions (million ha); method to confirm with Robert (samples_gfc_ttm)
-text_wavering_remaining_forest,Wavering domestic policy support for conservation,18,share of that forest on peat (%); method to confirm with Robert (samples_gfc_ttm)
-text_wavering_remaining_forest,Wavering domestic policy support for conservation,46,share of that forest in Kalimantan (%); method to confirm with Robert (samples_gfc_ttm)
+text_wavering_remaining_forest,Wavering domestic policy support for conservation,2.94,primary forest remaining in pulp concessions (million ha); mangrove excluded - confirm with Robert
+text_wavering_remaining_forest,Wavering domestic policy support for conservation,18,share of that forest on peat (%); mangrove excluded - confirm with Robert
+text_wavering_remaining_forest,Wavering domestic policy support for conservation,46,share of that forest in Kalimantan (%); mangrove excluded - confirm with Robert
 text_global_decline_2011_2017,Global implications,95,decline in pulp-driven deforestation 2011-2017
 text_sm4_new_demand,SM Section 4,34.2,new annual pulpwood demand from planned production lines (million m3)
 text_sm4_new_demand,SM Section 4,74,increase over 2022 pulpwood consumption (%)
