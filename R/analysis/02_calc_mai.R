@@ -33,9 +33,8 @@
 ##               elasticity analysis (script 03), which is not yet migrated.
 ##        3) si_section3_txt -> outputs/text/si_section3_statements.txt:
 ##               SI Section 3 statements with values from this run.
-##        4) SI Table 6 (DMAI trend regressions): save_mai_table() writes it to
-##               .docx, but no target calls it yet because pandoc is not
-##               installed on the current machine.
+##        4) si_table6_docx -> outputs/tables/si_table6_yield_growth.docx:
+##               SI Table 6, DMAI trend regressions (needs pandoc).
 ## ---------------------------------------------------------
 
 #' Calculate DMAI and productivity trends
@@ -489,39 +488,35 @@ run_calc_mai <- function(
 
 #' Write SI Table 6 (DMAI trend regressions) to .docx
 #'
-#' Writing .docx requires pandoc. A missing pandoc only warns and writes
-#' nothing, so the rest of the pipeline is unaffected.
+#' Writing .docx requires the pandoc program and the R package of the same
+#' name; if either is missing this stops with a message saying so.
 #' @param mai_results Output of run_calc_mai()
 #' @param output_path Destination .docx path
-#' @return output_path if the file was written, otherwise character(0)
+#' @return output_path, as required by format = "file"
 save_mai_table <- function(mai_results, output_path) {
   dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
-  written <- tryCatch(
-    {
-      modelsummary::modelsummary(
-        mai_results$models,
-        fmt = 3,
-        coef_map = c("harvest_year" = "Year"),
-        stars = c('*' = .1, '**' = .05, '***' = 0.01),
-        gof_map = mai_results$gof_map,
-        stars_note = FALSE,
-        add_rows = mai_results$table_rows,
-        notes = "Standard errors clustered by concession. * p < 0.1, ** p < 0.05, *** p < 0.01",
-        output = output_path
-      )
-      TRUE
-    },
+  tryCatch(
+    modelsummary::modelsummary(
+      mai_results$models,
+      fmt = 3,
+      coef_map = c("harvest_year" = "Year"),
+      stars = c('*' = .1, '**' = .05, '***' = 0.01),
+      gof_map = mai_results$gof_map,
+      stars_note = FALSE,
+      add_rows = mai_results$table_rows,
+      notes = "Standard errors clustered by concession. * p < 0.1, ** p < 0.05, *** p < 0.01",
+      output = output_path
+    ),
     error = function(e) {
-      warning(
+      stop(
         "Could not write ",
         output_path,
         ": ",
         conditionMessage(e),
-        "\n  .docx output needs pandoc on the PATH; other outputs are unaffected.",
+        "\n  .docx output needs pandoc on the PATH and the R package 'pandoc'.",
         call. = FALSE
       )
-      FALSE
     }
   )
-  if (written) output_path else character(0)
+  output_path
 }
