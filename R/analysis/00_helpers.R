@@ -13,6 +13,23 @@ save_text_lines <- function(lines, file_path) {
   file_path
 }
 
+#' ggsave() with showtext switched off for the duration of the call
+#'
+#' R/02_fig2_defor_timing.R enables showtext at load time (for DM Sans in
+#' Figures 1 and 2), and tar_source() loads it into every pipeline session.
+#' showtext replaces system fonts (e.g. Courier New) and renders text at its
+#' own dpi, so the analysis figures - drawn without showtext in the standalone
+#' scripts - are saved with it switched off, then it is switched back on.
+#' @param ... Passed to ggplot2::ggsave()
+#' @return The value of ggsave(), invisibly
+ggsave_without_showtext <- function(...) {
+  if (isNamespaceLoaded("showtext")) {
+    showtext::showtext_auto(FALSE)
+    on.exit(showtext::showtext_auto(TRUE), add = TRUE)
+  }
+  invisible(ggsave(...))
+}
+
 #' Write a table to CSV, creating the folder if needed
 #'
 #' Writes with the same function the standalone analysis script used, so SI
