@@ -518,6 +518,12 @@ list(
   ),
   tar_target(mai_results, run_calc_mai(harvest_file, ws_2015_2022)),
   tar_target(mai_df, mai_results$key_parameters),
+  # .docx output needs pandoc on the PATH
+  tar_target(
+    si_table6_docx,
+    save_mai_table(mai_results, "outputs/tables/si_table6_yield_growth.docx"),
+    format = "file"
+  ),
   tar_target(
     si_section3_txt,
     save_text_lines(
@@ -608,6 +614,16 @@ list(
     save_text_lines(
       elast_results$diagnostics,
       "outputs/text/defor_elasticity_diagnostics.txt"
+    ),
+    format = "file"
+  ),
+  # SI Tables 9 and 10; .docx output needs pandoc on the PATH
+  tar_target(
+    si_tables9_10_docx,
+    save_defor_elast_tables(
+      elast_results,
+      main_path = "outputs/tables/si_table9_defor_elasticity.docx",
+      robust_path = "outputs/tables/si_table10_defor_elasticity_robustness.docx"
     ),
     format = "file"
   ),
