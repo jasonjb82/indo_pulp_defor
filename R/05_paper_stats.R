@@ -36,6 +36,10 @@
 ##               Produced by scripts/02_data_preparation/04_merge_ws_data.R
 ##       10) cap_df -> 01_in/wwi/MILLS_EXPORTERS_20200405.xlsx: Mill pulp
 ##               capacity (project input).
+##       11) remaining_forest -> 02_out/tables/hti_remaining_forest_2022.csv:
+##               Remaining primary forest in 2022 per concession and island,
+##               by forest class (dryland, mangrove, peat swamp).
+##               Produced by scripts/02_data_preparation/01_data_prep.R
 ##
 ## Pipeline outputs
 ##        1) paper_stats: Named list of the computed values and formatted
@@ -56,6 +60,7 @@
 #' @param cap_df Mill capacities
 #' @param scenario_stats Wood demand and scenarios
 #' @param mai_df Parameters from MAI analysis
+#' @param remaining_forest Remaining primary forest in concessions by class
 calc_paper_stats <- function(
   rs_acc_df,
   id_annual_exp_stats,
@@ -66,7 +71,8 @@ calc_paper_stats <- function(
   groups_reclass_hti,
   cap_df,
   scenario_stats,
-  mai_df
+  mai_df,
+  remaining_forest
 ) {
   # Formatting function used later
   fmt_ha <- function(x) {
@@ -165,6 +171,32 @@ calc_paper_stats <- function(
       "deforestation between 2011 and 2017.\n\n"
     ),
     abs(early_change) * 100
+  )
+
+  # Remaining primary forest in pulpwood concessions, 2022 (SM Section 7).
+  # TO CONFIRM WITH ROBERT: mangrove is excluded here because that reproduces
+  # the manuscript's 2.94 Mha; including it gives 2.96 Mha. Either way the
+  # Kalimantan share rounds to 47%, against 46% in the manuscript.
+  remaining_forest_classes <- c("Dryland", "Peat swamp")
+  rf_2022 <- remaining_forest %>%
+    filter(forest_class %in% remaining_forest_classes)
+  rf_total_ha <- sum(rf_2022$area_ha)
+  rf_peat_pct <- 100 * sum(rf_2022$area_ha[rf_2022$forest_class == "Peat swamp"]) /
+    rf_total_ha
+  rf_kalimantan_pct <- 100 * sum(rf_2022$area_ha[rf_2022$island == "Kalimantan"]) /
+    rf_total_ha
+
+  text_wavering_remaining_forest <- sprintf(
+    paste0(
+      "\n[Wavering domestic policy support for conservation]\n",
+      "We find that \033[1m%.2f\033[0m million hectares of primary forests, \033[1m%.0f\033[0m%% of which are on peat\n",
+      "soils, still exist within Indonesia’s assigned pulpwood plantation concessions\n",
+      "(SM Section 7). \033[1m%.0f\033[0m%% of these forests within pulp concessions are located in\n",
+      "Kalimantan, the current frontier of pulp-driven deforestation.\n\n"
+    ),
+    rf_total_ha / 1e6,
+    rf_peat_pct,
+    rf_kalimantan_pct
   )
 
   text_boom_decline_2011_2017 <- sprintf(
@@ -594,6 +626,7 @@ calc_paper_stats <- function(
     text_mills_capacity_demand = text_mills_capacity_demand,
     text_barriers_productivity_growth = text_barriers_productivity_growth,
     text_barriers_scenarios = text_barriers_scenarios,
+    text_wavering_remaining_forest = text_wavering_remaining_forest,
     text_global_decline_2011_2017 = text_global_decline_2011_2017,
     text_sm4_new_demand = text_sm4_new_demand,
     text_sm4_area_needed = text_sm4_area_needed
