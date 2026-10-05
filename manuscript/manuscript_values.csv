@@ -1,11 +1,11 @@
 block,section,value,note
 text_abstract_decline_2011_2017,Abstract,95,decline in pulp-driven deforestation 2011-2017
-text_abstract_scenarios,Abstract,"123,000",additional deforestation (central)
-text_abstract_scenarios,Abstract,"1,000",additional deforestation (low)
-text_abstract_scenarios,Abstract,"328,100",additional deforestation (high)
-text_abstract_scenarios,Abstract,"190,600",additional peatland conversion (central)
-text_abstract_scenarios,Abstract,"40,800",additional peatland conversion (low)
-text_abstract_scenarios,Abstract,"322,200",additional peatland conversion (high)
+text_abstract_scenarios,Abstract,"135,500",additional deforestation (central)
+text_abstract_scenarios,Abstract,"1,300",additional deforestation (low)
+text_abstract_scenarios,Abstract,"353,700",additional deforestation (high)
+text_abstract_scenarios,Abstract,"199,100",additional peatland conversion (central)
+text_abstract_scenarios,Abstract,"39,000",additional peatland conversion (low)
+text_abstract_scenarios,Abstract,"345,500",additional peatland conversion (high)
 text_intro_pulp_defor_2001_2011,Introduction,"682,000",primary rainforest converted to pulpwood 2001-2011
 text_intro_pulp_defor_2001_2011,Introduction,"639,000",95% CI lower
 text_intro_pulp_defor_2001_2011,Introduction,"725,000",95% CI upper
@@ -24,7 +24,7 @@ text_boom_decline_2011_2017,An emerging boom in deforestation?,95,decline in pul
 text_boom_rates_2017_2022,An emerging boom in deforestation?,"5,600",primary forest conversion rate 2017 (ha/year)
 text_boom_rates_2017_2022,An emerging boom in deforestation?,"24,300",primary forest conversion rate 2022 (ha/year)
 text_boom_rates_2017_2022,An emerging boom in deforestation?,338,increase in forest conversion rate (%)
-text_boom_rates_2017_2022,An emerging boom in deforestation?,"1,500",peat conversion rate 2017 (ha/year); data give 1426.6 -> 1400
+text_boom_rates_2017_2022,An emerging boom in deforestation?,"1,400",peat conversion rate 2017 (ha/year)
 text_boom_rates_2017_2022,An emerging boom in deforestation?,"7,800",peat conversion rate 2022 (ha/year)
 text_boom_rates_2017_2022,An emerging boom in deforestation?,446,increase in peat conversion rate (%)
 text_boom_pulp_vs_palm_2022,An emerging boom in deforestation?,TRUE,more forest converted to pulp than to oil palm in 2022
@@ -43,15 +43,15 @@ text_barriers_scenarios,Barriers facing productivity improvements,91,upper bound
 text_barriers_scenarios,Barriers facing productivity improvements,"733,700",further plantations needed (ha)
 text_barriers_scenarios,Barriers facing productivity improvements,"99,800","lower bound; manuscript has a stray character (99,800¬–1,513,500)"
 text_barriers_scenarios,Barriers facing productivity improvements,"1,513,500",upper bound
-text_barriers_scenarios,Barriers facing productivity improvements,"123,000",additional deforestation (central)
-text_barriers_scenarios,Barriers facing productivity improvements,"1,000",additional deforestation (low)
-text_barriers_scenarios,Barriers facing productivity improvements,"328,100",additional deforestation (high)
-text_barriers_scenarios,Barriers facing productivity improvements,"190,600",additional peatland conversion (central)
-text_barriers_scenarios,Barriers facing productivity improvements,"40,800",additional peatland conversion (low)
-text_barriers_scenarios,Barriers facing productivity improvements,"322,200",additional peatland conversion (high)
-text_wavering_remaining_forest,Wavering domestic policy support for conservation,2.94,primary forest remaining in pulp concessions (million ha); mangrove excluded - confirm with Robert
-text_wavering_remaining_forest,Wavering domestic policy support for conservation,18,share of that forest on peat (%); mangrove excluded - confirm with Robert
-text_wavering_remaining_forest,Wavering domestic policy support for conservation,46,share of that forest in Kalimantan (%); mangrove excluded - confirm with Robert
+text_barriers_scenarios,Barriers facing productivity improvements,"135,500",additional deforestation (central)
+text_barriers_scenarios,Barriers facing productivity improvements,"1,300",additional deforestation (low)
+text_barriers_scenarios,Barriers facing productivity improvements,"353,700",additional deforestation (high)
+text_barriers_scenarios,Barriers facing productivity improvements,"199,100",additional peatland conversion (central)
+text_barriers_scenarios,Barriers facing productivity improvements,"39,000",additional peatland conversion (low)
+text_barriers_scenarios,Barriers facing productivity improvements,"345,500",additional peatland conversion (high)
+text_wavering_remaining_forest,Wavering domestic policy support for conservation,2.96,primary forest remaining in pulp concessions (million ha)
+text_wavering_remaining_forest,Wavering domestic policy support for conservation,18,share of that forest on peat (%)
+text_wavering_remaining_forest,Wavering domestic policy support for conservation,47,share of that forest in Kalimantan (%)
 text_global_decline_2011_2017,Global implications,95,decline in pulp-driven deforestation 2011-2017
 text_sm4_new_demand,SM Section 4,34.2,new annual pulpwood demand from planned production lines (million m3)
 text_sm4_new_demand,SM Section 4,74,increase over 2022 pulpwood consumption (%)
