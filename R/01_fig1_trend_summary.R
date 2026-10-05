@@ -518,6 +518,21 @@ save_fig1 <- function(comb_plot, output_png, output_svg) {
     dir.create(dir_path, recursive = TRUE, showWarnings = FALSE)
   }
 
+  # Register DM Sans at save time too: the panels register it when they are
+  # built, but they may have been built in an earlier session. Fail loudly
+  # rather than silently drawing in a fallback font.
+  tryCatch(
+    sysfonts::font_add_google(name = "DM Sans", family = "DM Sans"),
+    error = function(e) NULL
+  )
+  if (!"DM Sans" %in% sysfonts::font_families()) {
+    stop(
+      "Font 'DM Sans' is not registered, so Figure 1 would render in a ",
+      "fallback font. font_add_google() needs network access.",
+      call. = FALSE
+    )
+  }
+
   # Set showtext's resolution at save time: the concession figures and atlas
   # tiles reset it to 96 after drawing, which would otherwise shrink the text
   # if they ran first
