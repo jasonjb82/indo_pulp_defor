@@ -23,10 +23,8 @@ library(janitor)
 library(showtext)
 library(sysfonts)
 
-# Enable DM Sans font rendering for ggplot & ggsave
-sysfonts::font_add_google("DM Sans", "DM Sans")
-showtext::showtext_auto()
-showtext::showtext_opts(dpi = 400)
+# The DM Sans font is registered in save_fig2() rather than here, so that
+# loading the pipeline (tar_source()) does not need network access
 
 #' Prepare frequency table from hti_conv_timing dataset
 prep_hti_defor_timing <- function(hti_conv_timing_df) {
@@ -179,11 +177,25 @@ save_fig2 <- function(freq_tab_df, output_path) {
     dir.create(dir_path, recursive = TRUE, showWarnings = FALSE)
   }
 
+  # Register DM Sans here (needs network access) and fail loudly if that is
+  # not possible, rather than silently drawing in a fallback font
+  tryCatch(
+    sysfonts::font_add_google(name = "DM Sans", family = "DM Sans"),
+    error = function(e) NULL
+  )
+  if (!"DM Sans" %in% sysfonts::font_families()) {
+    stop(
+      "Font 'DM Sans' is not registered, so Figure 2 would render in a ",
+      "fallback font. font_add_google() needs network access.",
+      call. = FALSE
+    )
+  }
+
   p <- plot_fig2_defor_timing(freq_tab_df)
 
-  # Set showtext's resolution here rather than relying on the value set when
-  # this file is loaded: the concession figures and atlas tiles reset it to
-  # 96 after drawing, which would otherwise shrink the text if they ran first
+  # Set showtext's resolution here rather than relying on a global value: the
+  # concession figures and atlas tiles reset it to 96 after drawing, which
+  # would otherwise shrink the text if they ran first
   showtext::showtext_auto()
   showtext::showtext_opts(dpi = 400)
   on.exit(showtext::showtext_opts(dpi = 96), add = TRUE)
