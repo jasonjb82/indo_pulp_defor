@@ -174,10 +174,10 @@ calc_paper_stats <- function(
   )
 
   # Remaining primary forest in pulpwood concessions, 2022 (SM Section 7).
-  # TO CONFIRM WITH ROBERT: mangrove is excluded here because that reproduces
-  # the manuscript's 2.94 Mha; including it gives 2.96 Mha. Either way the
-  # Kalimantan share rounds to 47%, against 46% in the manuscript.
-  remaining_forest_classes <- c("Dryland", "Peat swamp")
+  # All three primary forest classes count, mangrove included (agreed with
+  # Robert, 5 Oct 2026); the manuscript is updated from 2.94 Mha / 46% to
+  # these values.
+  remaining_forest_classes <- c("Dryland", "Mangrove", "Peat swamp")
   rf_2022 <- remaining_forest %>%
     filter(forest_class %in% remaining_forest_classes)
   rf_total_ha <- sum(rf_2022$area_ha)
