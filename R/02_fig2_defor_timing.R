@@ -64,7 +64,7 @@ prep_hti_defor_timing <- function(hti_conv_timing_df) {
 plot_fig2_defor_timing <- function(freq_tab_df) {
   ownership_order <- c(
     "Acknowledged ownership",
-    "Suspected ownership based on civil society investigations",
+    "Suspected corporate control based on civil society investigations",
     "Third-party suppliers",
     "Not yet\nsupplying\nto mills"
   )
