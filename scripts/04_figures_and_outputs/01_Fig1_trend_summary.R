@@ -355,5 +355,43 @@ comb_plot <- comb_plot +
 
 
 ## save to image format
-ggsave(comb_plot,file=paste0(wdir,"/01_data/04_results/figures/f1_summary_figure.png"), dpi=400, w=12, h=15) 
-ggsave(comb_plot,file=paste0(wdir,"/01_data/04_results/figures/f1_summary_figure.svg"), dpi=400, w=12, h=15) 
+ggsave(comb_plot,file=paste0(wdir,"/01_data/04_results/figures/f1_summary_figure.png"), dpi=400, w=12, h=15)
+
+# showtext draws every glyph as an outline, which leaves the SVG with no editable
+# text and inflates the file. Switch it off for the vector export so svglite
+# writes real <text> elements carrying the font family name, then switch it back
+# on for any raster output that follows.
+showtext_auto(FALSE)
+ggsave(comb_plot,file=paste0(wdir,"/01_data/04_results/figures/f1_summary_figure.svg"), dpi=400, w=12, h=15)
+showtext_auto()
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# export underlying data for Figure 1 --------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Plot-ready values behind each panel, supplied to the journal alongside the
+# vector figure so the figure can be rebuilt without re-running the analysis.
+# One file per panel, holding exactly what the panel draws.
+# Comment this block out once the files have been provided.
+fig_data_dir <- paste0(wdir, "/01_data/04_results/figure_data")
+dir.create(fig_data_dir, showWarnings = FALSE, recursive = TRUE)
+
+# Panel A: pulp-driven deforestation by island (bars, Kha) and the producer
+# price index (line, right axis), by year.
+write_csv(
+  defor_price_comb,
+  file.path(fig_data_dir, "fig1_panelA_deforestation_and_prices.csv")
+)
+
+# Panel B: annual pulp production split by wood source (stacked bars, Mt).
+write_csv(
+  pulp_prod_ratio_merged,
+  file.path(fig_data_dir, "fig1_panelB_pulp_production_by_wood_type.csv")
+)
+
+# Panel C: policy timeline events. row_cat and text_position are the layout
+# fields the panel uses to place each event, so they are retained.
+write_csv(
+  tl_df,
+  file.path(fig_data_dir, "fig1_panelC_policy_timeline.csv")
+)

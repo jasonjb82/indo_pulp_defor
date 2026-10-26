@@ -39,7 +39,7 @@
 # Outputs:
 #        1) Figure 3: Projected pulpwood plantation expansion under the central
 #               scenario, map plus table. Written to
-#               04_results/figures/f3_expansion_combined.png
+#               04_results/figures/f3_expansion_combined.svg
 #        2) Interactive diagnostic map of all three scenarios. Written to
 #               04_results/figures/pulp_expansion_scenarios.html
 #               Not reported in the manuscript; for visual inspection only.
@@ -58,6 +58,7 @@
 # load packages --------------
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 library(tidyverse)
+library(svglite) # device used by ggsave() for .svg output
 library(sf)
 library(terra)
 library(tmap)
@@ -623,7 +624,7 @@ combined_fig <- (pub_map + theme(plot.margin = margin(4, 4, 2, 4, "pt"))) /
 
 combined_fig
 ggsave(
-  paste0(wdir, data_dir, "/04_results/figures/f3_expansion_combined.png"),
+  paste0(wdir, data_dir, "/04_results/figures/f3_expansion_combined.svg"),
   combined_fig,
   width = 7.5,
   height = 8,
@@ -738,6 +739,31 @@ scenario_stats <- tibble(
 write_csv(
   scenario_stats,
   paste0(wdir, data_dir, "/04_results/scenario_stats.csv")
+)
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# export underlying data for Figure 3 --------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Plot-ready values behind each panel, supplied to the journal alongside the
+# vector figure so the figure can be rebuilt without re-running the analysis.
+# Comment this block out once the files have been provided.
+fig_data_dir <- paste0(wdir, data_dir, "/04_results/figure_data")
+dir.create(fig_data_dir, showWarnings = FALSE, recursive = TRUE)
+
+# Panel A: projected expansion under the central scenario, aggregated to the
+# 0.1 degree cells the map draws. x and y are cell centre longitude/latitude.
+write_csv(
+  scenario2_plot_df %>% rename(lon = x, lat = y),
+  file.path(fig_data_dir, "fig3_panelA_expansion_map_cells.csv")
+)
+
+# Panel B: the expansion table, in thousand hectares, before the formatting
+# applied for display. scenario_2 is the central estimate; scenario_1 and
+# scenario_3 are the bounds (highest and lowest productivity growth).
+write_csv(
+  reorg_base,
+  file.path(fig_data_dir, "fig3_panelB_expansion_table_kha.csv")
 )
 
 
@@ -877,7 +903,7 @@ si_text <- c(
   ),
   si_para(
     paste(
-      "Figure 3 is written to 04_results/figures/f3_expansion_combined.png and",
+      "Figure 3 is written to 04_results/figures/f3_expansion_combined.svg and",
       "the underlying statistics to 04_results/scenario_stats.csv."
     )
   )

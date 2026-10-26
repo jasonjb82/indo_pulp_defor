@@ -30,6 +30,7 @@ library(scales)
 library(dtplyr)
 library(tidyfast)
 library(showtext)
+library(svglite) # device used by ggsave() for .svg output
 library(khroma) # palettes for color blindness
 library(ggbreak)
 
@@ -171,17 +172,41 @@ defor_plot <- freq_tab %>%
 defor_broken_plot <- defor_plot +
   scale_x_break(c(1000000, 2500000), space = 0.5)
 
-# export plot to png file
+# showtext draws every glyph as an outline, which leaves the SVG with no editable
+# text and inflates the file. Switch it off for the vector export so svglite
+# writes real <text> elements carrying the font family name, then switch it back
+# on for any raster output that follows.
+showtext_auto(FALSE)
+
+# export plot to svg file
 ggsave(
   defor_broken_plot,
   file = paste0(
     wdir,
     data_dir,
-    "04_results/figures/f2_supplier_groups_defor_class_plot.png"
+    "04_results/figures/f2_supplier_groups_defor_class_plot.svg"
   ),
   dpi = 400,
   w = 9,
   h = 4,
   limitsize = FALSE,
   units = "in"
+)
+showtext_auto()
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# export underlying data for Figure 2 --------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Plot-ready values behind Figure 2, supplied to the journal alongside the
+# vector figure so the figure can be rebuilt without re-running the analysis.
+# Comment this block out once the files have been provided.
+fig_data_dir <- paste0(wdir, data_dir, "04_results/figure_data")
+dir.create(fig_data_dir, showWarnings = FALSE, recursive = TRUE)
+
+# Deforestation area by supplier ownership class and deforestation timing
+# class: one row per stacked bar segment.
+write_csv(
+  as_tibble(freq_tab),
+  file.path(fig_data_dir, "fig2_deforestation_by_ownership_and_class.csv")
 )
