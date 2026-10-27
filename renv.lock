@@ -4,7 +4,7 @@
     "Repositories": [
       {
         "Name": "CRAN",
-        "URL": "https://cran.rstudio.com"
+        "URL": "https://packagemanager.posit.co/cran/2026-10-01"
       }
     ]
   },
@@ -117,10 +117,9 @@
     },
     "V8": {
       "Package": "V8",
-      "Version": "6.0.3",
+      "Version": "8.2.0",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "4999464deb1df7d0ba723c458307ce3d"
+      "Repository": "CRAN"
     },
     "aplot": {
       "Package": "aplot",
@@ -688,15 +687,14 @@
     },
     "igraph": {
       "Package": "igraph",
-      "Version": "2.3.3",
+      "Version": "2.3.4",
       "Source": "CRAN",
       "Repository": "CRAN",
       "RemoteType": "standard",
       "RemotePkgRef": "igraph",
       "RemoteRef": "igraph",
-      "RemoteRepos": "https://cran.rstudio.com",
-      "RemoteSha.Version": "2.3.3",
-      "Hash": "1ef1a63466353036c14f192a124d1549"
+      "RemoteRepos": "https://packagemanager.posit.co/cran/2026-10-01",
+      "RemoteSha.Version": "2.3.4"
     },
     "insight": {
       "Package": "insight",
@@ -1122,7 +1120,7 @@
     },
     "renv": {
       "Package": "renv",
-      "Version": "0.12.0",
+      "Version": "1.3.1",
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "7340c71f46a0fd16506cfa804e224e44"
