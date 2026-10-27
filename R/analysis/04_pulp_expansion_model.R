@@ -39,13 +39,13 @@
 ##               (run of 2 Oct 2026).
 ##
 ## Pipeline outputs
-##        1) pulp_predictions (predict_pulp_expansion() on the saved model):
+##        1) pulp_predictions (from run_pulp_expansion_model()):
 ##               Predicted probability of pulpwood plantation expansion for
 ##               every 1 km point not yet converted as of 2022, with starting
 ##               forest cover, peat and coordinates.
 ##               Read by the scenario analysis (script 05)
 ##        2) pulp_predictions_csv -> outputs/tables/pulp_predictions.csv
-##        From re-estimation (run_pulp_expansion_model(); version-sensitive):
+##        Also from run_pulp_expansion_model():
 ##        3) si_fig4_png -> outputs/figures/SI_f4_auc.png: SI Figure 4, ROC and
 ##               precision-recall curves on the held-out spatial test set.
 ##        4) si_section8_txt -> outputs/text/si_section8_statements.txt: SI
@@ -198,8 +198,12 @@ score_rf_baseline <- function(final_fit, pred_input, p2_df) {
   pulp_predictions
 }
 
-#' Predict 2022-2027 pulp expansion from the authors' saved model
-#' @param rf_fit_rds Path to 02_out/models/rf_final_fit.rds
+#' Predict pulp expansion from a previously saved model fit
+#'
+#' Not used by the pipeline, which re-estimates the model via
+#' run_pulp_expansion_model() and takes predictions from its result. Retained
+#' as a convenience for scoring a saved rf_final_fit.rds without re-tuning.
+#' @param rf_fit_rds Path to a saved final_fit workflow
 #' @param p2022_csv Path to the 2022 1 km predictor table
 #' @return Output of score_rf_baseline()
 predict_pulp_expansion <- function(rf_fit_rds, p2022_csv) {

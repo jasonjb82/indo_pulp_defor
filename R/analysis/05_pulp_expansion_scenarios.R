@@ -17,7 +17,7 @@
 ## Pipeline inputs (targets in _targets.R)
 ##        1) pulp_predictions: Predicted probability of pulpwood plantation
 ##               expansion for every 1 km point not yet converted as of 2022.
-##               Produced by predict_pulp_expansion() (R/analysis/04_pulp_expansion_model.R)
+##               Produced by run_pulp_expansion_model() (R/analysis/04_pulp_expansion_model.R)
 ##        2) mai_df: DMAI in 2021 and its annual growth rate with confidence
 ##               interval. Produced by run_calc_mai() (R/analysis/02_calc_mai.R)
 ##        3) rs_acc_df: Area-corrected pulpwood plantation extent in 2022.
@@ -51,7 +51,7 @@
 
 #' Allocate projected pulpwood expansion and summarise the scenarios
 #'
-#' @param pulp_predictions Output of predict_pulp_expansion()
+#' @param pulp_predictions pulp_predictions element of run_pulp_expansion_model()
 #' @param mai_df,rs_acc_df,cap_df,ws_2015_2022,kab Pipeline targets (see
 #'   header)
 #' @param results_paths Output paths named in the statements (text only)

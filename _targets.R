@@ -687,11 +687,15 @@ pipeline <- list(
   # -----------------------------------------------------------------------
   # K. ANALYSIS 04: SPATIAL MODEL OF PULP EXPANSION (SI SECTION 8)
   # -----------------------------------------------------------------------
-  # Predictions come from the authors' saved model (rf_final_fit.rds), which
-  # reproduces the published predictions exactly. Re-estimation (rf_results,
-  # ~15 min) is version-sensitive: tuning is a near-tie between mtry 13 and
-  # 22, so other package versions can select a different mtry. SI Figure 4
-  # and the SI Section 8 statements below come from the re-estimation.
+  # The model is re-estimated here rather than read from a saved fit. An earlier
+  # version loaded the authors' rf_final_fit.rds because tuning was a near-tie
+  # between mtry 13 and 22 and other package versions could select a different
+  # one. That was traced to ranger drawing its seed from R's ambient RNG stream;
+  # the engine now pins seed = 42, so the tuned mtry no longer depends on how
+  # many random draws upstream code happened to consume. Re-estimation takes
+  # ~15 min and already ran for SI Figure 4 and the Section 8 statements, so
+  # taking predictions from it costs nothing and removes a shipped artefact
+  # from the inputs.
   tar_target(
     rf_vars_2017_file,
     file.path(zenodo_data_check, "02_out/tables/pulp_exp_model_var_1km_2017.csv"),
@@ -703,13 +707,12 @@ pipeline <- list(
     format = "file"
   ),
   tar_target(
-    rf_final_fit_file,
-    file.path(zenodo_data_check, "02_out/models/rf_final_fit.rds"),
-    format = "file"
+    rf_results,
+    run_pulp_expansion_model(rf_vars_2017_file, rf_vars_2022_file)
   ),
   tar_target(
     pulp_predictions,
-    predict_pulp_expansion(rf_final_fit_file, rf_vars_2022_file)
+    rf_results$pulp_predictions
   ),
   tar_target(
     pulp_predictions_csv,
@@ -719,10 +722,6 @@ pipeline <- list(
       writer = "readr"
     ),
     format = "file"
-  ),
-  tar_target(
-    rf_results,
-    run_pulp_expansion_model(rf_vars_2017_file, rf_vars_2022_file)
   ),
   tar_target(
     si_fig4_png,
