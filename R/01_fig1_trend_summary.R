@@ -101,7 +101,7 @@ prep_island_mapping <- function(kab) {
     mutate(island = str_sub(prov_code, 1, 1)) %>%
     mutate(
       island = case_when(
-        island == 1 ~ "Sumatera",
+        island == 1 ~ "Sumatra",
         island == 6 ~ "Kalimantan",
         island == 9 ~ "Papua"
       )
@@ -195,6 +195,43 @@ prep_wood_supply_data <- function(timber_for_pulp, pulp_production) {
     select(year, woodtype, annual_prod_mtpy, ratio)
 }
 
+# All three panels share these x limits so that a given year sits at the same
+# horizontal position in every panel. They also share the right-hand plot
+# margin set in get_fig1_theme(), which keeps the panel regions aligned and
+# gives Panel C somewhere to put labels on the final events.
+FIG1_X_LIMITS <- c(2000, 2023.7)
+
+# Panel C labels wrap at 25 characters by default. These are the ones where a
+# hand-set width is what keeps a label clear of its neighbour, or close enough
+# to its own dot to read as belonging to it.
+TIMELINE_WRAP_WIDTH <- c(
+  "EU VPA negotiations begin" = 19,
+  "APRIL and APP joins FSC" = 14,
+  "Proposed end to SVLK" = 13,
+  "Omnibus Law for Job Creation" = 16,
+  "Indonesia withdraws from REDD+ agreement" = 21,
+  "Norway REDD+ restart" = 13,
+  "APP & APRIL propose mill expansions" = 20,
+  "PT Phoenix mill proposed" = 13,
+  "Introduction of new Forest Business Licenses" = 19
+)
+
+#' Wrap a timeline label, honouring any hand-set width
+#'
+#' str_wrap() takes a single width, so the widths are applied one label at a
+#' time rather than vectorised.
+wrap_timeline_label <- function(event, default = 25) {
+  width <- unname(TIMELINE_WRAP_WIDTH[event])
+  width[is.na(width)] <- default
+  vapply(
+    seq_along(event),
+    function(i) {
+      if (is.na(event[i])) NA_character_ else stringr::str_wrap(event[i], width[i])
+    },
+    character(1)
+  )
+}
+
 #' Prepare policy timeline data for Panel C
 prep_timeline_data <- function(policy_tl) {
   policy_tl_clean <- policy_tl %>%
@@ -240,35 +277,39 @@ prep_timeline_data <- function(policy_tl) {
       text_position = ifelse(row_cat == 22, 2, text_position),
       text_position = ifelse(row_cat == 23, 2.5, text_position)
     ) %>%
-    # Labels are pinned to their own row and may only move horizontally, so
-    # events close together in time have nowhere to go and collide (row_cat 11
-    # has two events in 2020). Give each run of closely spaced events an
-    # alternating second tier. This replaces a set of hand-coded per-event
-    # offsets, which had to be retuned whenever the text metrics changed.
-    dplyr::group_by(row_cat) %>%
-    dplyr::arrange(year, .by_group = TRUE) %>%
-    dplyr::mutate(label_tier = label_tiers(year)) %>%
-    dplyr::ungroup()
-}
-
-#' Alternate label tiers across runs of closely spaced events
-#'
-#' Returns 0 for an event that is comfortably clear of the previous one, and
-#' flips to 1 (then back to 0) while events remain within `gap` years, so a
-#' crowded stretch of the timeline stacks instead of overlapping.
-#'
-#' @param year Event years, already sorted ascending.
-#' @param gap Years below which two events are treated as colliding.
-#' @return Integer vector of 0/1 tiers, the same length as `year`.
-label_tiers <- function(year, gap = 3) {
-  tier <- integer(length(year))
-  if (length(year) < 2) {
-    return(tier)
-  }
-  for (i in seq_along(year)[-1]) {
-    tier[i] <- if ((year[i] - year[i - 1]) < gap) 1L - tier[i - 1] else 0L
-  }
-  tier
+    # Label placement is assigned by hand. The default is that a label sits
+    # just above its own dot and is left aligned at it, which is how the
+    # submitted figure reads. The events listed below are the exceptions:
+    # `label_below` drops a label under its line to clear the neighbour that
+    # shares its row, and `label_hjust` right aligns one so it runs leftwards
+    # from its dot -- needed both for the last events on the axis and wherever
+    # a left aligned label would stretch away towards the following dot and
+    # read as belonging to that one instead. Automatic placement (ggrepel, or
+    # packing labels into lanes by estimated text width) was tried and slid
+    # labels away from the events they describe.
+    dplyr::mutate(
+      label_wrapped = wrap_timeline_label(event),
+      label_below = event %in% c(
+        "Omnibus Law for Job Creation", # shares the 2020 dot with "Proposed end to SVLK"
+        "VPA enters into force", # 2014, under the tail of "VPA ratified"
+        "Norway REDD+ restart", # 2022, under "Indonesia withdraws from..."
+        "PT Phoenix mill proposed" # 2023, under "APP & APRIL propose..."
+      ),
+      label_hjust = ifelse(
+        event %in% c(
+          "Omnibus Law for Job Creation", # else it reaches across to the 2022 dot
+          "Indonesia withdraws from REDD+ agreement", # else it reaches the 2022 dot
+          "APP & APRIL propose mill expansions", # else it reaches the 2023 dot
+          "Norway REDD+ restart", # last two years of the axis
+          "PT Phoenix mill proposed",
+          "FSC signs remedy agreements with APP and APRIL"
+        ),
+        1,
+        0
+      ),
+      # Right aligned labels stop just past their dot rather than on it.
+      label_x = year + ifelse(label_hjust == 1, 0.25, 0)
+    )
 }
 
 # =========================================================================
@@ -279,7 +320,7 @@ label_tiers <- function(year, gap = 3) {
 plot_panel_a <- function(defor_by_island) {
   colorBlind8 <- get_colorblind_palette()
   theme_plot <- get_fig1_theme()
-  island_order <- c("Sumatera", "Kalimantan", "Papua")
+  island_order <- c("Sumatra", "Kalimantan", "Papua")
 
   ggplot(data = defor_by_island, aes(x = year)) +
     geom_bar(
@@ -296,7 +337,8 @@ plot_panel_a <- function(defor_by_island) {
     ) +
     scale_x_continuous(
       breaks = seq(from = 2001, to = 2022, by = 1),
-      expand = c(0, 1)
+      limits = FIG1_X_LIMITS,
+      expand = c(0, 0)
     ) +
     scale_y_continuous(limits = c(0, 150), expand = c(0, 0)) +
     guides(
@@ -317,7 +359,11 @@ plot_panel_b <- function(pulp_prod_ratio_merged) {
       position = "stack",
       aes(x = year, y = annual_prod_mtpy, fill = as.factor(woodtype))
     ) +
-    scale_x_continuous(breaks = seq(from = 2001, to = 2023, by = 1)) +
+    scale_x_continuous(
+      breaks = seq(from = 2001, to = 2023, by = 1),
+      limits = FIG1_X_LIMITS,
+      expand = c(0, 0)
+    ) +
     xlab("") +
     scale_y_continuous(
       name = "Pulp production (Million tonnes)\n",
@@ -458,8 +504,19 @@ plot_panel_c <- function(tl_df) {
       na.translate = FALSE
     ) +
     theme_classic() +
-    scale_x_continuous(expand = c(0, 0.5), breaks = seq(2001, 2023, by = 1)) +
-    scale_y_discrete(expand = c(0, 0.2)) +
+    # Breaks stop at 2023, the last event year, but the axis runs past it so
+    # that labels on the final events stay inside the panel.
+    scale_x_continuous(
+      limits = FIG1_X_LIMITS,
+      expand = c(0, 0),
+      breaks = seq(2001, 2023, by = 1)
+    ) +
+    # Labels on the final events run past the last gridline into the shared
+    # right-hand plot margin, so drawing must not be clipped to the panel.
+    coord_cartesian(clip = "off") +
+    # Extra room below the lowest line: "Omnibus Law for Job Creation" is the
+    # one label drawn under the bottom row and its second line needs the space.
+    scale_y_continuous(expand = ggplot2::expansion(add = c(0.42, 0.22))) +
     geom_point(aes(y = text_position), size = 4.5, alpha = 0.75) +
     geom_point(
       data = tl_df[tl_df$direction.x == 0, ],
@@ -468,31 +525,22 @@ plot_panel_c <- function(tl_df) {
       alpha = 1,
       na.rm = TRUE
     ) +
-    # Labels sit just above the bar for their own row and are only allowed to
-    # slide horizontally, so each stays beside the dot it describes instead of
-    # drifting onto a neighbouring row's bar. direction = "x" is what keeps the
-    # vertical offset constant; without it ggrepel resolves collisions by moving
-    # labels up and down, which is how they ended up detached from their points
-    # and trailing leader lines.
-    ggrepel::geom_text_repel(
+    # Labels are drawn where prep_timeline_data() placed them: beside their own
+    # dot, offset a fixed distance from their line, with the few hand-listed
+    # exceptions dropped below it.
+    geom_text(
       aes(
-        y = text_position + 0.12 + label_tier * 0.20,
-        x = year,
-        label = stringr::str_wrap(event, 32),
-        na.rm = TRUE
+        y = text_position + ifelse(label_below, -0.11, 0.11),
+        x = label_x,
+        label = label_wrapped,
+        vjust = ifelse(label_below, 1, 0),
+        hjust = label_hjust
       ),
       size = 2.5,
-      hjust = 0,
-      vjust = 0,
       family = "DM Sans",
       fontface = "bold",
       show.legend = FALSE,
-      direction = "x",
-      box.padding = 0.3,
-      point.padding = 0.4,
-      # never draw a leader line: with direction = "x" a label is always on its
-      # own row, so a connector adds nothing but clutter
-      min.segment.length = Inf
+      na.rm = TRUE
     ) +
     theme(
       text = element_text(family = "DM Sans"),
@@ -510,7 +558,10 @@ plot_panel_c <- function(tl_df) {
       axis.ticks.x = element_blank(),
       axis.line.x = element_blank(),
       legend.title = element_blank(),
-      legend.position = "bottom"
+      legend.position = "bottom",
+      # Same margin as get_fig1_theme() gives panels A and B, so all three
+      # panel regions line up and a year sits at one x position throughout.
+      plot.margin = unit(c(0.1, 1.5, 0.1, 0.5), "cm")
     )
 }
 

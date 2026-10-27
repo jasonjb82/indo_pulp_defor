@@ -100,7 +100,7 @@ prep_samples_df <- function(
         island == 3 ~ "Maluku",
         island == 4 ~ "Papua",
         island == 5 ~ "Sulawesi",
-        island == 6 ~ "Sumatera",
+        island == 6 ~ "Sumatra",
         TRUE ~ NA_character_
       )
     ) %>%

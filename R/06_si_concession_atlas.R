@@ -142,7 +142,7 @@ build_atlas_metadata <- function(hti_annual_lc, hti_conv_timing, groups_reclass_
 
   # First digit of the province code is the BPS island group.
   island_of_prefix <- c(
-    "1" = "Sumatera",
+    "1" = "Sumatra",
     "3" = "Jawa",
     "5" = "Balinusa",
     "6" = "Kalimantan",
