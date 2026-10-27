@@ -16,7 +16,6 @@
 ##        2) fig2_data -> outputs/figure_data/
 ##               fig2_deforestation_by_ownership_and_class.csv: data behind
 ##               Figure 2 (one row per stacked bar segment).
-##        Intermediate target: freq_tab_fig2.
 ## ---------------------------------------------------------
 
 library(tidyverse)
@@ -29,9 +28,27 @@ library(sysfonts)
 # The DM Sans font is registered in save_fig2() rather than here, so that
 # loading the pipeline (tar_source()) does not need network access
 
+# Ordering of the figure's two categorical axes. These are file-level because
+# both the plot and the exported figure data depend on them: the plot uses them
+# as factor levels, and the export uses them to keep its rows to the categories
+# the figure actually draws, in the order it draws them.
+FIG2_OWNERSHIP_ORDER <- c(
+  "Acknowledged ownership",
+  "Suspected corporate control based on civil society investigations",
+  "Third-party suppliers",
+  "Not yet supplying to mills"
+)
+
+FIG2_DEFOR_ORDER <- c(
+  "Deforestation for pulp after 2015",
+  "Deforestation for pulp during 2001-2015",
+  "Deforestation not for pulp",
+  "Remaining forest"
+)
+
 #' Prepare frequency table from hti_conv_timing dataset
 prep_hti_defor_timing <- function(hti_conv_timing_df) {
-  freq_tab <- hti_conv_timing_df %>%
+  hti_conv_timing_df %>%
     filter(all == 1) %>%
     filter(conv_type == 2 | is.na(conv_type) | is.na(supplier_group)) %>%
     mutate(
@@ -49,35 +66,31 @@ prep_hti_defor_timing <- function(hti_conv_timing_df) {
         (ownership_class == "Third-party suppliers" | is.na(ownership_class)) &
           april == 0 &
           app == 0 &
-          marubeni == 0 ~ "Not yet\nsupplying\nto mills",
-        april == 0 & app == 0 & marubeni == 1 ~ "Not yet\nsupplying\nto mills",
+          marubeni == 0 ~ "Not yet supplying to mills",
+        april == 0 & app == 0 & marubeni == 1 ~ "Not yet supplying to mills",
         TRUE ~ ownership_class
       )
     ) %>%
-    group_by(ownership_class, linked_group, class) %>%
-    summarize(area_ha = sum(area_ha, na.rm = TRUE), .groups = "drop_last") %>%
-    mutate(freq = area_ha / sum(area_ha)) %>%
     drop_na(ownership_class) %>%
-    ungroup()
-
-  return(freq_tab)
+    check_fig2_ownership_classes() %>%
+    # One row per segment the figure draws. The earlier version also grouped by
+    # linked_group and carried a within-group `freq`, but the figure maps only
+    # ownership class (y), class (fill) and area_ha (x), so linked_group split
+    # each segment into sub-rectangles of one colour that were never
+    # distinguishable, and `freq` was never plotted at all.
+    group_by(ownership_class, class) %>%
+    summarize(area_ha = sum(area_ha, na.rm = TRUE), .groups = "drop") %>%
+    arrange(
+      factor(ownership_class, levels = FIG2_OWNERSHIP_ORDER),
+      factor(class, levels = FIG2_DEFOR_ORDER)
+    )
 }
 
 #' Build Figure 2 broken bar plot using patchwork
 plot_fig2_defor_timing <- function(freq_tab_df) {
-  ownership_order <- c(
-    "Acknowledged ownership",
-    "Suspected corporate control based on civil society investigations",
-    "Third-party suppliers",
-    "Not yet\nsupplying\nto mills"
-  )
-
-  defor_order <- c(
-    "Deforestation for pulp after 2015",
-    "Deforestation for pulp during 2001-2015",
-    "Deforestation not for pulp",
-    "Remaining forest"
-  )
+  check_fig2_ownership_classes(freq_tab_df)
+  ownership_order <- FIG2_OWNERSHIP_ORDER
+  defor_order <- FIG2_DEFOR_ORDER
 
   theme_plot <- theme(
     text = element_text(family = "DM Sans", colour = "#3A484F"),
@@ -114,15 +127,9 @@ plot_fig2_defor_timing <- function(freq_tab_df) {
       x = area_ha,
       fill = factor(class, levels = defor_order)
     ) +
-    # Stroke each segment in its own fill colour. Without it, SVG renderers
-    # anti-alias the two sides of every boundary between stacked segments
-    # independently and a hairline of background shows through; the PNG device
-    # hides this but the vector export does not.
     geom_bar(
       stat = "identity",
-      position = position_stack(reverse = TRUE),
-      aes(colour = after_scale(fill)),
-      linewidth = 0.3
+      position = position_stack(reverse = TRUE)
     ) +
     theme_plot +
     ylab("Association with RGE or Sinar Mas") +
@@ -190,6 +197,33 @@ plot_fig2_defor_timing <- function(freq_tab_df) {
     )
 
   return(p_combined)
+}
+
+#' Check that the input's ownership classes are the ones the figure expects
+#'
+#' Both the plot and the exported table turn ownership_class into a factor with
+#' FIG2_OWNERSHIP_ORDER as its levels, so a category spelled any other way
+#' silently becomes NA: the figure draws it as a row labelled "NA" and the
+#' table drops it. That is how a renamed input label ("Suspected ownership
+#' based on..." vs "Suspected corporate control based on...") got as far as a
+#' rendered figure. Fail loudly instead.
+check_fig2_ownership_classes <- function(freq_tab_df) {
+  unexpected <- setdiff(
+    unique(freq_tab_df$ownership_class),
+    FIG2_OWNERSHIP_ORDER
+  )
+  if (length(unexpected)) {
+    stop(
+      "Figure 2: ownership_class values not in FIG2_OWNERSHIP_ORDER:\n",
+      paste0("  - ", gsub("\n", " ", unexpected), collapse = "\n"),
+      "\nExpected:\n",
+      paste0("  - ", gsub("\n", " ", FIG2_OWNERSHIP_ORDER), collapse = "\n"),
+      "\nThe input table's labels and FIG2_OWNERSHIP_ORDER have diverged; ",
+      "reconcile them rather than letting the category drop out.",
+      call. = FALSE
+    )
+  }
+  invisible(freq_tab_df)
 }
 
 #' Save Figure 2 to PNG or SVG
