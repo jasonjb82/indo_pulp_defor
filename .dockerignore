@@ -1,4 +1,8 @@
-# Ignore data (it lives on Zenodo, not in the Docker build)
+# Ignore data (it lives on Zenodo, not in the Docker build).
+# data/ is where the pipeline downloads the Zenodo deposit at run time
+# (_targets.R: output_dir = "data/01_data_replication"), so baking it into the
+# image copies ~3.9 GB the container would fetch for itself.
+data/
 remote/01_data_replication/
 scripts/01_data_extraction/
 scripts/02_data_preparation/
