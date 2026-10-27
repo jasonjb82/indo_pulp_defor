@@ -373,7 +373,13 @@ run_pulp_expansion_model <- function(
   ) %>%
     parsnip::set_engine(
       "ranger",
-      class.weights = !!class_wts
+      # ranger draws its own RNG seed from R's stream when none is given, so every
+      # fit depends on exactly how many random draws upstream code happened to
+      # consume. That count varies between tidymodels versions, which makes the
+      # tuned mtry machine-dependent on a flat CV surface. Pinning the seed makes
+      # each forest a function of its data alone, independent of RNG bookkeeping.
+      class.weights = !!class_wts,
+      seed = 42
     ) %>%
     parsnip::set_mode("classification")
 
@@ -423,7 +429,8 @@ run_pulp_expansion_model <- function(
         parsnip::set_engine(
           "ranger",
           class.weights = !!class_wts,
-          importance = "permutation"
+          importance = "permutation",
+          seed = 42 # see note at the tuning spec
         )
     ) %>%
     generics::fit(data = model_df)
