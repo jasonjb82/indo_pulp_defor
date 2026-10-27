@@ -49,16 +49,31 @@ pipeline <- list(
   # so editing one input file only invalidates the targets that use it. The
   # download runs when the marker is missing (data deleted) or the record ID
   # below changes. To move to a new Zenodo version, change zenodo_record_id.
+  #
+  # Setting the INDO_PULP_DATA environment variable points the pipeline at an
+  # existing directory instead and skips the download. This is how the authors
+  # run against their working data (remote/01_data) before it is deposited:
+  #   INDO_PULP_DATA=remote/01_data Rscript -e 'targets::tar_make()'
   tar_target(
     zenodo_marker,
-    file.path(
-      download_zenodo_data(
-        zenodo_record_id = "21542417",
-        output_dir = "data/01_data_replication"
-      ),
-      ".zenodo_record"
-    ),
-    format = "file"
+    {
+      data_override <- Sys.getenv("INDO_PULP_DATA", unset = "")
+      if (nzchar(data_override)) {
+        marker <- file.path(data_override, ".zenodo_record")
+        if (!file.exists(marker)) writeLines("local-override", marker)
+        marker
+      } else {
+        file.path(
+          download_zenodo_data(
+            zenodo_record_id = "21542417",
+            output_dir = "data/01_data_replication"
+          ),
+          ".zenodo_record"
+        )
+      }
+    },
+    format = "file",
+    cue = tar_cue(mode = "always")
   ),
   tar_target(zenodo_data_check, dirname(zenodo_marker)),
 
@@ -99,11 +114,6 @@ pipeline <- list(
   tar_target(
     timber_for_pulp_file,
     file.path(zenodo_data_check, "01_in/obidzinski_dermawan/plot_data.csv"),
-    format = "file"
-  ),
-  tar_target(
-    pulp_prices_file,
-    file.path(zenodo_data_check, "01_in/tables/WPU0911_FRED.csv"),
     format = "file"
   ),
   tar_target(
@@ -217,7 +227,6 @@ pipeline <- list(
       select(-`system:index`, -.geo)
   ),
   tar_target(timber_for_pulp, read_ws_data(timber_for_pulp_file)),
-  tar_target(pulp_prices, read_csv(pulp_prices_file, show_col_types = FALSE)),
   tar_target(pulp_production, read_cap_df(pulp_production_file)),
   tar_target(
     hti_conv_timing,
@@ -280,13 +289,11 @@ pipeline <- list(
     id_pulp_conv_nonfor,
     clean_pulp_conversion(pulp_nonfor_id, islands_df, "non-forest")
   ),
-  tar_target(pulp_prices_clean, clean_pulp_prices(pulp_prices)),
   tar_target(
-    defor_price_comb,
-    prep_defor_price_comb(
+    defor_by_island,
+    prep_defor_by_island(
       id_pulp_conv_for,
-      id_pulp_conv_nonfor,
-      pulp_prices_clean
+      id_pulp_conv_nonfor
     )
   ),
   tar_target(
@@ -296,7 +303,7 @@ pipeline <- list(
   tar_target(tl_df, prep_timeline_data(policy_tl)),
 
   # Panels & Composite Export
-  tar_target(fig1_panel_a, plot_panel_a(defor_price_comb)),
+  tar_target(fig1_panel_a, plot_panel_a(defor_by_island)),
   tar_target(fig1_panel_b, plot_panel_b(pulp_prod_ratio_merged)),
   tar_target(fig1_panel_c, plot_panel_c(tl_df)),
   tar_target(
@@ -317,8 +324,8 @@ pipeline <- list(
   tar_target(
     fig1_data_panel_a,
     save_csv_table(
-      defor_price_comb,
-      "outputs/figure_data/fig1_panelA_deforestation_and_prices.csv",
+      defor_by_island,
+      "outputs/figure_data/fig1_panelA_deforestation_by_island.csv",
       writer = "readr"
     ),
     format = "file"
