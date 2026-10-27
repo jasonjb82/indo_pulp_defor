@@ -1,6 +1,4 @@
-# Matches the R version recorded in renv.lock (4.5.2). Keeping these in step
-# matters: renv only warns on a mismatch, so a container built on a different R
-# resolves the dependency graph differently from the authors' environment.
+# Matches the R version recorded in renv.lock (4.5.2).
 FROM --platform=linux/amd64 rocker/geospatial:4.5.2
 
 WORKDIR /home/rstudio/indo_pulp_defor
