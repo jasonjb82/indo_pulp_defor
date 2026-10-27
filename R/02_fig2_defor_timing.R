@@ -114,7 +114,16 @@ plot_fig2_defor_timing <- function(freq_tab_df) {
       x = area_ha,
       fill = factor(class, levels = defor_order)
     ) +
-    geom_bar(stat = "identity", position = position_stack(reverse = TRUE)) +
+    # Stroke each segment in its own fill colour. Without it, SVG renderers
+    # anti-alias the two sides of every boundary between stacked segments
+    # independently and a hairline of background shows through; the PNG device
+    # hides this but the vector export does not.
+    geom_bar(
+      stat = "identity",
+      position = position_stack(reverse = TRUE),
+      aes(colour = after_scale(fill)),
+      linewidth = 0.3
+    ) +
     theme_plot +
     ylab("Association with RGE or Sinar Mas") +
     xlab("Area (ha)") +
