@@ -127,7 +127,10 @@ plot_fig2_defor_timing <- function(freq_tab_df) {
     theme_plot +
     ylab("Association with RGE or Sinar Mas") +
     xlab("Area (ha)") +
-    scale_y_discrete(labels = function(x) str_wrap(x, width = 18)) +
+    # Wrap wider than the default so the long "Suspected corporate control..."
+    # label resolves into fewer, longer lines; ggplot then allocates more
+    # horizontal room to the tick labels.
+    scale_y_discrete(labels = function(x) str_wrap(x, width = 26)) +
     guides(fill = guide_legend(nrow = 2)) +
     scale_fill_manual(
       values = c("#CC79A7", "#0072B2", "#F0E442", "#009E73"),
@@ -152,10 +155,17 @@ plot_fig2_defor_timing <- function(freq_tab_df) {
     )
 
   # Right panel (2.5M+ ha)
+  # Upper bound sits just above the longest bar (~2.62M ha) rather than at a
+  # round 3M, which left roughly three quarters of this panel empty.
   p_right <- base_plot +
-    coord_cartesian(xlim = c(2500000, 3000000)) +
+    coord_cartesian(xlim = c(2500000, 2700000)) +
     scale_x_continuous(
+      # accuracy = 0.1 is needed here: the default rounds this panel's single
+      # break of 2,500,000 to "2M", which misreads as the bar starting half a
+      # million hectares lower than it does. The left panel's breaks are whole
+      # units, so it keeps the default.
       labels = scales::label_number(
+        accuracy = 0.1,
         scale_cut = c("k" = 1e3, "M" = 1e6)
       ),
       breaks = c(2500000),
@@ -173,7 +183,7 @@ plot_fig2_defor_timing <- function(freq_tab_df) {
 
   # Combine using patchwork
   p_combined <- (p_left | p_right) +
-    plot_layout(widths = c(3, 1), guides = "collect") &
+    plot_layout(widths = c(3, 0.6), guides = "collect") &
     theme(
       legend.position = "bottom",
       text = element_text(family = "DM Sans")
