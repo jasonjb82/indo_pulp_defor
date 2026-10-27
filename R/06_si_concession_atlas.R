@@ -140,6 +140,16 @@ build_atlas_metadata <- function(hti_annual_lc, hti_conv_timing, groups_reclass_
     all(str_detect(suppliers$supplier_id, "^H-[0-9]{4}$"))
   )
 
+  # The deforestation timing table, which the cross-check below compares
+  # against, spells this island "Sumatera"; the paper's figures and tables use
+  # "Sumatra". Reconcile the two so that check tests the island assignment
+  # rather than its spelling.
+  island_aliases <- c("Sumatera" = "Sumatra")
+  normalise_island <- function(x) {
+    hit <- match(x, names(island_aliases))
+    ifelse(is.na(hit), x, unname(island_aliases)[hit])
+  }
+
   # First digit of the province code is the BPS island group.
   island_of_prefix <- c(
     "1" = "Sumatra",
@@ -178,6 +188,7 @@ build_atlas_metadata <- function(hti_annual_lc, hti_conv_timing, groups_reclass_
   check <- hti_conv_timing %>%
     filter(!is.na(island)) %>%
     distinct(supplier_id, island_timing = island) %>%
+    mutate(island_timing = normalise_island(island_timing)) %>%
     inner_join(islands, by = "supplier_id") %>%
     filter(island_timing != island)
   if (nrow(check)) {
