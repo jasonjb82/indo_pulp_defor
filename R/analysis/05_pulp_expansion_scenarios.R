@@ -39,7 +39,12 @@
 ##               conversion totals with bounds.
 ##               Read by paper_stats (calc_paper_stats() in R/05_paper_stats.R)
 ##        2) scenario_stats_csv -> outputs/tables/scenario_stats.csv
-##        3) fig3_png -> outputs/figures/f3_expansion_combined.png: Figure 3.
+##        3) fig3_png, fig3_svg -> outputs/figures/f3_expansion_combined.png
+##               and .svg: Figure 3.
+##        3b) fig3_data_panel_a, fig3_data_panel_b -> outputs/figure_data/
+##               fig3_panelA_expansion_map_cells.csv (0.1 degree cells; lon/lat
+##               are cell centres) and fig3_panelB_expansion_table_kha.csv
+##               (thousand ha, before display formatting): data behind Figure 3.
 ##        4) si_sections4_8_txt -> outputs/text/si_sections4_8_statements.txt:
 ##               Main text and SI 4.3 / 8.4 statements with values from this run.
 ## ---------------------------------------------------------
@@ -544,6 +549,11 @@ run_pulp_expansion_scenarios <- function(
     scenario_stats = scenario_stats,
     expansion_table = expansion_table,
     fig3 = fig3,
+    # Plot-ready values behind each Figure 3 panel, for the journal
+    fig3_data = list(
+      panel_a = scenario2_plot_df %>% rename(lon = x, lat = y),
+      panel_b = reorg_base
+    ),
     si_text = si_text,
     diagnostics = diagnostics
   )
@@ -674,7 +684,7 @@ plot_fig3 <- function(scenario2_plot_df, prov_sf, expansion_cells) {
 
 #' Save Figure 3
 #' @param scenario_results Output of run_pulp_expansion_scenarios()
-#' @param output_path Destination .png path
+#' @param output_path Destination .png or .svg path
 #' @return output_path, as required by format = "file"
 save_fig3 <- function(scenario_results, output_path) {
   dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)

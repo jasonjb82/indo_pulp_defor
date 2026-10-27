@@ -11,8 +11,11 @@
 ##               Produced by scripts/02_data_preparation/01_data_prep.R
 ##
 ## Pipeline outputs
-##        1) fig2_png -> outputs/figures/f2_supplier_groups_defor_class_plot.png:
-##               Figure 2.
+##        1) fig2_png, fig2_svg -> outputs/figures/
+##               f2_supplier_groups_defor_class_plot.png and .svg: Figure 2.
+##        2) fig2_data -> outputs/figure_data/
+##               fig2_deforestation_by_ownership_and_class.csv: data behind
+##               Figure 2 (one row per stacked bar segment).
 ##        Intermediate target: freq_tab_fig2.
 ## ---------------------------------------------------------
 
@@ -64,7 +67,7 @@ prep_hti_defor_timing <- function(hti_conv_timing_df) {
 plot_fig2_defor_timing <- function(freq_tab_df) {
   ownership_order <- c(
     "Acknowledged ownership",
-    "Suspected ownership based on civil society investigations",
+    "Suspected corporate control based on civil society investigations",
     "Third-party suppliers",
     "Not yet\nsupplying\nto mills"
   )
@@ -170,7 +173,7 @@ plot_fig2_defor_timing <- function(freq_tab_df) {
   return(p_combined)
 }
 
-#' Save Figure 2 to PNG
+#' Save Figure 2 to PNG or SVG
 save_fig2 <- function(freq_tab_df, output_path) {
   dir_path <- dirname(output_path)
   if (!dir.exists(dir_path)) {
@@ -199,6 +202,14 @@ save_fig2 <- function(freq_tab_df, output_path) {
   showtext::showtext_auto()
   showtext::showtext_opts(dpi = 400)
   on.exit(showtext::showtext_opts(dpi = 96), add = TRUE)
+
+  # showtext draws every glyph as an outline, which leaves an SVG with no
+  # editable text. Switch it off for vector output so svglite writes real
+  # <text> elements carrying the font family name (as in Robert's script).
+  if (grepl("\\.svg$", output_path)) {
+    showtext::showtext_auto(FALSE)
+    on.exit(showtext::showtext_auto(), add = TRUE)
+  }
 
   ggplot2::ggsave(
     filename = output_path,

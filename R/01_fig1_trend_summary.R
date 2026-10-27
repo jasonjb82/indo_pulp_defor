@@ -25,6 +25,10 @@
 ## Pipeline outputs
 ##        1) fig1_files -> outputs/figures/f1_summary_figure.png and .svg:
 ##               Figure 1.
+##        2) fig1_data_panel_a/b/c -> outputs/figure_data/
+##               fig1_panelA_deforestation_and_prices.csv,
+##               fig1_panelB_pulp_production_by_wood_type.csv,
+##               fig1_panelC_policy_timeline.csv: data behind each panel.
 ##        Intermediate targets: islands_df, id_pulp_conv_for,
 ##               id_pulp_conv_nonfor, pulp_prices_clean, defor_price_comb,
 ##               pulp_prod_ratio_merged, tl_df, fig1_panel_a/b/c, fig1_summary.
@@ -541,6 +545,12 @@ save_fig1 <- function(comb_plot, output_png, output_svg) {
   on.exit(showtext::showtext_opts(dpi = 96), add = TRUE)
 
   ggsave(comb_plot, file = output_png, dpi = 400, width = 12, height = 15)
+
+  # showtext draws every glyph as an outline, which leaves the SVG with no
+  # editable text. Switch it off for the vector export so svglite writes real
+  # <text> elements carrying the font family name (as in Robert's script).
+  showtext::showtext_auto(FALSE)
+  on.exit(showtext::showtext_auto(), add = TRUE)
   ggsave(comb_plot, file = output_svg, dpi = 400, width = 12, height = 15)
   return(c(output_png, output_svg))
 }

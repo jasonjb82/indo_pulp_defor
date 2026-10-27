@@ -312,6 +312,35 @@ pipeline <- list(
     ),
     format = "file"
   ),
+  # Plot-ready values behind each panel, supplied to the journal alongside
+  # the vector figure (mirrors Robert's figure_data export)
+  tar_target(
+    fig1_data_panel_a,
+    save_csv_table(
+      defor_price_comb,
+      "outputs/figure_data/fig1_panelA_deforestation_and_prices.csv",
+      writer = "readr"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    fig1_data_panel_b,
+    save_csv_table(
+      pulp_prod_ratio_merged,
+      "outputs/figure_data/fig1_panelB_pulp_production_by_wood_type.csv",
+      writer = "readr"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    fig1_data_panel_c,
+    save_csv_table(
+      tl_df,
+      "outputs/figure_data/fig1_panelC_policy_timeline.csv",
+      writer = "readr"
+    ),
+    format = "file"
+  ),
 
   # -----------------------------------------------------------------------
   # D. SCRIPT 2: FIGURE 2 (DEFORESTATION TIMING BY SUPPLIER)
@@ -325,6 +354,23 @@ pipeline <- list(
     save_fig2(
       freq_tab_fig2,
       "outputs/figures/f2_supplier_groups_defor_class_plot.png"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    fig2_svg,
+    save_fig2(
+      freq_tab_fig2,
+      "outputs/figures/f2_supplier_groups_defor_class_plot.svg"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    fig2_data,
+    save_csv_table(
+      freq_tab_fig2,
+      "outputs/figure_data/fig2_deforestation_by_ownership_and_class.csv",
+      writer = "readr"
     ),
     format = "file"
   ),
@@ -726,6 +772,29 @@ pipeline <- list(
   tar_target(
     fig3_png,
     save_fig3(scenario_results, "outputs/figures/f3_expansion_combined.png"),
+    format = "file"
+  ),
+  tar_target(
+    fig3_svg,
+    save_fig3(scenario_results, "outputs/figures/f3_expansion_combined.svg"),
+    format = "file"
+  ),
+  tar_target(
+    fig3_data_panel_a,
+    save_csv_table(
+      scenario_results$fig3_data$panel_a,
+      "outputs/figure_data/fig3_panelA_expansion_map_cells.csv",
+      writer = "readr"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    fig3_data_panel_b,
+    save_csv_table(
+      scenario_results$fig3_data$panel_b,
+      "outputs/figure_data/fig3_panelB_expansion_table_kha.csv",
+      writer = "readr"
+    ),
     format = "file"
   ),
   tar_target(
