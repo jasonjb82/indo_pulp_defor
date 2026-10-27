@@ -13,9 +13,7 @@
 ##               (panel A). Google Earth Engine exports, produced by
 ##               scripts/01_data_extraction/other_extraction/
 ##               extract_fnf_pulp_expansion_ttm_kab.js
-##        3) pulp_prices_file -> 01_in/tables/WPU0911_FRED.csv: Pulp producer
-##               price index from FRED (panel A; external download).
-##        4) timber_for_pulp_file -> 01_in/obidzinski_dermawan/plot_data.csv
+##        3) timber_for_pulp_file -> 01_in/obidzinski_dermawan/plot_data.csv
 ##           pulp_production_file -> 01_in/tables/annual_pulp_shr_prod.xlsx:
 ##               Wood supply by source and pulp production (panel B; project
 ##               inputs).
@@ -30,7 +28,7 @@
 ##               fig1_panelB_pulp_production_by_wood_type.csv,
 ##               fig1_panelC_policy_timeline.csv: data behind each panel.
 ##        Intermediate targets: islands_df, id_pulp_conv_for,
-##               id_pulp_conv_nonfor, pulp_prices_clean, defor_price_comb,
+##               id_pulp_conv_nonfor, defor_by_island,
 ##               pulp_prod_ratio_merged, tl_df, fig1_panel_a/b/c, fig1_summary.
 ## ---------------------------------------------------------
 
@@ -132,27 +130,13 @@ clean_pulp_conversion <- function(pulp_df, islands, conv_type_label) {
     mutate(conv_type = conv_type_label)
 }
 
-#' Clean PPI price dataset
-clean_pulp_prices <- function(pulp_prices) {
-  pulp_prices %>%
-    select(DATE, PPI = WPU0911) %>%
-    mutate(DATE = as.Date(DATE, format = "%m/%d/%Y")) %>%
-    mutate(year = year(DATE), PPI = as.double(PPI)) %>%
-    select(year, PPI)
-}
-
-#' Combine deforestation and price data for Panel A
-prep_defor_price_comb <- function(
-  id_pulp_conv_for,
-  id_pulp_conv_nonfor,
-  pulp_prices_clean
-) {
+#' Combine pulp-driven deforestation by island and year for Panel A
+prep_defor_by_island <- function(id_pulp_conv_for, id_pulp_conv_nonfor) {
   id_pulp_conv_for %>%
     bind_rows(id_pulp_conv_nonfor) %>%
-    left_join(pulp_prices_clean, by = "year") %>%
     filter(year < 2023 & conv_type == "forest") %>%
     group_by(year, island) %>%
-    summarize(area_ha = sum(area_ha), PPI = max(PPI), .groups = "drop")
+    summarize(area_ha = sum(area_ha), .groups = "drop")
 }
 
 #' Prepare wood supply transition data for Panel B
@@ -255,28 +239,54 @@ prep_timeline_data <- function(policy_tl) {
       text_position = ifelse(row_cat == 21, 1.5, text_position),
       text_position = ifelse(row_cat == 22, 2, text_position),
       text_position = ifelse(row_cat == 23, 2.5, text_position)
-    )
+    ) %>%
+    # Labels are pinned to their own row and may only move horizontally, so
+    # events close together in time have nowhere to go and collide (row_cat 11
+    # has two events in 2020). Give each run of closely spaced events an
+    # alternating second tier. This replaces a set of hand-coded per-event
+    # offsets, which had to be retuned whenever the text metrics changed.
+    dplyr::group_by(row_cat) %>%
+    dplyr::arrange(year, .by_group = TRUE) %>%
+    dplyr::mutate(label_tier = label_tiers(year)) %>%
+    dplyr::ungroup()
+}
+
+#' Alternate label tiers across runs of closely spaced events
+#'
+#' Returns 0 for an event that is comfortably clear of the previous one, and
+#' flips to 1 (then back to 0) while events remain within `gap` years, so a
+#' crowded stretch of the timeline stacks instead of overlapping.
+#'
+#' @param year Event years, already sorted ascending.
+#' @param gap Years below which two events are treated as colliding.
+#' @return Integer vector of 0/1 tiers, the same length as `year`.
+label_tiers <- function(year, gap = 3) {
+  tier <- integer(length(year))
+  if (length(year) < 2) {
+    return(tier)
+  }
+  for (i in seq_along(year)[-1]) {
+    tier[i] <- if ((year[i] - year[i - 1]) < gap) 1L - tier[i - 1] else 0L
+  }
+  tier
 }
 
 # =========================================================================
 # 3. PANEL PLOTTING FUNCTIONS
 # =========================================================================
 
-#' Render Panel A: Deforestation and PPI
-plot_panel_a <- function(defor_price_comb) {
+#' Render Panel A: Pulp-driven deforestation by island
+plot_panel_a <- function(defor_by_island) {
   colorBlind8 <- get_colorblind_palette()
   theme_plot <- get_fig1_theme()
   island_order <- c("Sumatera", "Kalimantan", "Papua")
-  pa_scale_factor <- 0.5
 
-  ggplot(data = defor_price_comb, aes(x = year)) +
+  ggplot(data = defor_by_island, aes(x = year)) +
     geom_bar(
       stat = "identity",
       position = "stack",
       aes(y = area_ha / 1000, fill = factor(island, levels = rev(island_order)))
     ) +
-    geom_line(aes(y = PPI * pa_scale_factor, color = "Producer Price Index")) +
-    geom_point(aes(y = PPI * pa_scale_factor, color = "Producer Price Index")) +
     ylab("Pulp-drive deforestation (Kha)\n") +
     xlab("") +
     scale_fill_manual(
@@ -284,23 +294,13 @@ plot_panel_a <- function(defor_price_comb) {
       breaks = island_order,
       labels = island_order
     ) +
-    scale_color_manual(values = c("black")) +
     scale_x_continuous(
       breaks = seq(from = 2001, to = 2022, by = 1),
       expand = c(0, 1)
     ) +
-    scale_y_continuous(
-      sec.axis = sec_axis(
-        ~ . * 1,
-        labels = number_format(scale = 1 / pa_scale_factor),
-        name = "Producer Price Index\n"
-      ),
-      limits = c(0, 150),
-      expand = c(0, 0)
-    ) +
+    scale_y_continuous(limits = c(0, 150), expand = c(0, 0)) +
     guides(
       fill = guide_legend(nrow = 1, reverse = FALSE),
-      color = guide_legend(nrow = 1, reverse = TRUE),
       keyheight = 10
     ) +
     theme_plot
@@ -468,20 +468,31 @@ plot_panel_c <- function(tl_df) {
       alpha = 1,
       na.rm = TRUE
     ) +
+    # Labels sit just above the bar for their own row and are only allowed to
+    # slide horizontally, so each stays beside the dot it describes instead of
+    # drifting onto a neighbouring row's bar. direction = "x" is what keeps the
+    # vertical offset constant; without it ggrepel resolves collisions by moving
+    # labels up and down, which is how they ended up detached from their points
+    # and trailing leader lines.
     ggrepel::geom_text_repel(
       aes(
-        y = text_position_mod + 0.05,
+        y = text_position + 0.12 + label_tier * 0.20,
         x = year,
-        label = stringr::str_wrap(event, 25),
+        label = stringr::str_wrap(event, 32),
         na.rm = TRUE
       ),
-      size = 2.75,
+      size = 2.5,
       hjust = 0,
-      vjust = -1.25,
+      vjust = 0,
       family = "DM Sans",
       fontface = "bold",
       show.legend = FALSE,
-      min.segment.length = 2.5
+      direction = "x",
+      box.padding = 0.3,
+      point.padding = 0.4,
+      # never draw a leader line: with direction = "x" a label is always on its
+      # own row, so a connector adds nothing but clutter
+      min.segment.length = Inf
     ) +
     theme(
       text = element_text(family = "DM Sans"),
