@@ -693,22 +693,9 @@ save_defor_elast_tables <- function(elast_results, main_path, robust_path) {
   )
 
   write_table <- function(args, path) {
-    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-    tryCatch(
-      {
-        do.call(modelsummary::msummary, c(args, list(output = path)))
-        path
-      },
-      error = function(e) {
-        stop(
-          "Could not write ",
-          path,
-          ": ",
-          conditionMessage(e),
-          "\n  .docx output needs pandoc on the PATH and the R package 'pandoc'.",
-          call. = FALSE
-        )
-      }
+    write_table_or_warn(
+      function(p) do.call(modelsummary::msummary, c(args, list(output = p))),
+      path
     )
   }
 

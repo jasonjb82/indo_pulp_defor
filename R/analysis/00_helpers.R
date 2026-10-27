@@ -49,3 +49,53 @@ save_csv_table <- function(df, file_path, writer = c("base", "readr")) {
   }
   file_path
 }
+
+
+#' Write a modelsummary table, falling back to markdown if pandoc is missing
+#'
+#' .docx output goes through pandoc, which is an external program rather than
+#' an R dependency, so a replicator can have every package installed and still
+#' be unable to produce it. Failing the whole pipeline over that is harsh, but
+#' silently skipping the table is worse. This writes the same table as markdown
+#' instead and warns loudly, so the contents are still available and the
+#' omission is impossible to miss. The returned path is what was actually
+#' written, which keeps the calling format = "file" target valid.
+#'
+#' @param write_fn Function of one argument (the output path) that writes the
+#'   table.
+#' @param path Intended output path, normally .docx.
+#' @return Path actually written: `path`, or the markdown fallback.
+write_table_or_warn <- function(write_fn, path) {
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+
+  err <- NULL
+  tryCatch(write_fn(path), error = function(e) err <<- conditionMessage(e))
+  if (is.null(err)) {
+    return(path)
+  }
+
+  fallback <- sub("\\.docx$", ".md", path)
+  md_err <- NULL
+  tryCatch(write_fn(fallback), error = function(e) md_err <<- conditionMessage(e))
+  if (!is.null(md_err)) {
+    stop(
+      "Could not write ", path, " (", err, ") ",
+      "nor its markdown fallback (", md_err, ")",
+      call. = FALSE
+    )
+  }
+
+  warning(
+    "\n",
+    strrep("!", 70), "\n",
+    "!! ", basename(path), " WAS NOT PRODUCED.\n",
+    "!! Reason: ", err, "\n",
+    "!! .docx output requires the pandoc program on the PATH; it is not an\n",
+    "!! R package, so renv::restore() does not supply it.\n",
+    "!! The same table has been written as ", basename(fallback), " instead.\n",
+    strrep("!", 70), "\n",
+    call. = FALSE,
+    immediate. = TRUE
+  )
+  fallback
+}

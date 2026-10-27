@@ -494,29 +494,20 @@ run_calc_mai <- function(
 #' @param output_path Destination .docx path
 #' @return output_path, as required by format = "file"
 save_mai_table <- function(mai_results, output_path) {
-  dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
-  tryCatch(
-    modelsummary::modelsummary(
-      mai_results$models,
-      fmt = 3,
-      coef_map = c("harvest_year" = "Year"),
-      stars = c('*' = .1, '**' = .05, '***' = 0.01),
-      gof_map = mai_results$gof_map,
-      stars_note = FALSE,
-      add_rows = mai_results$table_rows,
-      notes = "Standard errors clustered by concession. * p < 0.1, ** p < 0.05, *** p < 0.01",
-      output = output_path
-    ),
-    error = function(e) {
-      stop(
-        "Could not write ",
-        output_path,
-        ": ",
-        conditionMessage(e),
-        "\n  .docx output needs pandoc on the PATH and the R package 'pandoc'.",
-        call. = FALSE
+  write_table_or_warn(
+    function(path) {
+      modelsummary::modelsummary(
+        mai_results$models,
+        fmt = 3,
+        coef_map = c("harvest_year" = "Year"),
+        stars = c('*' = .1, '**' = .05, '***' = 0.01),
+        gof_map = mai_results$gof_map,
+        stars_note = FALSE,
+        add_rows = mai_results$table_rows,
+        notes = "Standard errors clustered by concession. * p < 0.1, ** p < 0.05, *** p < 0.01",
+        output = path
       )
-    }
+    },
+    output_path
   )
-  output_path
 }
