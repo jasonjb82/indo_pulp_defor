@@ -332,10 +332,9 @@
     },
     "curl": {
       "Package": "curl",
-      "Version": "6.2.3",
+      "Version": "8.0.0",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "f15795aaa507bf90088346a1eff6534e"
+      "Repository": "CRAN"
     },
     "data.table": {
       "Package": "data.table",
@@ -904,10 +903,9 @@
     },
     "openssl": {
       "Package": "openssl",
-      "Version": "2.3.3",
+      "Version": "2.4.2",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "05ce1ed077e8c97fbb3ec1cb078f1159"
+      "Repository": "CRAN"
     },
     "pandoc": {
       "Package": "pandoc",
@@ -1045,10 +1043,9 @@
     },
     "ragg": {
       "Package": "ragg",
-      "Version": "1.4.0",
+      "Version": "1.5.2",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "1591adde9ce8ff7de58072e4a32b66ce"
+      "Repository": "CRAN"
     },
     "ranger": {
       "Package": "ranger",
@@ -1120,7 +1117,7 @@
     },
     "renv": {
       "Package": "renv",
-      "Version": "1.3.1",
+      "Version": "1.3.0",
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "7340c71f46a0fd16506cfa804e224e44"
@@ -1404,10 +1401,9 @@
     },
     "textshaping": {
       "Package": "textshaping",
-      "Version": "1.0.1",
+      "Version": "1.0.5",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "75b5813527f4154cb467e4cf60911333"
+      "Repository": "CRAN"
     },
     "tibble": {
       "Package": "tibble",
@@ -1580,10 +1576,9 @@
     },
     "xml2": {
       "Package": "xml2",
-      "Version": "1.3.8",
+      "Version": "1.6.0",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "f5130b2f3d461964bac93cc618013231"
+      "Repository": "CRAN"
     },
     "yaml": {
       "Package": "yaml",
