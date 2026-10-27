@@ -1,5 +1,9 @@
 # Ignore old test scripts and scratchwork
 scripts/
+# Developer-only setup: creates the remote/ symlink to the author's data
+# directory using hardcoded local paths. Not run as part of replication, so its
+# R.utils dependency is deliberately kept out of the lockfile.
+init.R
 # Data, outputs and the targets store hold no R code; skipping them speeds up
 # dependency discovery
 data/
