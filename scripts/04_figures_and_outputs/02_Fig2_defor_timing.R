@@ -159,9 +159,15 @@ defor_plot <- freq_tab %>%
   theme_plot +
   ylab("Association with RGE or Sinar Mas") +
   xlab("") +
-  scale_y_discrete(labels = function(x) str_wrap(x, width = 18)) +
+  # Wrap wider so the long "Suspected corporate control..." label resolves into
+  # fewer, longer lines; ggplot then allocates more room to the tick labels.
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 26)) +
   scale_x_continuous(
+    # accuracy = 0.1 is needed for the 2,500,000 break: the default rounds it
+    # to "2M", which misreads as the bar starting half a million hectares
+    # lower than it does.
     labels = scales::label_number(
+      accuracy = 0.1,
       scale_cut = c("k" = 1e3, "M" = 1e6),
       suffix = " ha"
     ),
