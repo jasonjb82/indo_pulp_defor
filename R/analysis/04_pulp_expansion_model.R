@@ -214,18 +214,14 @@ predict_pulp_expansion <- function(rf_fit_rds, p2022_csv) {
 
 #' Fit the random forest model of pulp expansion and predict 2022-2027
 #'
-#' Hyperparameter tuning runs in parallel and takes several minutes.
+#' Hyperparameter tuning runs sequentially and takes several minutes.
 #' @param p2017_csv,p2022_csv Paths to the 2017 and 2022 1 km predictor tables.
-#' @param n_workers Parallel workers for tuning. The default matches the
-#'   standalone script; tune assigns each resample its own RNG stream, so the
-#'   number of workers does not change the results.
 #' @param results_paths Output paths named in the SI statements (text only).
-#' @return A named list: pulp_predictions, final_fit, auc_plot, si_text and
+#' @return A named list: pulp_predictions, final_fit, auc_inputs, si_text and
 #'   diagnostics.
 run_pulp_expansion_model <- function(
   p2017_csv,
   p2022_csv,
-  n_workers = max(1, parallel::detectCores() - 1),
   results_paths = c(
     si_fig4 = "outputs/figures/SI_f4_auc.png",
     predictions = "outputs/tables/pulp_predictions.csv"
@@ -236,8 +232,8 @@ run_pulp_expansion_model <- function(
   # =========================================================================
   # One seed for the whole analysis. Every stochastic step below draws from
   # this stream in sequence, so the steps must stay in this order for results
-  # to reproduce. L'Ecuyer-CMRG is required so that tune_grid's parallel
-  # workers receive reproducible, non-overlapping RNG streams.
+  # to reproduce. The kind is kept at L'Ecuyer-CMRG, which is what the recorded
+  # results were produced under; the stream is identical across platforms.
   old_rng <- RNGkind()
   on.exit(
     RNGkind(kind = old_rng[1], normal.kind = old_rng[2], sample.kind = old_rng[3]),
@@ -339,14 +335,25 @@ run_pulp_expansion_model <- function(
   class_wts <- c(pulp = 1 - prevalence, no_pulp = prevalence)
 
   n_pulp <- sum(model_df$pulp_end == "pulp")
-  # Full eligible population before downsampling, for the SI statements
-  model_pop_df <- model_df
+  # The full eligible population is reported in the SI statements and the
+  # diagnostics, but only as a row count and a two-row class tally. Keeping the
+  # whole frame alive for that cost ~620 MB, so take the summaries now and let
+  # the frame go.
+  n_model_pop <- nrow(model_df)
+  class_balance_pop <- count(model_df, pulp_end)
   model_df <- bind_rows(
     model_df %>% filter(pulp_end == "pulp"),
     model_df %>%
       filter(pulp_end == "no_pulp") %>%
       sample_n(min(n_pulp * 10, n()))
   )
+
+  # p1_df and est_df are not read again, and together hold ~1.35 GB. Dropping
+  # them here keeps peak memory low enough that the pipeline runs on a modest
+  # machine (a default Docker Desktop allocation, for instance). p2_df is kept:
+  # the prediction step below still needs it.
+  rm(p1_df, est_df)
+  invisible(gc())
 
   # --- 2. Spatial train/test split + CV on training data only ---
   data_split <- rsample::group_initial_split(
@@ -399,8 +406,14 @@ run_pulp_expansion_model <- function(
     levels = 5
   )
 
-  old_plan <- future::plan(future::multisession, workers = n_workers)
-  on.exit(future::plan(old_plan), add = TRUE)
+  # Tuning runs sequentially and deliberately. A future::multisession backend
+  # was measured at 1.7x faster on 3 workers, but each worker is a separate R
+  # process: on a host with many cores the default worker count (one per core)
+  # pushed peak memory past 13 GB and the run was OOM-killed inside Docker.
+  # parallel::detectCores() also ignores cgroup limits, so a container could
+  # not rein it in. Sequential costs ~2 minutes on a 5x5 grid and makes the
+  # step run anywhere. Worker count never affected results -- metrics were
+  # identical to six decimals across 1, 3 and 13 workers.
   rf_tune <- tune::tune_grid(
     rf_workflow,
     resamples = cv_folds,
@@ -413,7 +426,6 @@ run_pulp_expansion_model <- function(
     ),
     control = tune::control_grid(save_pred = TRUE)
   )
-  future::plan(future::sequential) # shut the workers down
 
   # --- 7./8. Select best hyperparameters, evaluate on held-out test, fit ---
   best_params <- tune::select_best(rf_tune, metric = "roc_auc")
@@ -448,8 +460,14 @@ run_pulp_expansion_model <- function(
   test_preds <- tune::collect_predictions(last_fit_result) %>%
     mutate(pixel_id = model_df$pixel_id[.row])
 
-  auc_plot <- plot_rf_auc(
-    test_preds %>% select(pulp_end, .pred_pulp),
+  # Deliberately NOT building the ggplot here. ggplot2::autoplot() leaves the
+  # calling frame as the plot's plot_env, and for yardstick's autoplot method
+  # that frame holds the chart itself -- a self-referential graph that
+  # serialises to ~4.9 GB even though object.size() reports half a megabyte.
+  # Stored in rf_results it made the target 878 MB on disk. The curve inputs
+  # are 160 KB, so keep those and let save_si_fig4() build the plot.
+  auc_inputs <- list(
+    test_preds = test_preds %>% select(pulp_end, .pred_pulp),
     test_prevalence = mean(test_df$pulp_end == "pulp")
   )
 
@@ -552,7 +570,7 @@ run_pulp_expansion_model <- function(
         "estimation sample of %s points: %s training points across %d regencies",
         "and %s test points across %d regencies."
       ),
-      format(nrow(model_pop_df), big.mark = ","),
+      format(n_model_pop, big.mark = ","),
       100 * pct_dropped,
       format(n_pulp, big.mark = ","),
       100 * prevalence,
@@ -621,13 +639,13 @@ run_pulp_expansion_model <- function(
   diagnostics <- utils::capture.output({
     cat(sprintf(
       "Estimation sample: dropped %d pixels with NAs (%.1f%%); prediction input: dropped %d (%.1f%%)\n",
-      n_before - nrow(model_pop_df),
+      n_before - n_model_pop,
       100 * pct_dropped,
       n_before2027 - nrow(pred2027_input),
       100 * pct_dropped2027
     ))
     cat("\nClass balance before downsampling:\n")
-    print(count(model_pop_df, pulp_end))
+    print(class_balance_pop)
     cat("\nCross-validated ROC-AUC by mtry:\n")
     print(
       tune::collect_metrics(rf_tune) %>%
@@ -646,7 +664,7 @@ run_pulp_expansion_model <- function(
   list(
     pulp_predictions = pulp_predictions,
     final_fit = final_fit,
-    auc_plot = auc_plot,
+    auc_inputs = auc_inputs,
     si_text = si_text,
     diagnostics = diagnostics
   )
@@ -654,9 +672,10 @@ run_pulp_expansion_model <- function(
 
 #' Build SI Figure 4 (ROC and precision-recall curves)
 #'
-#' Built in its own function because a ggplot keeps the environment it was
-#' created in; inside run_pulp_expansion_model() that would carry the full
-#' input tables into the stored result.
+#' Called from save_si_fig4(), not from run_pulp_expansion_model(), so the
+#' plot is created and written inside one target and never stored. A ggplot
+#' keeps the environment it was created in, and for yardstick's autoplot
+#' method that environment holds the chart itself.
 #' @param test_preds Held-out predictions with pulp_end and .pred_pulp
 #' @param test_prevalence Share of expansion points in the test set
 plot_rf_auc <- function(test_preds, test_prevalence) {
@@ -680,6 +699,11 @@ plot_rf_auc <- function(test_preds, test_prevalence) {
 #' @return output_path, as required by format = "file"
 save_si_fig4 <- function(rf_results, output_path) {
   dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
-  ggsave_without_showtext(output_path, rf_results$auc_plot, width = 7, height = 4)
+  # Built here rather than carried in rf_results: see the note at auc_inputs.
+  auc_plot <- plot_rf_auc(
+    rf_results$auc_inputs$test_preds,
+    rf_results$auc_inputs$test_prevalence
+  )
+  ggsave_without_showtext(output_path, auc_plot, width = 7, height = 4)
   output_path
 }
