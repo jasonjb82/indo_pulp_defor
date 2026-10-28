@@ -220,8 +220,9 @@ predict_pulp_expansion <- function(rf_fit_rds, p2022_csv) {
 #'   standalone script; tune assigns each resample its own RNG stream, so the
 #'   number of workers does not change the results.
 #' @param results_paths Output paths named in the SI statements (text only).
-#' @return A named list: pulp_predictions, final_fit, auc_plot, si_text and
-#'   diagnostics.
+#' @return A named list: pulp_predictions, final_fit, auc_data, si_text and
+#'   diagnostics. auc_data holds the held-out predictions and test prevalence
+#'   that SI Figure 4 is drawn from.
 run_pulp_expansion_model <- function(
   p2017_csv,
   p2022_csv,
@@ -448,8 +449,12 @@ run_pulp_expansion_model <- function(
   test_preds <- tune::collect_predictions(last_fit_result) %>%
     mutate(pixel_id = model_df$pixel_id[.row])
 
-  auc_plot <- plot_rf_auc(
-    test_preds %>% select(pulp_end, .pred_pulp),
+  # Keep the data behind the figure rather than the ggplot itself: the plot
+  # object still held this function's environment (CV folds, splits, tuning
+  # results), which made the stored rf_results ~880 MB on disk and ~5 GB in
+  # memory. save_si_fig4() draws the figure from these.
+  auc_data <- list(
+    test_preds = test_preds %>% select(pulp_end, .pred_pulp),
     test_prevalence = mean(test_df$pulp_end == "pulp")
   )
 
@@ -646,7 +651,7 @@ run_pulp_expansion_model <- function(
   list(
     pulp_predictions = pulp_predictions,
     final_fit = final_fit,
-    auc_plot = auc_plot,
+    auc_data = auc_data,
     si_text = si_text,
     diagnostics = diagnostics
   )
@@ -654,9 +659,9 @@ run_pulp_expansion_model <- function(
 
 #' Build SI Figure 4 (ROC and precision-recall curves)
 #'
-#' Built in its own function because a ggplot keeps the environment it was
-#' created in; inside run_pulp_expansion_model() that would carry the full
-#' input tables into the stored result.
+#' Called from save_si_fig4() rather than run_pulp_expansion_model(): a ggplot
+#' keeps the environment it was created in, so building it inside the model
+#' function carried the model's working objects into the stored result.
 #' @param test_preds Held-out predictions with pulp_end and .pred_pulp
 #' @param test_prevalence Share of expansion points in the test set
 plot_rf_auc <- function(test_preds, test_prevalence) {
@@ -680,6 +685,10 @@ plot_rf_auc <- function(test_preds, test_prevalence) {
 #' @return output_path, as required by format = "file"
 save_si_fig4 <- function(rf_results, output_path) {
   dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
-  ggsave_without_showtext(output_path, rf_results$auc_plot, width = 7, height = 4)
+  auc_plot <- plot_rf_auc(
+    rf_results$auc_data$test_preds,
+    test_prevalence = rf_results$auc_data$test_prevalence
+  )
+  ggsave_without_showtext(output_path, auc_plot, width = 7, height = 4)
   output_path
 }
