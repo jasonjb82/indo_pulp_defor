@@ -217,8 +217,9 @@ predict_pulp_expansion <- function(rf_fit_rds, p2022_csv) {
 #' Hyperparameter tuning runs sequentially and takes several minutes.
 #' @param p2017_csv,p2022_csv Paths to the 2017 and 2022 1 km predictor tables.
 #' @param results_paths Output paths named in the SI statements (text only).
-#' @return A named list: pulp_predictions, final_fit, auc_inputs, si_text and
-#'   diagnostics.
+#' @return A named list: pulp_predictions, final_fit, auc_data, si_text and
+#'   diagnostics. auc_data holds the held-out predictions and test prevalence
+#'   that SI Figure 4 is drawn from.
 run_pulp_expansion_model <- function(
   p2017_csv,
   p2022_csv,
@@ -460,13 +461,19 @@ run_pulp_expansion_model <- function(
   test_preds <- tune::collect_predictions(last_fit_result) %>%
     mutate(pixel_id = model_df$pixel_id[.row])
 
-  # Deliberately NOT building the ggplot here. ggplot2::autoplot() leaves the
-  # calling frame as the plot's plot_env, and for yardstick's autoplot method
-  # that frame holds the chart itself -- a self-referential graph that
-  # serialises to ~4.9 GB even though object.size() reports half a megabyte.
-  # Stored in rf_results it made the target 878 MB on disk. The curve inputs
-  # are 160 KB, so keep those and let save_si_fig4() build the plot.
-  auc_inputs <- list(
+  # Keep the data behind the figure rather than the ggplot itself, which made
+  # the stored rf_results 878 MB on disk.
+  #
+  # The cause is worth recording, because it is not this function's locals:
+  # walking the saved plot's environment chain gives yardstick's autoplot
+  # frame -> the yardstick namespace -> base, never the model frame. That
+  # autoplot frame holds the chart it is attached to, so the plot and its
+  # environment reference each other and serialise to ~4.9 GB. object.size()
+  # reports 0.5 MB because it does not traverse environments, so the cost is
+  # invisible until targets writes the target. Freeing the model's own objects
+  # therefore does not help; only keeping the ggplot out of the result does.
+  # These inputs are 160 KB; save_si_fig4() draws the figure from them.
+  auc_data <- list(
     test_preds = test_preds %>% select(pulp_end, .pred_pulp),
     test_prevalence = mean(test_df$pulp_end == "pulp")
   )
@@ -664,7 +671,7 @@ run_pulp_expansion_model <- function(
   list(
     pulp_predictions = pulp_predictions,
     final_fit = final_fit,
-    auc_inputs = auc_inputs,
+    auc_data = auc_data,
     si_text = si_text,
     diagnostics = diagnostics
   )
@@ -672,10 +679,10 @@ run_pulp_expansion_model <- function(
 
 #' Build SI Figure 4 (ROC and precision-recall curves)
 #'
-#' Called from save_si_fig4(), not from run_pulp_expansion_model(), so the
-#' plot is created and written inside one target and never stored. A ggplot
-#' keeps the environment it was created in, and for yardstick's autoplot
-#' method that environment holds the chart itself.
+#' Called from save_si_fig4() rather than run_pulp_expansion_model(), so the
+#' plot is drawn and written inside one target and never stored. A ggplot
+#' keeps the environment it was created in, and yardstick's autoplot method
+#' leaves behind a frame holding the chart itself; see the note at auc_data.
 #' @param test_preds Held-out predictions with pulp_end and .pred_pulp
 #' @param test_prevalence Share of expansion points in the test set
 plot_rf_auc <- function(test_preds, test_prevalence) {
@@ -699,10 +706,10 @@ plot_rf_auc <- function(test_preds, test_prevalence) {
 #' @return output_path, as required by format = "file"
 save_si_fig4 <- function(rf_results, output_path) {
   dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
-  # Built here rather than carried in rf_results: see the note at auc_inputs.
+  # Built here rather than carried in rf_results: see the note at auc_data.
   auc_plot <- plot_rf_auc(
-    rf_results$auc_inputs$test_preds,
-    rf_results$auc_inputs$test_prevalence
+    rf_results$auc_data$test_preds,
+    test_prevalence = rf_results$auc_data$test_prevalence
   )
   ggsave_without_showtext(output_path, auc_plot, width = 7, height = 4)
   output_path
