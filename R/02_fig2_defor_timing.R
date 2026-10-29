@@ -47,38 +47,33 @@ FIG2_DEFOR_ORDER <- c(
 )
 
 #' Prepare frequency table from hti_conv_timing dataset
+#'
+#' The affiliation categories are no longer derived here. They arrive in
+#' `affiliation_class`, computed once in scripts/02_data_preparation/
+#' 01_data_prep.R, so the deposited table and this figure cannot disagree.
+#' Deriving them here previously meant a concession could be labelled
+#' "Third-party suppliers" in the data and drawn in a different bar, and a
+#' Marubeni-only clause silently overrode the suspected-corporate-control
+#' category for one concession.
 prep_hti_defor_timing <- function(hti_conv_timing_df) {
+  if (!"affiliation_class" %in% names(hti_conv_timing_df)) {
+    stop(
+      "hti_grps_deforestation_timing.csv has no affiliation_class column.\n",
+      "It is produced by scripts/02_data_preparation/01_data_prep.R; data ",
+      "built before that step needs regenerating.",
+      call. = FALSE
+    )
+  }
   hti_conv_timing_df %>%
     filter(all == 1) %>%
     filter(conv_type == 2 | is.na(conv_type) | is.na(supplier_group)) %>%
-    mutate(
-      supplier_group = case_when(
-        linked_group == "APP" &
-          ownership_class == "NGO-linked" ~ "SINAR MAS (NGO-LINKED)",
-        linked_group == "APRIL" &
-          ownership_class ==
-            "NGO-linked" ~ "ROYAL GOLDEN EAGLE / TANOTO (NGO-LINKED)",
-        TRUE ~ supplier_group
-      )
-    ) %>%
-    mutate(
-      ownership_class = case_when(
-        (ownership_class == "Third-party suppliers" | is.na(ownership_class)) &
-          april == 0 &
-          app == 0 &
-          marubeni == 0 ~ "Not yet supplying to mills",
-        april == 0 & app == 0 & marubeni == 1 ~ "Not yet supplying to mills",
-        TRUE ~ ownership_class
-      )
-    ) %>%
-    drop_na(ownership_class) %>%
-    check_fig2_ownership_classes() %>%
+    check_fig2_affiliation_classes() %>%
     # One row per segment the figure draws. The earlier version also grouped by
     # linked_group and carried a within-group `freq`, but the figure maps only
-    # ownership class (y), class (fill) and area_ha (x), so linked_group split
+    # affiliation class (y), class (fill) and area_ha (x), so linked_group split
     # each segment into sub-rectangles of one colour that were never
     # distinguishable, and `freq` was never plotted at all.
-    group_by(ownership_class, class) %>%
+    group_by(ownership_class = affiliation_class, class) %>%
     summarize(area_ha = sum(area_ha, na.rm = TRUE), .groups = "drop") %>%
     arrange(
       factor(ownership_class, levels = FIG2_OWNERSHIP_ORDER),
@@ -199,14 +194,46 @@ plot_fig2_defor_timing <- function(freq_tab_df) {
   return(p_combined)
 }
 
-#' Check that the input's ownership classes are the ones the figure expects
+#' Check the incoming affiliation_class column before it is aggregated
 #'
-#' Both the plot and the exported table turn ownership_class into a factor with
-#' FIG2_OWNERSHIP_ORDER as its levels, so a category spelled any other way
-#' silently becomes NA: the figure draws it as a row labelled "NA" and the
-#' table drops it. That is how a renamed input label ("Suspected ownership
-#' based on..." vs "Suspected corporate control based on...") got as far as a
-#' rendered figure. Fail loudly instead.
+#' 01_data_prep.R guarantees affiliation_class is one of the four categories
+#' and never NA, but this table arrives from a deposited file that may have
+#' been built by an older version of that script. Checking here, on the rows
+#' rather than on the aggregate, catches both an unexpected label and a
+#' concession that would otherwise be dropped -- the aggregate-level check
+#' cannot see NA rows, because grouping has already discarded them.
+check_fig2_affiliation_classes <- function(df) {
+  n_missing <- sum(is.na(df$affiliation_class))
+  if (n_missing) {
+    stop(
+      "Figure 2: ", n_missing, " row(s) have a missing affiliation_class, ",
+      "covering ",
+      format(sum(df$area_ha[is.na(df$affiliation_class)], na.rm = TRUE),
+             big.mark = ","),
+      " ha. 01_data_prep.R should leave none; the data needs rebuilding.",
+      call. = FALSE
+    )
+  }
+  unexpected <- setdiff(unique(df$affiliation_class), FIG2_OWNERSHIP_ORDER)
+  if (length(unexpected)) {
+    stop(
+      "Figure 2: affiliation_class values not in FIG2_OWNERSHIP_ORDER:\n",
+      paste0("  - ", gsub("\n", " ", unexpected), collapse = "\n"),
+      "\nExpected:\n",
+      paste0("  - ", gsub("\n", " ", FIG2_OWNERSHIP_ORDER), collapse = "\n"),
+      call. = FALSE
+    )
+  }
+  invisible(df)
+}
+
+#' Check that the aggregated table's categories are the ones the figure expects
+#'
+#' The plot turns ownership_class into a factor with FIG2_OWNERSHIP_ORDER as
+#' its levels, so a category spelled any other way silently becomes NA and the
+#' figure draws it as a row labelled "NA". That is how a renamed input label
+#' ("Suspected ownership based on..." vs "Suspected corporate control based
+#' on...") once got as far as a rendered figure. Fail loudly instead.
 check_fig2_ownership_classes <- function(freq_tab_df) {
   unexpected <- setdiff(
     unique(freq_tab_df$ownership_class),

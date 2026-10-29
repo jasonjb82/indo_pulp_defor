@@ -636,7 +636,38 @@ hti_conv_timing <- treemap_annual_pulp %>%
   ) %>%
   group_by() %>%
   mutate(all = ifelse(is.na(all), 1, all)) %>%
-  left_join(hti_ownership_class, by = c("supplier_id"))
+  left_join(hti_ownership_class, by = c("supplier_id")) %>%
+  # Single definition of the four affiliation categories used in the figures.
+  # This used to live in the Figure 2 script, which meant the deposited table
+  # carried a raw ownership_class that did not match the category a concession
+  # was actually drawn in. Deriving it here keeps one rule set and makes the
+  # table self-describing. Order matters -- case_when takes the first match:
+  #   1. an acknowledged owner is never overwritten
+  #   2. nor is suspected corporate control
+  #   3. otherwise, supplying APP or APRIL makes it a third-party supplier.
+  #      Marubeni is deliberately not counted here: its mill is treated as
+  #      outside the set these categories describe, so Marubeni-only
+  #      concessions fall through to rule 4.
+  #   4. everything else is not yet supplying.
+  # ownership_class is NA wherever hti_company_ownership_reclass.csv has no
+  # row for the concession; rules 3 and 4 are total, so affiliation_class is
+  # never NA.
+  mutate(
+    affiliation_class = case_when(
+      ownership_class == "Acknowledged ownership" ~ "Acknowledged ownership",
+      ownership_class ==
+        "Suspected corporate control based on civil society investigations" ~
+        "Suspected corporate control based on civil society investigations",
+      app == 1 | april == 1 ~ "Third-party suppliers",
+      TRUE ~ "Not yet supplying to mills"
+    )
+  )
+
+# affiliation_class is the column every downstream figure reads, so a gap here
+# would propagate silently.
+stopifnot(
+  "affiliation_class must never be NA" = !any(is.na(hti_conv_timing$affiliation_class))
+)
 
 # write datasets to csv file ----
 write_csv(
