@@ -23,7 +23,9 @@
 ## Pipeline outputs
 ##        1) fig1_files -> outputs/figures/f1_summary_figure.png and .svg:
 ##               Figure 1.
-##        2) fig1_data_panel_a/b/c -> outputs/figure_data/
+##        2) fig1_panel_a_svg -> outputs/figures/f1_panelA_only.svg:
+##               Panel A on its own, without the composite's "A" tag.
+##        3) fig1_data_panel_a/b/c -> outputs/figure_data/
 ##               fig1_panelA_deforestation_and_prices.csv,
 ##               fig1_panelB_pulp_production_by_wood_type.csv,
 ##               fig1_panelC_policy_timeline.csv: data behind each panel.
@@ -328,7 +330,7 @@ plot_panel_a <- function(defor_by_island) {
       position = "stack",
       aes(y = area_ha / 1000, fill = factor(island, levels = rev(island_order)))
     ) +
-    ylab("Pulp-drive deforestation (Kha)\n") +
+    ylab("Pulp-driven deforestation (kha)\n") +
     xlab("") +
     scale_fill_manual(
       values = c(colorBlind8[7], colorBlind8[3], colorBlind8[5]),
@@ -575,6 +577,45 @@ create_fig1_summary <- function(panel_a, panel_b, panel_c) {
   comb_plot +
     plot_annotation(tag_levels = "A") &
     theme(plot.tag = element_text(face = 'bold', size = 12))
+}
+
+#' Save Panel A on its own as a vector file
+#'
+#' Panel A is sometimes wanted as a standalone figure. It is saved from the
+#' `fig1_panel_a` target rather than extracted from the composite, so it
+#' carries no "A" tag -- the tags come from plot_annotation() in
+#' create_fig1_summary() and belong only to the assembled figure.
+#'
+#' @param panel_a The Panel A ggplot (target `fig1_panel_a`).
+#' @param output_svg Destination .svg path.
+#' @return output_svg, as required by format = "file".
+save_fig1_panel_a <- function(panel_a, output_svg) {
+  dir_path <- dirname(output_svg)
+  if (!dir.exists(dir_path)) {
+    dir.create(dir_path, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  # Same font handling as save_fig1(): register DM Sans at save time and fail
+  # loudly rather than silently falling back.
+  tryCatch(
+    sysfonts::font_add_google(name = "DM Sans", family = "DM Sans"),
+    error = function(e) NULL
+  )
+  if (!"DM Sans" %in% sysfonts::font_families()) {
+    stop(
+      "Font 'DM Sans' is not registered, so Panel A would render in a ",
+      "fallback font. font_add_google() needs network access.",
+      call. = FALSE
+    )
+  }
+
+  # showtext draws glyphs as outlines, which would leave the SVG with no
+  # editable text, so it is switched off for the vector export.
+  showtext::showtext_auto(FALSE)
+  on.exit(showtext::showtext_auto(), add = TRUE)
+  # One third of the composite's height, which is three equal panels at 15in.
+  ggsave(panel_a, file = output_svg, dpi = 400, width = 12, height = 5)
+  output_svg
 }
 
 #' Save composite plot to disk
