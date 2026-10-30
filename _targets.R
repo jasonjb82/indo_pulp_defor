@@ -319,6 +319,13 @@ pipeline <- list(
     ),
     format = "file"
   ),
+  # Panel A on its own, for use outside the composite. Saved from the panel
+  # target, so it carries no "A" tag.
+  tar_target(
+    fig1_panel_a_svg,
+    save_fig1_panel_a(fig1_panel_a, "outputs/figures/f1_panelA_only.svg"),
+    format = "file"
+  ),
   # Plot-ready values behind each panel, supplied to the journal alongside
   # the vector figure (mirrors Robert's figure_data export)
   tar_target(
