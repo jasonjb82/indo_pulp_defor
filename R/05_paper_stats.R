@@ -28,9 +28,11 @@
 ##        7) hti_nonhti_conv -> 02_out/tables/idn_pulp_conversion_hti_nonhti_treemap.csv:
 ##               Pulpwood conversion inside and outside concessions.
 ##               Produced by scripts/02_data_preparation/01_data_prep.R
-##        8) groups_reclass_hti -> 01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv:
-##               Concession ownership groups, reclassified by hand (project
-##               input). H-0372 reclassified to Indirect supplier, 2 Oct 2026.
+##        8) hti_ownership -> 01_in/tables/hti_ownership_master.csv:
+##               Corporate group and ownership class per concession, with the
+##               civil society source for suspected control (project input,
+##               maintained by hand). Also read by 01_data_prep.R, so the
+##               classes here match Figure 2.
 ##        9) ws_2015_2022 -> 02_out/tables/ws_merge_clean_2015_2022.csv:
 ##               Pulpwood deliveries by concession and year.
 ##               Produced by scripts/02_data_preparation/04_merge_ws_data.R
@@ -56,7 +58,7 @@
 #' @param ws_2015_2022 Wood supply
 #' @param kali_annual_pulp_exp_stats Kalimantan annual pulp expansion
 #' @param hti_nonhti_conv Pulpwood conversion HTI/non-HTI
-#' @param groups_reclass_hti Reclassed ownership groups
+#' @param hti_ownership Concession ownership master
 #' @param cap_df Mill capacities
 #' @param scenario_stats Wood demand and scenarios
 #' @param mai_df Parameters from MAI analysis
@@ -68,7 +70,7 @@ calc_paper_stats <- function(
   ws_2015_2022,
   kali_annual_pulp_exp_stats,
   hti_nonhti_conv,
-  groups_reclass_hti,
+  hti_ownership,
   cap_df,
   scenario_stats,
   mai_df,
@@ -347,24 +349,31 @@ calc_paper_stats <- function(
   # =========================================================================
 
   ownership_defor <- hti_nonhti_conv %>%
-    left_join(groups_reclass_hti, by = c("supplier_id" = "id")) %>%
+    left_join(
+      hti_ownership %>% select(supplier_id, ownership_class),
+      by = "supplier_id"
+    ) %>%
     filter(conv_type == 2 & year >= 2015) %>%
-    group_by(group_reclassed) %>%
+    group_by(ownership_class) %>%
     summarize(area_ha = sum(area_ha), .groups = "drop") %>%
     mutate(share = (area_ha / sum(area_ha)) * 100)
 
+  suspected_class <- "Suspected corporate control based on civil society investigations"
   total_defor_2015_2022 <- sum(ownership_defor$area_ha)
   app_april_ha <- ownership_defor %>%
-    filter(group_reclassed == "Owned or acknowledged") %>%
+    filter(ownership_class == "Acknowledged ownership") %>%
     pull(area_ha)
   linked_ha <- ownership_defor %>%
-    filter(group_reclassed == "NGO-linked") %>%
+    filter(ownership_class == suspected_class) %>%
     pull(area_ha)
   linked_pct <- ownership_defor %>%
-    filter(group_reclassed == "NGO-linked") %>%
+    filter(ownership_class == suspected_class) %>%
     pull(share)
+  # No known group linked, plus deforestation outside concessions (NA)
   external_pct <- ownership_defor %>%
-    filter(group_reclassed == "Indirect supplier" | is.na(group_reclassed)) %>%
+    filter(
+      ownership_class == "No known group linked" | is.na(ownership_class)
+    ) %>%
     pull(share) %>%
     sum()
 
