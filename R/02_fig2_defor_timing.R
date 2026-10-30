@@ -141,9 +141,33 @@ plot_fig2_defor_timing <- function(freq_tab_df) {
       labels = defor_order
     )
 
-  # Left panel (0 to 1M ha)
+  # The axis is broken between the two panels, so a bar whose total falls in
+  # the gap is silently drawn cut off at the left panel's edge. Each bar must
+  # end inside one of the panels.
+  left_xlim <- c(0, 1200000)
+  right_xlim <- c(2400000, 2550000)
+  bar_totals <- freq_tab_df %>%
+    group_by(ownership_class) %>%
+    summarize(total = sum(area_ha), .groups = "drop")
+  in_gap <- bar_totals$total > left_xlim[2] & bar_totals$total < right_xlim[1]
+  beyond <- bar_totals$total > right_xlim[2]
+  if (any(in_gap | beyond)) {
+    stop(
+      "Figure 2 bar totals fall outside the broken-axis panels: ",
+      paste(
+        bar_totals$ownership_class[in_gap | beyond],
+        round(bar_totals$total[in_gap | beyond]),
+        sep = " = ",
+        collapse = "; "
+      ),
+      ". Adjust left_xlim / right_xlim.",
+      call. = FALSE
+    )
+  }
+
+  # Left panel (0 to 1.2M ha)
   p_left <- base_plot +
-    coord_cartesian(xlim = c(0, 1000000)) +
+    coord_cartesian(xlim = left_xlim) +
     scale_x_continuous(
       labels = scales::label_number(
         scale_cut = c("k" = 1e3, "M" = 1e6)
@@ -156,21 +180,21 @@ plot_fig2_defor_timing <- function(freq_tab_df) {
       plot.margin = margin(t = 0.5, r = 0.3, b = 0.5, l = 0.5, unit = "cm")
     )
 
-  # Right panel (2.5M+ ha)
-  # Upper bound sits just above the longest bar (~2.62M ha) rather than at a
-  # round 3M, which left roughly three quarters of this panel empty.
+  # Right panel (2.4M+ ha)
+  # Upper bound sits just above the longest bar (~2.48M ha) rather than at a
+  # round 3M, which left most of this panel empty.
   p_right <- base_plot +
-    coord_cartesian(xlim = c(2500000, 2700000)) +
+    coord_cartesian(xlim = right_xlim) +
     scale_x_continuous(
       # accuracy = 0.1 is needed here: the default rounds this panel's single
-      # break of 2,500,000 to "2M", which misreads as the bar starting half a
-      # million hectares lower than it does. The left panel's breaks are whole
+      # break of 2,400,000 to "2M", which misreads as the bar starting
+      # 400,000 hectares lower than it does. The left panel's breaks are whole
       # units, so it keeps the default.
       labels = scales::label_number(
         accuracy = 0.1,
         scale_cut = c("k" = 1e3, "M" = 1e6)
       ),
-      breaks = c(2500000),
+      breaks = c(2400000),
       expand = c(0, 0)
     ) +
     theme(
