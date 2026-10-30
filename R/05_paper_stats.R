@@ -369,13 +369,46 @@ calc_paper_stats <- function(
   linked_pct <- ownership_defor %>%
     filter(ownership_class == suspected_class) %>%
     pull(share)
-  # No known group linked, plus deforestation outside concessions (NA)
-  external_pct <- ownership_defor %>%
+  # The residual: everything not acknowledged and not suspected. That is
+  # "No known group linked" plus deforestation outside any concession (NA).
+  #
+  # Note what this bucket contains, because the sentence below characterises
+  # it. ownership_class records corporate linkage only, so the bucket mixes
+  # concessions that supply a mill with concessions that supply nobody:
+  #   ~24,800 ha  concessions supplying no mill at all
+  #   ~12,800 ha  concessions supplying APP or APRIL (third-party suppliers)
+  #    ~4,600 ha  outside any concession
+  #    ~3,500 ha  concessions supplying only Marubeni
+  # external_components below reports the split so the prose can be checked
+  # against it rather than assuming the whole residual is external supply.
+  external_rows <- ownership_defor %>%
     filter(
       ownership_class == "No known group linked" | is.na(ownership_class)
+    )
+  external_ha <- sum(external_rows$area_ha)
+  external_pct <- sum(external_rows$share)
+
+  external_components <- hti_nonhti_conv %>%
+    left_join(
+      hti_ownership %>% select(supplier_id, ownership_class),
+      by = "supplier_id"
     ) %>%
-    pull(share) %>%
-    sum()
+    filter(conv_type == 2 & year >= 2015) %>%
+    filter(
+      is.na(ownership_class) | ownership_class == "No known group linked"
+    ) %>%
+    mutate(
+      component = case_when(
+        is.na(supplier_id) ~ "Outside any concession",
+        app == 1 | april == 1 ~ "Concession supplying APP or APRIL",
+        marubeni == 1 ~ "Concession supplying only Marubeni",
+        TRUE ~ "Concession supplying no mill"
+      )
+    ) %>%
+    group_by(component) %>%
+    summarize(area_ha = sum(area_ha), .groups = "drop") %>%
+    mutate(share_of_total = 100 * area_ha / total_defor_2015_2022) %>%
+    arrange(desc(area_ha))
 
   text_commitments_ownership <- sprintf(
     paste0(
@@ -388,7 +421,7 @@ calc_paper_stats <- function(
       "However, APP and APRIL's parent conglomerates, the Sinar Mas Group and\n",
       "the Royal Golden Eagle Group (RGE), have suspected corporate control over\n",
       "concessions that were responsible for \033[1m%s\033[0m ha (\033[1m%.0f\033[0m%%) of pulp-driven deforestation\n",
-      "during this period. The remaining \033[1m%.0f\033[0m%% of pulp-driven deforestation occurred in\n",
+      "during this period. The remaining \033[1m%s\033[0m ha of pulp-driven deforestation occurred in\n",
       "concessions controlled by external suppliers or outside of concessions, underscoring\n",
       "the important role that external suppliers play in the implementation of\n",
       "zero-deforestation commitments.\n\n"
@@ -402,7 +435,7 @@ calc_paper_stats <- function(
     formatC(round(app_april_ha, -2), format = "f", digits = 0, big.mark = ","),
     formatC(round(linked_ha, -2), format = "f", digits = 0, big.mark = ","),
     linked_pct,
-    external_pct
+    formatC(round(external_ha, -2), format = "f", digits = 0, big.mark = ",")
   )
 
   # =========================================================================
@@ -608,6 +641,10 @@ calc_paper_stats <- function(
     zdc_linked_ha = linked_ha,
     zdc_linked_pct = linked_pct,
     zdc_external_pct = external_pct,
+    zdc_external_ha = external_ha,
+    # Split of the residual bucket, so the sentence's characterisation of it
+    # can be checked rather than assumed.
+    zdc_external_components = external_components,
     sinar_rge_cap_share = sinar_rge_cap_share,
     area_demand_historical = area_demand_historical,
     hardiyanto_in_ci = hardiyanto_in_ci,
