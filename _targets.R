@@ -60,7 +60,20 @@ pipeline <- list(
       data_override <- Sys.getenv("INDO_PULP_DATA", unset = "")
       if (nzchar(data_override)) {
         marker <- file.path(data_override, ".zenodo_record")
-        if (!file.exists(marker)) writeLines("local-override", marker)
+        # The marker holds the folder path so that pointing INDO_PULP_DATA at
+        # a different folder changes its hash and re-routes every input target.
+        # A constant marker hashes the same in every folder, so targets kept
+        # reading the previous folder.
+        label <- paste(
+          "local-override:",
+          normalizePath(data_override, winslash = "/")
+        )
+        if (
+          !file.exists(marker) ||
+            !identical(readLines(marker, warn = FALSE), label)
+        ) {
+          writeLines(label, marker)
+        }
         marker
       } else {
         file.path(
@@ -187,10 +200,10 @@ pipeline <- list(
     format = "file"
   ),
   tar_target(
-    groups_reclass_file,
+    hti_ownership_file,
     file.path(
       zenodo_data_check,
-      "01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv"
+      "01_in/tables/hti_ownership_master.csv"
     ),
     format = "file"
   ),
@@ -267,8 +280,8 @@ pipeline <- list(
     read_csv(kali_exp_file, show_col_types = FALSE)
   ),
   tar_target(
-    groups_reclass_hti,
-    read_csv(groups_reclass_file, show_col_types = FALSE)
+    hti_ownership,
+    read_csv(hti_ownership_file, show_col_types = FALSE)
   ),
   tar_target(ws_2015_2022, read_csv(ws_2015_2022_file, show_col_types = FALSE)),
   tar_target(cap_df, read_cap_df(cap_df_file)),
@@ -416,7 +429,7 @@ pipeline <- list(
     build_atlas_metadata(
       hti_annual_lc,
       hti_conv_timing,
-      groups_reclass_hti,
+      hti_ownership,
       hti
     )
   ),
@@ -512,7 +525,7 @@ pipeline <- list(
       ws_2015_2022 = ws_2015_2022,
       kali_annual_pulp_exp_stats = kali_annual_pulp_exp_stats,
       hti_nonhti_conv = hti_nonhti_conv,
-      groups_reclass_hti = groups_reclass_hti,
+      hti_ownership = hti_ownership,
       cap_df = cap_df,
       scenario_stats = scenario_stats,
       mai_df = mai_df,

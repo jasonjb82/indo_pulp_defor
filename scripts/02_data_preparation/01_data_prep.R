@@ -49,10 +49,12 @@ lic_dates_hti <- readr::read_csv(
   paste0(wdir, "\\01_data\\01_in\\wwi\\HTI_LICENSE_DATES.csv"),
   col_types = cols(license_date = col_date("%m/%d/%Y"))
 )
-# concession groups
-groups <- read_csv(paste0(
+# concession ownership master: corporate group and ownership class for every
+# concession in one hand-maintained table. Replaces ALIGNED_NAMES_GROUP_HTI.csv
+# and hti_company_ownership_reclass.csv, which disagreed on 16 concessions.
+hti_ownership <- read_csv(paste0(
   wdir,
-  "\\01_data\\01_in\\wwi\\ALIGNED_NAMES_GROUP_HTI.csv"
+  "\\01_data\\01_in\\tables\\hti_ownership_master.csv"
 ))
 # sample IDs and HTI
 samples_hti <- read_csv(paste0(
@@ -70,10 +72,8 @@ ws <- read_csv(paste0(
   "\\01_data\\02_out\\tables\\ws_merge_clean_2015_2022.csv"
 ))
 # ownership class
-hti_ownership_class <- read_csv(paste0(
-  wdir,
-  "\\01_data\\02_out\\tables\\hti_company_ownership_reclass.csv"
-))
+hti_ownership_class <- hti_ownership %>%
+  select(linked_group, supplier_id, company, ownership_class)
 # kabupaten
 kab <- read_sf(paste0(wdir, "\\01_data\\01_in\\big\\idn_kabupaten_big.shp"))
 # provinces
@@ -213,8 +213,8 @@ mill_supplier <- mill_supplier %>%
   )
 
 # clean supplier groups
-supplier_groups <- groups %>%
-  select(supplier_id = id, supplier_group = group) %>%
+supplier_groups <- hti_ownership %>%
+  select(supplier_id, supplier_group = group) %>%
   mutate(
     supplier_group = ifelse(is.na(supplier_group), "OTHER", supplier_group)
   )
@@ -649,9 +649,9 @@ hti_conv_timing <- treemap_annual_pulp %>%
   #      outside the set these categories describe, so Marubeni-only
   #      concessions fall through to rule 4.
   #   4. everything else is not yet supplying.
-  # ownership_class is NA wherever hti_company_ownership_reclass.csv has no
-  # row for the concession; rules 3 and 4 are total, so affiliation_class is
-  # never NA.
+  # ownership_class is "No known group linked", or NA wherever
+  # hti_ownership_master.csv has no row for the concession; both fall through
+  # to rules 3 and 4, which are total, so affiliation_class is never NA.
   mutate(
     affiliation_class = case_when(
       ownership_class == "Acknowledged ownership" ~ "Acknowledged ownership",

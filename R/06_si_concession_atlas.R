@@ -23,8 +23,9 @@
 ##        2) hti_conv_timing -> 02_out/tables/hti_grps_deforestation_timing.csv:
 ##               Supplier group and ownership class per concession.
 ##               Produced by scripts/02_data_preparation/01_data_prep.R
-##        3) groups_reclass_hti -> 01_in/tables/ALIGNED_NAMES_GROUP_HTI_reclassed.csv:
-##               Concession ownership groups, reclassified by hand.
+##        3) hti_ownership -> 01_in/tables/hti_ownership_master.csv:
+##               Corporate group and ownership class per concession, maintained
+##               by hand.
 ##        4) hti -> 01_in/klhk/IUPHHK_HTI_TRASE_20230314_proj.shp: Concession
 ##               boundaries and names (project input).
 ##        5) atlas_template_file -> typst/concession_atlas.typ (in the repo):
@@ -125,12 +126,12 @@ find_typst <- function(min_version = "0.11.0") {
 #' source, and the one used previously -- carries an island string for only 292.
 #' The two agree on all 292 they share, which this function asserts.
 #'
-#' Corporate group comes from the aligned-names crosswalk. It is genuinely
-#' sparse: only 81 of the 305 concessions have an identified parent group, and
-#' the remaining 224 are independent or third-party suppliers with no named
-#' affiliation in any available source. (`group_reclassed` in the same file is
-#' not a corporate group -- it is a three-level supply-relationship class.)
-build_atlas_metadata <- function(hti_annual_lc, hti_conv_timing, groups_reclass_hti, hti) {
+#' Corporate group comes from the ownership master. It is genuinely
+#' sparse: only 87 of the 305 concessions have an identified parent group, and
+#' the remaining 218 are independent or third-party suppliers with no named
+#' affiliation in any available source. (`ownership_class` in the same file is
+#' not a corporate group -- it is a three-level ownership class.)
+build_atlas_metadata <- function(hti_annual_lc, hti_conv_timing, hti_ownership, hti) {
   suppliers <- hti_annual_lc %>%
     filter(all == 1) %>%
     distinct(supplier_id, supplier)
@@ -200,8 +201,8 @@ build_atlas_metadata <- function(hti_annual_lc, hti_conv_timing, groups_reclass_
     )
   }
 
-  groups <- groups_reclass_hti %>%
-    distinct(supplier_id = id, group) %>%
+  groups <- hti_ownership %>%
+    distinct(supplier_id, group) %>%
     filter(!is.na(group)) %>%
     mutate(
       group = group %>%
