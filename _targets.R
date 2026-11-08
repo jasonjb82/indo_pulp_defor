@@ -315,55 +315,67 @@ pipeline <- list(
   ),
   tar_target(tl_df, prep_timeline_data(policy_tl)),
 
-  # Panels & Composite Export
-  tar_target(fig1_panel_a, plot_panel_a(defor_by_island)),
-  tar_target(fig1_panel_b, plot_panel_b(pulp_prod_ratio_merged)),
-  tar_target(fig1_panel_c, plot_panel_c(tl_df)),
-  tar_target(
-    fig1_summary,
-    create_fig1_summary(fig1_panel_a, fig1_panel_b, fig1_panel_c)
-  ),
+  # Figures & figure data.
+  #
+  # Each of these was a panel of one composite until the editors restricted
+  # the main text to Figures 1 and 2. They are now three standalone figures
+  # -- main text Figure 1, SM Figure 2, SM Figure 5 -- each with its own
+  # script, and none carries a panel tag.
+  tar_target(fig1_plot, plot_fig1(defor_by_island)),
   tar_target(
     fig1_files,
     save_fig1(
-      fig1_summary,
-      "outputs/figures/f1_summary_figure.png",
-      "outputs/figures/f1_summary_figure.svg"
+      fig1_plot,
+      "outputs/figures/f1_pulp_driven_deforestation.png",
+      "outputs/figures/f1_pulp_driven_deforestation.svg"
     ),
     format = "file"
   ),
-  # Panel A on its own, for use outside the composite. Saved from the panel
-  # target, so it carries no "A" tag.
   tar_target(
-    fig1_panel_a_svg,
-    save_fig1_panel_a(fig1_panel_a, "outputs/figures/f1_panelA_only.svg"),
-    format = "file"
-  ),
-  # Plot-ready values behind each panel, supplied to the journal alongside
-  # the vector figure (mirrors Robert's figure_data export)
-  tar_target(
-    fig1_data_panel_a,
+    fig1_data,
     save_csv_table(
       defor_by_island,
-      "outputs/figure_data/fig1_panelA_deforestation_by_island.csv",
+      "outputs/figure_data/fig1_deforestation_by_island.csv",
       writer = "readr"
     ),
     format = "file"
   ),
+
+  tar_target(si_fig2_plot, plot_si_fig2(pulp_prod_ratio_merged)),
   tar_target(
-    fig1_data_panel_b,
+    si_fig2_files,
+    save_si_fig2(
+      si_fig2_plot,
+      "outputs/figures/si_f2_pulp_production_by_wood_type.png",
+      "outputs/figures/si_f2_pulp_production_by_wood_type.svg"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    si_fig2_data,
     save_csv_table(
       pulp_prod_ratio_merged,
-      "outputs/figure_data/fig1_panelB_pulp_production_by_wood_type.csv",
+      "outputs/figure_data/si_f2_pulp_production_by_wood_type.csv",
       writer = "readr"
     ),
     format = "file"
   ),
+
+  tar_target(si_fig5_plot, plot_si_fig5(tl_df)),
   tar_target(
-    fig1_data_panel_c,
+    si_fig5_files,
+    save_si_fig5(
+      si_fig5_plot,
+      "outputs/figures/si_f5_policy_timeline.png",
+      "outputs/figures/si_f5_policy_timeline.svg"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    si_fig5_data,
     save_csv_table(
       tl_df,
-      "outputs/figure_data/fig1_panelC_policy_timeline.csv",
+      "outputs/figure_data/si_f5_policy_timeline.csv",
       writer = "readr"
     ),
     format = "file"
@@ -680,8 +692,8 @@ pipeline <- list(
     format = "file"
   ),
   tar_target(
-    si_fig3_png,
-    save_si_fig3(elast_results, "outputs/figures/SI_f3_elasticity.png"),
+    si_fig4_png,
+    save_si_fig4(elast_results, "outputs/figures/si_f4_elasticity.png"),
     format = "file"
   ),
   tar_target(
@@ -720,7 +732,7 @@ pipeline <- list(
   # one. That was traced to ranger drawing its seed from R's ambient RNG stream;
   # the engine now pins seed = 42, so the tuned mtry no longer depends on how
   # many random draws upstream code happened to consume. Re-estimation takes
-  # ~15 min and already ran for SI Figure 4 and the Section 8 statements, so
+  # ~15 min and already ran for SM Figure 6 and the Section 8 statements, so
   # taking predictions from it costs nothing and removes a shipped artefact
   # from the inputs.
   tar_target(
@@ -751,8 +763,8 @@ pipeline <- list(
     format = "file"
   ),
   tar_target(
-    si_fig4_png,
-    save_si_fig4(rf_results, "outputs/figures/SI_f4_auc.png"),
+    si_fig6_png,
+    save_si_fig6(rf_results, "outputs/figures/si_f6_auc.png"),
     format = "file"
   ),
   tar_target(
@@ -795,30 +807,40 @@ pipeline <- list(
     ),
     format = "file"
   ),
+  # The old Figure 3 is now SM Figure 7 (the map) and SM Table 13 (the
+  # expansion table that used to be its lower panel).
   tar_target(
-    fig3_png,
-    save_fig3(scenario_results, "outputs/figures/f3_expansion_combined.png"),
+    si_fig7_png,
+    save_si_fig7(scenario_results, "outputs/figures/si_f7_expansion_map.png"),
     format = "file"
   ),
   tar_target(
-    fig3_svg,
-    save_fig3(scenario_results, "outputs/figures/f3_expansion_combined.svg"),
+    si_fig7_svg,
+    save_si_fig7(scenario_results, "outputs/figures/si_f7_expansion_map.svg"),
     format = "file"
   ),
   tar_target(
-    fig3_data_panel_a,
+    si_table13_docx,
+    save_si_table13(
+      scenario_results,
+      "outputs/tables/si_table13_expansion_areas.docx"
+    ),
+    format = "file"
+  ),
+  tar_target(
+    si_fig7_data,
     save_csv_table(
-      scenario_results$fig3_data$panel_a,
-      "outputs/figure_data/fig3_panelA_expansion_map_cells.csv",
+      scenario_results$si_fig7_data,
+      "outputs/figure_data/si_f7_expansion_map_cells.csv",
       writer = "readr"
     ),
     format = "file"
   ),
   tar_target(
-    fig3_data_panel_b,
+    si_table13_data,
     save_csv_table(
-      scenario_results$fig3_data$panel_b,
-      "outputs/figure_data/fig3_panelB_expansion_table_kha.csv",
+      scenario_results$si_table13_data,
+      "outputs/tables/si_table13_expansion_areas.csv",
       writer = "readr"
     ),
     format = "file"
