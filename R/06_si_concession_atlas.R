@@ -54,6 +54,7 @@ ATLAS_TILE_WIDTH_IN <- 3.11
 ATLAS_TILE_HEIGHT_IN <- 2.333
 ATLAS_TILE_DPI <- 400
 
+
 #' Locate a usable typst binary
 #'
 #' Searched in order: TYPST_BIN, PATH, the copies bundled inside Positron and
@@ -245,18 +246,32 @@ build_atlas_metadata <- function(hti_annual_lc, hti_conv_timing, hti_ownership, 
 #' visible in a two-column grid.
 measure_panel_left_in <- function(png_path, dpi) {
   img <- png::readPNG(png_path)
-  band <- img[round(dim(img)[1] * 0.5), , 1:3]
-  r <- band[, 1]
-  g <- band[, 2]
-  b <- band[, 3]
-  is_fill <-
-    (abs(r - 0.000) < 0.15 & abs(g - 0.620) < 0.15 & abs(b - 0.451) < 0.15) |
-      (abs(r - 0.941) < 0.12 & abs(g - 0.894) < 0.12 & abs(b - 0.259) < 0.12) |
-      (abs(r - 0.800) < 0.12 & abs(g - 0.475) < 0.12 & abs(b - 0.655) < 0.12)
-  if (!any(is_fill)) {
+  h <- dim(img)[1]
+
+  # Sample a spread of rows, not one. A single row is fragile: where two fills
+  # meet, the boundary pixels are an antialiased blend of the two colours and
+  # match neither, so a row that happens to land on a class boundary reports
+  # the panel's left edge tens of pixels too far right. That silently mis-sizes
+  # the padding for that tile and pulls its panel out of line with the grid.
+  # The left edge is the leftmost fill found in any sampled row.
+  rows <- unique(round(h * seq(0.15, 0.85, by = 0.05)))
+
+  firsts <- vapply(rows, function(i) {
+    band <- img[i, , 1:3]
+    r <- band[, 1]
+    g <- band[, 2]
+    b <- band[, 3]
+    is_fill <-
+      (abs(r - 0.000) < 0.15 & abs(g - 0.620) < 0.15 & abs(b - 0.451) < 0.15) |
+        (abs(r - 0.941) < 0.12 & abs(g - 0.894) < 0.12 & abs(b - 0.259) < 0.12) |
+        (abs(r - 0.800) < 0.12 & abs(g - 0.475) < 0.12 & abs(b - 0.655) < 0.12)
+    if (any(is_fill)) min(which(is_fill)) else NA_real_
+  }, numeric(1))
+
+  if (all(is.na(firsts))) {
     return(NA_real_)
   }
-  min(which(is_fill)) / dpi
+  min(firsts, na.rm = TRUE) / dpi
 }
 
 #' Render one tile-sized land cover change figure per concession
@@ -304,9 +319,27 @@ render_and_save_concession_tiles <- function(hti_gav_annual_lc_df,
       linetype = "dashed",
       linewidth = 0.2
     ),
-    plot.title = element_blank(),
-    # ylab("")/xlab("") would still reserve the axis-title space -- about 0.19 in
-    # on the left and 0.08 in at the foot of a tile this size, all of it blank.
+    # The y-axis unit sits horizontally above the axis rather than rotated
+    # beside it: a conventional ylab would cost about 0.19 in of every tile's
+    # width, all of it taken from panel area.
+    #
+    # plot.title.position = "plot" anchors it to the left edge of the plotting
+    # region, which the padding below makes exactly the left edge of the
+    # tick-label column: panel_left is held constant at max(offset), and each
+    # tile's left margin is max(offset) - label_width, so the heading lands on
+    # the widest break label of its own tile. A fixed negative margin off the
+    # panel was tried instead and is worse -- it cannot know how wide a tile's
+    # labels are, and on tiles with no slack to the left it forced the panel
+    # out of alignment with the rest of the grid.
+    plot.title = element_text(
+      size = 6,
+      colour = "grey30",
+      hjust = 0,
+      margin = margin(b = 1.5)
+    ),
+    plot.title.position = "plot",
+    # xlab("") would still reserve the axis-title space -- about 0.08 in at the
+    # foot of a tile this size, all of it blank.
     axis.title = element_blank(),
     axis.line.x = element_line(linewidth = 0.25),
     axis.ticks = element_blank(),
@@ -316,8 +349,8 @@ render_and_save_concession_tiles <- function(hti_gav_annual_lc_df,
   )
 
   # No " ha" suffix: repeating the unit on every tick costs about 0.13 in of
-  # every tile's width, which is panel area. The unit is stated once in the
-  # page footer and in the front matter instead.
+  # every tile's width, which is panel area. The unit is given once per tile by
+  # the "Area (ha)" title above the panel.
   label_fun <- scales::label_number(
     scale_cut = scales::cut_short_scale(),
     accuracy = 0.1,
@@ -358,7 +391,7 @@ render_and_save_concession_tiles <- function(hti_gav_annual_lc_df,
         labels = label_fun,
         expand = c(0, 0)
       ) +
-      labs(x = NULL, y = NULL) +
+      labs(x = NULL, y = NULL, title = "Area (ha)") +
       scale_fill_manual(
         values = c(
           "Forest" = "#009E73",

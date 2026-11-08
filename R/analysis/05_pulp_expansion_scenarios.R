@@ -2,7 +2,7 @@
 ## Project: Indonesia pulp deforestation
 ## Purpose of script: Allocate the projected area of new pulpwood plantation
 ##   across space, and tabulate the resulting expansion by island, starting
-##   forest cover and soil type. Produces main text Figure 3 and the headline
+##   forest cover and soil type. Produces SM Figure 7, SM Table 13 and the
 ##   deforestation and peatland conversion estimates. Supports SI Sections 4.3
 ##   and 8.4.
 ## Author: Robert Heilmayr
@@ -11,8 +11,9 @@
 ##   calculations are unchanged; inputs are passed in and outputs are returned
 ##   rather than read from and written to hard-coded paths. The interactive
 ##   tmap diagnostic map (pulp_expansion_scenarios.html, not reported in the
-##   manuscript) is not carried over, so tmap is not needed. Figure 3 is built
-##   in plot_fig3() so the stored plot does not carry the full prediction table.
+##   manuscript) is not carried over, so tmap is not needed. The map is built
+##   in plot_si_fig7() so the stored plot does not carry the full prediction
+##   table.
 ##
 ## Pipeline inputs (targets in _targets.R)
 ##        1) pulp_predictions: Predicted probability of pulpwood plantation
@@ -39,12 +40,16 @@
 ##               conversion totals with bounds.
 ##               Read by paper_stats (calc_paper_stats() in R/05_paper_stats.R)
 ##        2) scenario_stats_csv -> outputs/tables/scenario_stats.csv
-##        3) fig3_png, fig3_svg -> outputs/figures/f3_expansion_combined.png
-##               and .svg: Figure 3.
-##        3b) fig3_data_panel_a, fig3_data_panel_b -> outputs/figure_data/
-##               fig3_panelA_expansion_map_cells.csv (0.1 degree cells; lon/lat
-##               are cell centres) and fig3_panelB_expansion_table_kha.csv
-##               (thousand ha, before display formatting): data behind Figure 3.
+##        3) si_fig7_png, si_fig7_svg -> outputs/figures/si_f7_expansion_map.png
+##               and .svg: SM Figure 7 (was Figure 3 panel A).
+##        3b) si_table13_docx -> outputs/tables/si_table13_expansion_areas.docx:
+##               SM Table 13 (was Figure 3 panel B, previously drawn into the
+##               figure as a gt grob).
+##        3c) si_fig7_data, si_table13_data -> outputs/figure_data/
+##               si_f7_expansion_map_cells.csv (0.1 degree cells; lon/lat are
+##               cell centres) and outputs/tables/
+##               si_table13_expansion_areas.csv (thousand ha, before display
+##               formatting): data behind the figure and the table.
 ##        4) si_sections4_8_txt -> outputs/text/si_sections4_8_statements.txt:
 ##               Main text and SI 4.3 / 8.4 statements with values from this run.
 ## ---------------------------------------------------------
@@ -65,7 +70,8 @@ run_pulp_expansion_scenarios <- function(
   ws_2015_2022,
   kab,
   results_paths = c(
-    fig3 = "outputs/figures/f3_expansion_combined.png",
+    si_fig7 = "outputs/figures/si_f7_expansion_map.png",
+    si_table13 = "outputs/tables/si_table13_expansion_areas.docx",
     stats = "outputs/tables/scenario_stats.csv"
   )
 ) {
@@ -240,32 +246,21 @@ run_pulp_expansion_scenarios <- function(
   # --- Reorganised table: land type as rows, islands as columns ---
   # Renders one cell as "central (low-high)". The bounds come from scenarios 1
   # and 3: scenario 1 is the highest-growth case and so the SMALLEST area.
+  # Each cell reads "central (low-high)". The bounds come from scenarios 1
+  # and 3: scenario 1 is the highest-growth case and so the SMALLEST area.
+  #
+  # The values used to be space-padded to a fixed width so they would line up
+  # in the monospace font this table was drawn with when it was a panel of
+  # Figure 3. It is now SM Table 13, a real table whose columns are
+  # right-aligned, so the padding has nothing left to do.
   fmt_cell <- function(central, low, high) {
     fmt <- function(x) formatC(x, format = "d", big.mark = ",")
-    pad <- function(x, w) strrep(" ", pmax(w - nchar(fmt(x)), 0L))
     # Scenario 1's pixels are a strict subset of scenario 3's (same ranking,
     # fewer taken), so the low bound can never exceed the high bound.
     stopifnot("fmt_cell: low bound exceeds high bound" = all(low <= high))
-    paste0(
-      pad(central, 3L),
-      fmt(central),
-      " (",
-      pad(low, 3L),
-      fmt(low),
-      "–",
-      pad(high, 5L),
-      fmt(high),
-      ")"
-    )
+    paste0(fmt(central), " (", fmt(low), "–", fmt(high), ")")
   }
-  zero_cell <- paste0(
-    strrep(" ", 2L),
-    "0 (",
-    strrep(" ", 2L),
-    "0–",
-    strrep(" ", 4L),
-    "0)"
-  )
+  zero_cell <- "0 (0–0)"
 
   land_type_levels <- c(
     "Forest on peat",
@@ -364,7 +359,8 @@ run_pulp_expansion_scenarios <- function(
     rename(expansion_ha = scenario2_expansion) %>%
     drop_na()
 
-  fig3 <- plot_fig3(scenario2_plot_df, prov_sf, expansion_cells)
+  si_fig7 <- plot_si_fig7(scenario2_plot_df, prov_sf)
+  si_table13 <- build_si_table13(expansion_cells)
 
   # =========================================================================
   # Scenario statistics
@@ -504,7 +500,7 @@ run_pulp_expansion_scenarios <- function(
         "Assuming that this pulp expansion follows similar patterns to the recent",
         "past (2017-2022), we estimate that it will drive %s (%s-%s) hectares of",
         "additional deforestation and %s (%s-%s) hectares of additional peatland",
-        "conversion (Figure 3)."
+        "conversion (SM Figure 7, SM Table 13)."
       ),
       fmt_d(defor_stats$scenario_2_ha),
       fmt_d(defor_stats$scenario_1_ha),
@@ -532,8 +528,12 @@ run_pulp_expansion_scenarios <- function(
       100 * scenario_growth[["s3"]]
     ),
     si_para(
-      "Figure 3 is written to %s and the underlying statistics to %s.",
-      results_paths[["fig3"]],
+      paste(
+        "SM Figure 7 is written to %s, SM Table 13 to %s, and the underlying",
+        "statistics to %s."
+      ),
+      results_paths[["si_fig7"]],
+      results_paths[["si_table13"]],
       results_paths[["stats"]]
     )
   )
@@ -548,28 +548,37 @@ run_pulp_expansion_scenarios <- function(
   list(
     scenario_stats = scenario_stats,
     expansion_table = expansion_table,
-    fig3 = fig3,
-    # Plot-ready values behind each Figure 3 panel, for the journal
-    fig3_data = list(
-      panel_a = scenario2_plot_df %>% rename(lon = x, lat = y),
-      panel_b = reorg_base
-    ),
+    # The old Figure 3 is now SM Figure 7 (the map) and SM Table 13 (the
+    # expansion table that used to sit beneath it).
+    si_fig7 = si_fig7,
+    si_table13 = si_table13,
+    si_fig7_data = scenario2_plot_df %>% rename(lon = x, lat = y),
+    si_table13_data = reorg_base,
     si_text = si_text,
     diagnostics = diagnostics
   )
 }
 
-#' Build Figure 3: (A) map of scenario 2 expansion, (B) expansion table
+#' Build SM Figure 7 and SM Table 13
 #'
-#' Built in its own function because a ggplot keeps the environment it was
+#' Built in their own functions because a ggplot keeps the environment it was
 #' created in; inside run_pulp_expansion_scenarios() that would carry the full
 #' prediction table into the stored result.
 #' @param scenario2_plot_df Expansion ha per 0.1 degree cell (x, y,
 #'   expansion_ha)
 #' @param prov_sf Province boundaries
 #' @param expansion_cells Formatted table cells (land type x island + totals)
-plot_fig3 <- function(scenario2_plot_df, prov_sf, expansion_cells) {
-  expansion_gt <- expansion_cells %>%
+#' Build SM Table 13: projected expansion by land type and island
+#'
+#' Was the lower panel of the old Figure 3, rendered into the figure as a gt
+#' grob. The editors moved the map to SM Figure 7 and asked for this half to
+#' become a table in its own right, so it is now built here and written by
+#' save_si_table13() like the other SM tables.
+#'
+#' @param expansion_cells Formatted table cells (land type x island + totals).
+#' @return A gt table.
+build_si_table13 <- function(expansion_cells) {
+  expansion_cells %>%
     gt::gt(rowname_col = "land_type") %>%
     gt::tab_header(
       title = "Projected pulpwood plantation expansion (thousand ha)"
@@ -584,11 +593,30 @@ plot_fig3 <- function(scenario2_plot_df, prov_sf, expansion_cells) {
       style = gt::cell_text(align = "center"),
       locations = gt::cells_column_labels()
     ) %>%
-    gt::tab_style(
-      style = gt::cell_text(font = "Courier New", size = gt::px(13), color = "black"),
-      locations = gt::cells_body()
-    )
+    # Right-align the value columns so the central estimate and its range line
+    # up down each column.
+    #
+    # This replaces a monospace font at gt::px(13), which was there to align
+    # the space-padded cells back when this table was drawn into Figure 3 as a
+    # grob. In a .docx that styling is actively harmful: gt writes the CSS
+    # length straight through as <w:sz w:val="13px"/>, which is not valid
+    # OOXML -- w:sz takes an integer in half-points -- and Word responds by
+    # dropping the text of every styled cell, so the table rendered with
+    # labels but no values. Column alignment is the native way to get the
+    # same effect in a real table.
+    gt::cols_align(align = "right", columns = -land_type)
+}
 
+#' Render SM Figure 7: projected expansion map
+#'
+#' Was panel A of Figure 3. Now a standalone SM figure, so it carries no
+#' panel tag and the table that sat beneath it is written separately as
+#' SM Table 13. The map layers are unchanged.
+#'
+#' @param scenario2_plot_df Expansion hectares per 0.1 degree cell.
+#' @param prov_sf Province boundaries.
+#' @return A ggplot.
+plot_si_fig7 <- function(scenario2_plot_df, prov_sf) {
   # Clip to Sumatra + Kalimantan (st_transform ensures geom_sf and geom_tile
   # share the same CRS)
   map_bbox <- sf::st_bbox(c(xmin = 93, xmax = 121, ymin = -8, ymax = 8), crs = 4326)
@@ -665,35 +693,45 @@ plot_fig3 <- function(scenario2_plot_df, prov_sf, expansion_cells) {
       axis.text = element_text(size = 8)
     )
 
-  # as_gtable() produces fixed-width columns; convert to proportional npc units
-  # so the table stretches to fill whatever width patchwork allocates to it
-  gt_grob <- gt::as_gtable(expansion_gt)
-  w <- as.numeric(gt_grob$widths)
-  gt_grob$widths <- grid::unit(w / sum(w), "npc")
-
   # The plot keeps this function's environment; drop the full-resolution
   # boundaries it no longer needs (the layers hold the cropped versions)
-  rm(prov_sf, prov_wgs84, expansion_cells, expansion_gt)
+  rm(prov_sf, prov_wgs84)
 
-  (pub_map + theme(plot.margin = margin(4, 4, 2, 4, "pt"))) /
-    (patchwork::wrap_elements(full = gt_grob) +
-      theme(plot.margin = margin(0, 4, 4, 4, "pt"))) +
-    patchwork::plot_annotation(tag_levels = "A") +
-    patchwork::plot_layout(heights = c(1.8, 1))
+  pub_map
 }
 
-#' Save Figure 3
+#' Save SM Figure 7 (the expansion map)
+#'
+#' Height drops from the old Figure 3's 8in to 5.5in because the table that
+#' occupied the lower third is now SM Table 13; the map itself is unchanged.
+#'
 #' @param scenario_results Output of run_pulp_expansion_scenarios()
 #' @param output_path Destination .png or .svg path
 #' @return output_path, as required by format = "file"
-save_fig3 <- function(scenario_results, output_path) {
+save_si_fig7 <- function(scenario_results, output_path) {
   dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
   ggsave_without_showtext(
     output_path,
-    scenario_results$fig3,
+    scenario_results$si_fig7,
     width = 7.5,
-    height = 8,
+    height = 5.5,
     dpi = 300
   )
   output_path
+}
+
+#' Save SM Table 13
+#'
+#' Follows the same pattern as the other SM tables: .docx via
+#' write_table_or_warn(), which falls back to markdown with a loud warning
+#' when pandoc is unavailable.
+#'
+#' @param scenario_results Output of run_pulp_expansion_scenarios()
+#' @param output_path Destination .docx path
+#' @return Path actually written, as required by format = "file"
+save_si_table13 <- function(scenario_results, output_path) {
+  write_table_or_warn(
+    function(path) gt::gtsave(scenario_results$si_table13, path),
+    output_path
+  )
 }

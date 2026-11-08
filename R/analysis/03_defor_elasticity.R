@@ -42,7 +42,7 @@
 ## Pipeline outputs
 ##        1) si_table8_csv -> outputs/tables/si_table8_aez_productivity.csv:
 ##               SI Table 8, Equation 8 coefficients.
-##        2) si_fig3_png -> outputs/figures/SI_f3_elasticity.png: SI Figure 3.
+##        2) si_fig4_png -> outputs/figures/si_f4_elasticity.png: SM Figure 4.
 ##        3) si_sections4_5_txt -> outputs/text/si_sections4_5_statements.txt:
 ##               SI Sections 4.2, 5.2 and 5.3 statements with values from this
 ##               run.
@@ -73,7 +73,7 @@ run_defor_elasticity <- function(
   results_paths = c(
     si_table8 = "outputs/tables/si_table8_aez_productivity.csv",
     tables = "outputs/tables/defor_elast_main.docx and defor_elast_robust.docx",
-    si_fig3 = "outputs/figures/SI_f3_elasticity.png"
+    si_fig4 = "outputs/figures/si_f4_elasticity.png"
   )
 ) {
   # =========================================================================
@@ -352,7 +352,7 @@ run_defor_elasticity <- function(
   )
 
   # =========================================================================
-  # Interpretation - SI Figure 3
+  # Interpretation - SM Figure 4
   # =========================================================================
 
   defor_cf <- defor_df %>%
@@ -366,7 +366,7 @@ run_defor_elasticity <- function(
       pulp_forest_ha_cf = sum(defor_price_partial, na.rm = TRUE) / 1000
     )
 
-  defor_plot <- plot_si_fig3(total_pulp_defor)
+  defor_plot <- plot_si_fig4(total_pulp_defor)
 
   # =========================================================================
   # Mill capacity utilisation is inelastic (SI Section 4.2)
@@ -524,9 +524,9 @@ run_defor_elasticity <- function(
       peak_year
     ),
     si_para(
-      "Regression results (SI Tables 9 and 10) are written to %s; SI Figure 3 is written to %s.",
+      "Regression results (SI Tables 9 and 10) are written to %s; SM Figure 4 is written to %s.",
       results_paths[["tables"]],
-      results_paths[["si_fig3"]]
+      results_paths[["si_fig4"]]
     )
   )
 
@@ -567,13 +567,13 @@ run_defor_elasticity <- function(
   )
 }
 
-#' Build SI Figure 3 (observed vs price-predicted deforestation)
+#' Build SM Figure 4 (observed vs price-predicted deforestation)
 #'
 #' Built in its own function because a ggplot keeps the environment it was
 #' created in; inside run_defor_elasticity() that would carry the full panel
 #' into the stored result.
 #' @param total_pulp_defor Annual observed and counterfactual totals (kha)
-plot_si_fig3 <- function(total_pulp_defor) {
+plot_si_fig4 <- function(total_pulp_defor) {
   ggplot(
     total_pulp_defor %>% filter(year > 2000, year < 2023),
     aes(x = year)
@@ -582,27 +582,41 @@ plot_si_fig3 <- function(total_pulp_defor) {
     geom_line(aes(y = pulp_forest_ha_cf), linetype = 2) +
     labs(x = "Year", y = "Pulp-driven deforestation (thousand ha)") +
     theme_minimal(base_size = 12) +
+    # Both labels are right-aligned near the last year rather than centred on
+    # a year inside the panel. Centred, the upper label ran past the right
+    # edge and was clipped mid-word, and the lower one reached back far enough
+    # to cross the observed series as it falls through 2015.
+    #
+    # Each sits just above its own line. Right-aligned, a label spans back
+    # roughly six years, so the constraint is the series maximum over that
+    # window: 103 for the predicted series (2018) and, ending at 2021, 19 for
+    # the observed one (2015). The y values below clear those with a small
+    # margin -- close to the line without touching it.
     annotate(
       "text",
-      x = 2020,
-      y = 107,
+      x = 2022,
+      y = 115,
       label = "Deforestation as predicted\nby price variation",
+      hjust = 1,
+      size = 3.2,
       color = "black"
     ) +
     annotate(
       "text",
-      x = 2018,
-      y = 20,
+      x = 2021,
+      y = 24,
       label = "Observed deforestation",
+      hjust = 1,
+      size = 3.2,
       color = "black"
     )
 }
 
-#' Save SI Figure 3
+#' Save SM Figure 4
 #' @param elast_results Output of run_defor_elasticity()
 #' @param output_path Destination .png path
 #' @return output_path, as required by format = "file"
-save_si_fig3 <- function(elast_results, output_path) {
+save_si_fig4 <- function(elast_results, output_path) {
   dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
   ggsave_without_showtext(
     output_path,

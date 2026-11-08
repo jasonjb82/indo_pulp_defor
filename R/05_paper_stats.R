@@ -158,7 +158,7 @@ calc_paper_stats <- function(
     paste0(
       "\n[Progress toward zero deforestation]\n",
       "In the ensuing years (2011–2017), pulp-driven deforestation declined by \033[1m%.0f\033[0m%%\n",
-      "(Figure 1A), even when high pulp prices might have been expected to encourage\n",
+      "(Figure 1), even when high pulp prices might have been expected to encourage\n",
       "accelerated expansion of pulpwood plantations and associated deforestation\n",
       "(SM Section 5).\n\n"
     ),
@@ -323,7 +323,7 @@ calc_paper_stats <- function(
       "\n[Improved productivity]\n",
       "As a result of this combination of pulpwood plantation expansion and intensification,\n",
       "plantations now supply nearly all of the \033[1m%.0f\033[0m million m3 of annual pulpwood used for\n",
-      "pulp production in Indonesia (Figure 1B).\n\n"
+      "pulp production in Indonesia (SM Figure 2).\n\n"
     ),
     current_wood_demand / 1e6
   )
@@ -512,7 +512,7 @@ calc_paper_stats <- function(
       "that this pulp expansion follows similar patterns to the recent past (2017–2022),\n",
       "we estimate that it will drive \033[1m%s\033[0m (\033[1m%s\033[0m–\033[1m%s\033[0m) hectares of additional\n",
       "deforestation and \033[1m%s\033[0m (\033[1m%s\033[0m–\033[1m%s\033[0m) hectares of additional peatland conversion\n",
-      "(Figure 3).\n\n"
+      "(SM Figure 7, SM Table 13).\n\n"
     ),
     scenario_stats$pct_demand_met_central,
     scenario_stats$pct_demand_met_low,

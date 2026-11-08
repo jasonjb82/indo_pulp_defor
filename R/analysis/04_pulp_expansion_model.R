@@ -46,7 +46,7 @@
 ##               Read by the scenario analysis (script 05)
 ##        2) pulp_predictions_csv -> outputs/tables/pulp_predictions.csv
 ##        Also from run_pulp_expansion_model():
-##        3) si_fig4_png -> outputs/figures/SI_f4_auc.png: SI Figure 4, ROC and
+##        3) si_fig6_png -> outputs/figures/si_f6_auc.png: SM Figure 6, ROC and
 ##               precision-recall curves on the held-out spatial test set.
 ##        4) si_section8_txt -> outputs/text/si_section8_statements.txt: SI
 ##               Section 8 statements with values from the re-estimation.
@@ -219,12 +219,12 @@ predict_pulp_expansion <- function(rf_fit_rds, p2022_csv) {
 #' @param results_paths Output paths named in the SI statements (text only).
 #' @return A named list: pulp_predictions, final_fit, auc_data, si_text and
 #'   diagnostics. auc_data holds the held-out predictions and test prevalence
-#'   that SI Figure 4 is drawn from.
+#'   that SM Figure 6 is drawn from.
 run_pulp_expansion_model <- function(
   p2017_csv,
   p2022_csv,
   results_paths = c(
-    si_fig4 = "outputs/figures/SI_f4_auc.png",
+    si_fig6 = "outputs/figures/si_f6_auc.png",
     predictions = "outputs/tables/pulp_predictions.csv"
   )
 ) {
@@ -453,7 +453,7 @@ run_pulp_expansion_model <- function(
     generics::fit(data = model_df)
 
   # =========================================================================
-  # Evaluate model performance (SI Figure 4)
+  # Evaluate model performance (SM Figure 6)
   # =========================================================================
 
   # collect_predictions() returns .row as the row index in the full data frame
@@ -472,7 +472,7 @@ run_pulp_expansion_model <- function(
   # reports 0.5 MB because it does not traverse environments, so the cost is
   # invisible until targets writes the target. Freeing the model's own objects
   # therefore does not help; only keeping the ggplot out of the result does.
-  # These inputs are 160 KB; save_si_fig4() draws the figure from them.
+  # These inputs are 160 KB; save_si_fig6() draws the figure from them.
   auc_data <- list(
     test_preds = test_preds %>% select(pulp_end, .pred_pulp),
     test_prevalence = mean(test_df$pulp_end == "pulp")
@@ -554,14 +554,14 @@ run_pulp_expansion_model <- function(
         "The final model achieved a ROC-AUC of %.3f and a PR-AUC of %.3f on the",
         "held-out spatial test set, indicating a strong ability to discriminate",
         "pixels that underwent pulpwood plantation expansion from those that did",
-        "not (Figure 4)."
+        "not (SM Figure 6)."
       ),
       metric_val("roc_auc"),
       metric_val("pr_auc")
     ),
     si_para(
       paste(
-        "Figure 4 caption: Both curves are computed on the held-out spatial test",
+        "SM Figure 6 caption: Both curves are computed on the held-out spatial test",
         "set, which retains the %d:1 majority-to-minority class ratio of the",
         "downsampled estimation sample."
       ),
@@ -627,12 +627,12 @@ run_pulp_expansion_model <- function(
       paste(
         "Prediction: the final model was refit on the complete downsampled dataset",
         "and scored all %s points not yet converted as of 2022 (%.1f%% of",
-        "candidate points dropped for missing covariates). SI Figure 4 is written",
+        "candidate points dropped for missing covariates). SM Figure 6 is written",
         "to %s and the predictions to %s."
       ),
       format(nrow(pulp_predictions), big.mark = ","),
       100 * pct_dropped2027,
-      results_paths[["si_fig4"]],
+      results_paths[["si_fig6"]],
       results_paths[["predictions"]]
     )
   )
@@ -677,9 +677,9 @@ run_pulp_expansion_model <- function(
   )
 }
 
-#' Build SI Figure 4 (ROC and precision-recall curves)
+#' Build SM Figure 6 (ROC and precision-recall curves)
 #'
-#' Called from save_si_fig4() rather than run_pulp_expansion_model(), so the
+#' Called from save_si_fig6() rather than run_pulp_expansion_model(), so the
 #' plot is drawn and written inside one target and never stored. A ggplot
 #' keeps the environment it was created in, and yardstick's autoplot method
 #' leaves behind a frame holding the chart itself; see the note at auc_data.
@@ -700,11 +700,11 @@ plot_rf_auc <- function(test_preds, test_prevalence) {
   patchwork::wrap_plots(p1, p2, nrow = 1)
 }
 
-#' Save SI Figure 4 (ROC and precision-recall curves)
+#' Save SM Figure 6 (ROC and precision-recall curves)
 #' @param rf_results Output of run_pulp_expansion_model()
 #' @param output_path Destination .png path
 #' @return output_path, as required by format = "file"
-save_si_fig4 <- function(rf_results, output_path) {
+save_si_fig6 <- function(rf_results, output_path) {
   dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
   # Built here rather than carried in rf_results: see the note at auc_data.
   auc_plot <- plot_rf_auc(
