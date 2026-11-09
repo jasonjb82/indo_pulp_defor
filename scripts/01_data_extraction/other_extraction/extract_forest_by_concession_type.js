@@ -21,6 +21,7 @@
 // load data
 var gfc_ttm = ee.Image("users/jasonjb82/idn_pulp_defor/REGBRNIDNMYS_FC_2001to2022_TTM_20230523_Class1to6").select('b1'),
     islands = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/id_islands_klhk"),
+    permohonan = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/Peta_permohonan_PBPH"),
     kab = ee.FeatureCollection("projects/trase/STORAGE/ID/BOUNDARIES/id_kabupaten"),
     hti_pulp = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/IUPHHK_HT_Pulp_suppliers_all_2024"),
     ha_all = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/IUPHHK_Hutan_Alam_20220320_updated"),
@@ -46,7 +47,9 @@ var layers = {
   ha_all: ha_all,
   ha_without_hpt: ha_without_hpt,
   arahan_2022: arahan,
-  pbph_29112022: pbph_2022
+  pbph_29112022: pbph_2022,
+  permohonan_pbph: permohonan,
+  arahan_permohonan: arahan.merge(permohonan)
 };
 
 // group code = island * 1000 + gfc_ttm
