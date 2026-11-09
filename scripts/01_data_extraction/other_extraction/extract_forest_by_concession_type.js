@@ -21,6 +21,7 @@
 // load data
 var gfc_ttm = ee.Image("users/jasonjb82/idn_pulp_defor/REGBRNIDNMYS_FC_2001to2022_TTM_20230523_Class1to6").select('b1'),
     islands = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/id_islands_klhk"),
+    kab = ee.FeatureCollection("projects/trase/STORAGE/ID/BOUNDARIES/id_kabupaten"),
     hti_pulp = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/IUPHHK_HT_Pulp_suppliers_all_2024"),
     ha_all = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/IUPHHK_Hutan_Alam_20220320_updated"),
     ha_without_hpt = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/IUPHHK_Hutan_Alam_20220320_updated_without_HPT"),
@@ -36,10 +37,11 @@ var island_img = islands
   .reduceToImage(['code'], ee.Reducer.first())
   .rename('island');
 
-// layers to tabulate; arahan_permohonan is the union of new allocations and
-// applications
+// layers to tabulate. The KLHK island groups extend over sea and neighbouring
+// countries (the TreeMap map covers Malaysia and Brunei too), so the national
+// total is masked by Indonesia's district (kabupaten) boundaries instead.
 var layers = {
-  indonesia: islands,
+  indonesia: kab,
   hti_pulp_2024: hti_pulp,
   ha_all: ha_all,
   ha_without_hpt: ha_without_hpt,
