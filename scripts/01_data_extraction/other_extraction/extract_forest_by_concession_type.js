@@ -15,8 +15,10 @@
 // island_code = 1 BALINUSA, 2 KALIMANTAN, 3 MALUKU, 4 PAPUA, 5 SULAWESI,
 // 6 SUMATERA, 7 JAWA.
 //
-// Concession layers: remote/01_data/01_in/wwi/wwi_concessions, uploaded
-// as assets. Islands: remote/01_data/01_in/klhk/KLHK_Kelompok_Pulau_20210308.
+// Concession layers: remote/01_data/01_in/wwi/wwi_concessions, except
+// Arahan_2022 (the full Arahan map) and Peta_permohonan_PBPH, which are in
+// wwi/PBPH_Arahan_Permohonan_concessions. All uploaded as assets.
+// Islands: remote/01_data/01_in/klhk/KLHK_Kelompok_Pulau_20210308.
 
 // load data
 var gfc_ttm = ee.Image("users/jasonjb82/idn_pulp_defor/REGBRNIDNMYS_FC_2001to2022_TTM_20230523_Class1to6").select('b1'),
@@ -27,6 +29,7 @@ var gfc_ttm = ee.Image("users/jasonjb82/idn_pulp_defor/REGBRNIDNMYS_FC_2001to202
     ha_all = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/IUPHHK_Hutan_Alam_20220320_updated"),
     ha_without_hpt = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/IUPHHK_Hutan_Alam_20220320_updated_without_HPT"),
     arahan = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/Arahan_2022_updated_without_HL"),
+    arahan_orig = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/Arahan_2022"),
     pbph_2022 = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/PBPH_29112022");
 
 // island code image
@@ -41,15 +44,19 @@ var island_img = islands
 // layers to tabulate. The KLHK island groups extend over sea and neighbouring
 // countries (the TreeMap map covers Malaysia and Brunei too), so the national
 // total is masked by Indonesia's district (kabupaten) boundaries instead.
+// arahan_2022 = Arahan 2022 without HL (used in SM12); arahan_2022_orig = the
+// full Arahan 2022 map, tested against Grahat's column 2.
 var layers = {
   indonesia: kab,
   hti_pulp_2024: hti_pulp,
   ha_all: ha_all,
   ha_without_hpt: ha_without_hpt,
   arahan_2022: arahan,
+  arahan_2022_orig: arahan_orig,
   pbph_29112022: pbph_2022,
   permohonan_pbph: permohonan,
-  arahan_permohonan: arahan.merge(permohonan)
+  arahan_permohonan: arahan.merge(permohonan),
+  arahan_orig_permohonan: arahan_orig.merge(permohonan)
 };
 
 // group code = island * 1000 + gfc_ttm
