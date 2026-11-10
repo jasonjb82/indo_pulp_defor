@@ -15,7 +15,8 @@
 // island_code = 1 BALINUSA, 2 KALIMANTAN, 3 MALUKU, 4 PAPUA, 5 SULAWESI,
 // 6 SUMATERA, 7 JAWA.
 //
-// Concession layers: remote/01_data/01_in/wwi/wwi_concessions, except
+// Concession layers: remote/01_data/01_in/wwi/wwi_concessions (the *_updated
+// layers from wwi_concessions/all_data), except
 // Arahan_2022 (the full Arahan map) and Peta_permohonan_PBPH, which are in
 // wwi/PBPH_Arahan_Permohonan_concessions. All uploaded as assets.
 // Islands: remote/01_data/01_in/klhk/KLHK_Kelompok_Pulau_20210308.
@@ -30,6 +31,8 @@ var gfc_ttm = ee.Image("users/jasonjb82/idn_pulp_defor/REGBRNIDNMYS_FC_2001to202
     ha_without_hpt = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/IUPHHK_Hutan_Alam_20220320_updated_without_HPT"),
     arahan = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/Arahan_2022_updated_without_HL"),
     arahan_orig = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/Arahan_2022"),
+    arahan_hl = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/Arahan_2022_updated"),
+    permohonan_upd = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/Peta_permohonan_PBPH_updated"),
     pbph_2022 = ee.FeatureCollection("users/jasonjb82/idn_pulp_defor/PBPH_29112022");
 
 // island code image
@@ -56,7 +59,13 @@ var layers = {
   pbph_29112022: pbph_2022,
   permohonan_pbph: permohonan,
   arahan_permohonan: arahan.merge(permohonan),
-  arahan_orig_permohonan: arahan_orig.merge(permohonan)
+  arahan_orig_permohonan: arahan_orig.merge(permohonan),
+  // Age's updated layers (wwi_concessions/all_data, Nov 2026): overlaps with
+  // other concession types removed. Arahan_2022_updated = without_HL + HL.
+  arahan_2022_hl: arahan_hl,
+  permohonan_pbph_upd: permohonan_upd,
+  arahan_permohonan_upd: arahan.merge(permohonan_upd),
+  arahan_hl_permohonan_upd: arahan_hl.merge(permohonan_upd)
 };
 
 // group code = island * 1000 + gfc_ttm
