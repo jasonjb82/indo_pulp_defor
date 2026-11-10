@@ -94,8 +94,11 @@ print(sm1_check)
 ## SM12 as published ------------------------------------------
 # Existing HTI from the pipeline (1 ha samples), so the total matches the
 # 2.96 Mha in the main text; the GEE hti_pulp_2024 layer agrees within 0.05%.
-# Proposed or new allocation for PBPH = Arahan 2022 (without HL) plus PBPH
-# applications (Peta_permohonan_PBPH), overlaps counted once. Existing
+# Proposed or new allocation for PBPH = Arahan 2022 (without HL) plus Age's
+# updated PBPH applications (Peta_permohonan_PBPH_updated, which excludes
+# areas overlapping existing HTI and logging concessions), overlaps counted
+# once. HL (protection forest) is excluded. Agreed with Robert and Grahat,
+# 10 Nov 2026. Existing
 # selective logging = IUPHHK Hutan Alam without HPT.
 
 hti_pipeline <- read_csv(
@@ -111,9 +114,9 @@ hti_pipeline <- read_csv(
   summarise(existing_hti = sum(area_ha))
 
 sm12_final <- sm12_long %>%
-  filter(layer %in% c("arahan_permohonan", "ha_without_hpt")) %>%
+  filter(layer %in% c("arahan_permohonan_upd", "ha_without_hpt")) %>%
   pivot_wider(names_from = layer, values_from = area_ha) %>%
-  select(island, proposed_pbph = arahan_permohonan, selective_logging = ha_without_hpt) %>%
+  select(island, proposed_pbph = arahan_permohonan_upd, selective_logging = ha_without_hpt) %>%
   full_join(hti_pipeline, by = "island") %>%
   select(island, existing_hti, proposed_pbph, selective_logging) %>%
   mutate(across(-island, ~ replace_na(.x, 0)))
