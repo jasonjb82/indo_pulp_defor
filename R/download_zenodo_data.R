@@ -62,10 +62,6 @@ download_zenodo_data <- function(
     )
   }
 
-  # Set 15-minute timeout for large download
-  old_options <- options(timeout = 900)
-  on.exit(options(old_options), add = TRUE)
-
   zip_dest <- tempfile(fileext = ".zip")
   on.exit(unlink(zip_dest), add = TRUE)
   zenodo_url <- paste0(
@@ -73,7 +69,8 @@ download_zenodo_data <- function(
     zenodo_record_id,
     "/files/01_data_replication.zip/content"
   )
-  download.file(url = zenodo_url, destfile = zip_dest, mode = "wb")
+  download_with_resume(zenodo_url, zip_dest)
+  check_zenodo_checksum(zip_dest, zenodo_record_id, "01_data_replication.zip")
 
   # Stage beside output_dir (same drive) so the final swap is a fast rename
   staging_dir <- paste0(output_dir, "_staging_", zenodo_record_id)
@@ -110,4 +107,66 @@ download_zenodo_data <- function(
 
   message("Zenodo data downloaded and extracted successfully!")
   output_dir
+}
+
+#' Download a large file, resuming after dropped connections
+#'
+#' Zenodo can drop long downloads part-way. Each attempt continues from the
+#' bytes already received instead of starting again.
+#'
+#' @param url File URL
+#' @param dest Destination path
+#' @param max_attempts Number of attempts before giving up
+#' @return dest
+download_with_resume <- function(url, dest, max_attempts = 10) {
+  for (attempt in seq_len(max_attempts)) {
+    result <- curl::multi_download(
+      url,
+      destfiles = dest,
+      resume = TRUE,
+      progress = interactive()
+    )
+    if (isTRUE(result$success)) {
+      return(dest)
+    }
+    message(
+      "Download interrupted (attempt ", attempt, " of ", max_attempts, ", ",
+      round(file.size(dest) / 1e6), " MB so far): ", result$error,
+      ". Resuming..."
+    )
+    Sys.sleep(min(5 * attempt, 30))
+  }
+  stop("Download of ", url, " failed after ", max_attempts, " attempts.")
+}
+
+#' Check a downloaded file against the checksum Zenodo lists for it
+#'
+#' Skipped with a message if the record metadata cannot be fetched, since the
+#' download itself has already completed.
+#'
+#' @param path Downloaded file
+#' @param zenodo_record_id Zenodo record ID
+#' @param file_key File name in the Zenodo record
+#' @return path, invisibly
+check_zenodo_checksum <- function(path, zenodo_record_id, file_key) {
+  record <- tryCatch(
+    jsonlite::fromJSON(
+      paste0("https://zenodo.org/api/records/", zenodo_record_id)
+    ),
+    error = function(e) NULL
+  )
+  expected <- record$files$checksum[record$files$key == file_key]
+  if (length(expected) != 1) {
+    message("Could not fetch the Zenodo checksum; skipping verification.")
+    return(invisible(path))
+  }
+  actual <- paste0("md5:", unname(tools::md5sum(path)))
+  if (!identical(actual, expected)) {
+    stop(
+      "Downloaded ", file_key, " does not match the Zenodo checksum (",
+      actual, " vs ", expected, "). Run the pipeline again to re-download."
+    )
+  }
+  message("Checksum verified (", expected, ").")
+  invisible(path)
 }
