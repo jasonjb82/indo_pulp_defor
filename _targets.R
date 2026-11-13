@@ -78,7 +78,7 @@ pipeline <- list(
       } else {
         file.path(
           download_zenodo_data(
-            zenodo_record_id = "21542417",
+            zenodo_record_id = "22312822",
             output_dir = "data/01_data_replication"
           ),
           ".zenodo_record"
