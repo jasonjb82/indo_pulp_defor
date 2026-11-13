@@ -782,7 +782,7 @@ pipeline <- list(
   ),
 
   # -----------------------------------------------------------------------
-  # L. ANALYSIS 05: PULP EXPANSION SCENARIOS (FIGURE 3, SI 4.3 AND 8.4)
+  # L. ANALYSIS 05: PULP EXPANSION SCENARIOS (SI FIGURE 7, SI TABLE 13, SI 4.3 AND 8.4)
   # -----------------------------------------------------------------------
   # Computes scenario_stats from the predictions rather than reading
   # 04_results/scenario_stats.csv from Zenodo.
