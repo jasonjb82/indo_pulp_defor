@@ -1,11 +1,11 @@
 block,section,value,note
 text_abstract_decline_2011_2017,Abstract,95,decline in pulp-driven deforestation 2011-2017
-text_abstract_scenarios,Abstract,"135,500",additional deforestation (central)
-text_abstract_scenarios,Abstract,"1,300",additional deforestation (low)
-text_abstract_scenarios,Abstract,"353,700",additional deforestation (high)
-text_abstract_scenarios,Abstract,"199,100",additional peatland conversion (central)
-text_abstract_scenarios,Abstract,"39,000",additional peatland conversion (low)
-text_abstract_scenarios,Abstract,"345,500",additional peatland conversion (high)
+text_abstract_scenarios,Abstract,"139,600",additional deforestation (central)
+text_abstract_scenarios,Abstract,"1,000",additional deforestation (low)
+text_abstract_scenarios,Abstract,"359,700",additional deforestation (high)
+text_abstract_scenarios,Abstract,"197,700",additional peatland conversion (central)
+text_abstract_scenarios,Abstract,"40,000",additional peatland conversion (low)
+text_abstract_scenarios,Abstract,"347,500",additional peatland conversion (high)
 text_intro_pulp_defor_2001_2011,Introduction,"682,000",primary rainforest converted to pulpwood 2001-2011
 text_intro_pulp_defor_2001_2011,Introduction,"639,000",95% CI lower
 text_intro_pulp_defor_2001_2011,Introduction,"725,000",95% CI upper
@@ -19,7 +19,7 @@ text_commitments_ownership,Private commitments to end deforestation,"107,400",pr
 text_commitments_ownership,Private commitments to end deforestation,"3,600",deforestation in APP/APRIL concessions after 2015 (ha)
 text_commitments_ownership,Private commitments to end deforestation,"58,100",deforestation in Sinar Mas/RGE-linked concessions (ha)
 text_commitments_ownership,Private commitments to end deforestation,54,share linked to Sinar Mas/RGE (%)
-text_commitments_ownership,Private commitments to end deforestation,42,share external suppliers or outside concessions (%)
+text_commitments_ownership,Private commitments to end deforestation,"45,700",residual deforestation not acknowledged or suspected (ha)
 text_boom_decline_2011_2017,An emerging boom in deforestation?,95,decline in pulp-driven deforestation 2011-2017
 text_boom_rates_2017_2022,An emerging boom in deforestation?,"5,600",primary forest conversion rate 2017 (ha/year)
 text_boom_rates_2017_2022,An emerging boom in deforestation?,"24,300",primary forest conversion rate 2022 (ha/year)
@@ -41,14 +41,14 @@ text_barriers_scenarios,Barriers facing productivity improvements,46,demand grow
 text_barriers_scenarios,Barriers facing productivity improvements,7,lower bound (%)
 text_barriers_scenarios,Barriers facing productivity improvements,91,upper bound (%)
 text_barriers_scenarios,Barriers facing productivity improvements,"733,700",further plantations needed (ha)
-text_barriers_scenarios,Barriers facing productivity improvements,"99,800","lower bound; manuscript has a stray character (99,800¬–1,513,500)"
+text_barriers_scenarios,Barriers facing productivity improvements,"99,800",lower bound
 text_barriers_scenarios,Barriers facing productivity improvements,"1,513,500",upper bound
-text_barriers_scenarios,Barriers facing productivity improvements,"135,500",additional deforestation (central)
-text_barriers_scenarios,Barriers facing productivity improvements,"1,300",additional deforestation (low)
-text_barriers_scenarios,Barriers facing productivity improvements,"353,700",additional deforestation (high)
-text_barriers_scenarios,Barriers facing productivity improvements,"199,100",additional peatland conversion (central)
-text_barriers_scenarios,Barriers facing productivity improvements,"39,000",additional peatland conversion (low)
-text_barriers_scenarios,Barriers facing productivity improvements,"345,500",additional peatland conversion (high)
+text_barriers_scenarios,Barriers facing productivity improvements,"139,600",additional deforestation (central)
+text_barriers_scenarios,Barriers facing productivity improvements,"1,000",additional deforestation (low)
+text_barriers_scenarios,Barriers facing productivity improvements,"359,700",additional deforestation (high)
+text_barriers_scenarios,Barriers facing productivity improvements,"197,700",additional peatland conversion (central)
+text_barriers_scenarios,Barriers facing productivity improvements,"40,000",additional peatland conversion (low)
+text_barriers_scenarios,Barriers facing productivity improvements,"347,500",additional peatland conversion (high)
 text_wavering_remaining_forest,Wavering domestic policy support for conservation,2.96,primary forest remaining in pulp concessions (million ha)
 text_wavering_remaining_forest,Wavering domestic policy support for conservation,18,share of that forest on peat (%)
 text_wavering_remaining_forest,Wavering domestic policy support for conservation,47,share of that forest in Kalimantan (%)
