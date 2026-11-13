@@ -309,7 +309,7 @@ save_fig2 <- function(freq_tab_df, output_path) {
 
   # showtext draws every glyph as an outline, which leaves an SVG with no
   # editable text. Switch it off for vector output so svglite writes real
-  # <text> elements carrying the font family name (as in Robert's script).
+  # <text> elements carrying the font family name (as in the original figure script).
   if (grepl("\\.svg$", output_path)) {
     showtext::showtext_auto(FALSE)
     on.exit(showtext::showtext_auto(), add = TRUE)
