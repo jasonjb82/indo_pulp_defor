@@ -10,7 +10,7 @@
 #' a mix of old and new files. The swap replaces the whole folder, including
 #' any local edits made to the previous version's files.
 #'
-#' @param zenodo_record_id Zenodo record ID, e.g. "21542417"
+#' @param zenodo_record_id Zenodo record ID, e.g. "22312822"
 #' @param output_dir Folder the replication data are extracted into
 #' @return output_dir
 download_zenodo_data <- function(
